@@ -87,6 +87,7 @@ def simulate_corridor_overtakes(
     halt_schedule_map = {h["station_code"]: h for h in target_master.get("halts", [])}
 
     prev_stn_km = curr_chainage
+    prev_stn_code: str | None = target_state.current_station if target_state else None
     overtakes_count = 0
 
     for stn in upcoming_stns:
@@ -99,8 +100,13 @@ def simulate_corridor_overtakes(
         run_mins = (dist / target_max_speed) * 60.0 if target_max_speed > 0 else 0.0
 
         # Add any active freight shadow drag on this section
-        block_key = f"{direction}_{stn_code}"
-        freight_drag = freight_map.get(block_key, 0.0)
+        freight_drag = 0.0
+        if prev_stn_code:
+            block_key = f"{direction}_{prev_stn_code}_{stn_code}"
+            freight_drag = freight_map.get(block_key, freight_map.get(stn_code, 0.0))
+        else:
+            freight_drag = freight_map.get(stn_code, 0.0)
+
         accumulated_delay_mins += freight_drag
 
         if freight_drag > 0.0:
@@ -157,6 +163,7 @@ def simulate_corridor_overtakes(
         dep_epoch = current_sim_time + int(dwell_mins * 60)
         current_sim_time = dep_epoch
         prev_stn_km = stn_km
+        prev_stn_code = stn_code
 
         # Build timeline arrival record
         timeline.append(

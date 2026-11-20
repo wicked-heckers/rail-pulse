@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     # Rescue & Liability Gates
     BAILOUT_TRIGGER_SURVIVAL_THRESHOLD: float = 0.40  # <40% triggers rescue search
     MIN_BAILOUT_REACTION_MINS: float = 12.0          # Train must be >=12m away from rescue junction
-    MIN_TIME_SAVED_THRESHOLD_MINS: float = 10.0      # Road hop must save >=10 mins
+    MIN_TIME_SAVED_THRESHOLD_MINS: float = 5.0       # Road hop must save >=5 mins vs train P50
 
     # Local Fallback Data Paths
     SEED_TOPOLOGY_PATH: Path = BASE_DIR / "data" / "seed_ecor_topology.json"
