@@ -1,0 +1,34 @@
+{
+  "routes": [
+    {
+      "from_station": "CTC",
+      "to_station": "BBS",
+      "highway_name": "NH-16 (Cuttack-Bhubaneswar Expressway)",
+      "distance_km": 28.4,
+      "base_drive_mins": 38.0,
+      "typical_peak_drive_mins": 48.0,
+      "station_exit_penalty_mins": 12.0,
+      "polyline": "_{tmCujhxLyB`LwDfSkBpKeBhJu@dFg@vDu@`HaBtNcCrUgBlQaBfPeBjPkBlPkBnPgBhPoAzLsAvMgAhK[rDe@zDs@`HaBtNcCrUgBlQaBfPeBjPkBlPkBnPgBhPoAzLsAvM"
+    },
+    {
+      "from_station": "KUR",
+      "to_station": "BBI",
+      "highway_name": "NH-16 & Airport Link Road",
+      "distance_km": 18.2,
+      "base_drive_mins": 26.0,
+      "typical_peak_drive_mins": 34.0,
+      "station_exit_penalty_mins": 12.0,
+      "polyline": "w~xmC_~ixLm@fE_AfGkAhHaBzI}B~KiCvM_DfPeBhJu@dFg@vDu@`HaBtN"
+    },
+    {
+      "from_station": "BRAG",
+      "to_station": "BBS",
+      "highway_name": "Nandan Kanan Road to BBS",
+      "distance_km": 14.5,
+      "base_drive_mins": 24.0,
+      "typical_peak_drive_mins": 32.0,
+      "station_exit_penalty_mins": 8.0,
+      "polyline": "ayumCsffxLkBjPkBlPkBnPgBhPoAzLsAvMgAhK[rDe@zDs@`HaB"
+    }
+  ]
+}

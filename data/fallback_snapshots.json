@@ -1,0 +1,58 @@
+{
+  "timestamp_utc": 1795071600,
+  "mode": "FALLBACK_SNAPSHOT",
+  "active_trains": [
+    {
+      "train_no": "12821",
+      "train_name": "Dhauli Express",
+      "direction": "DN",
+      "chainage_km": 115.0,
+      "speed_kmph": 0.0,
+      "current_delay_mins": 28,
+      "current_station": "CTC",
+      "next_station": "BRAG",
+      "last_updated_utc": 1795071590,
+      "status": "AT_STATION_HALT"
+    },
+    {
+      "train_no": "22895",
+      "train_name": "Howrah-Puri Vande Bharat Express",
+      "direction": "DN",
+      "chainage_km": 88.5,
+      "speed_kmph": 128.0,
+      "current_delay_mins": 3,
+      "current_station": null,
+      "next_station": "NRG",
+      "last_updated_utc": 1795071595,
+      "status": "RUNNING_HIGH_SPEED"
+    },
+    {
+      "train_no": "18410",
+      "train_name": "Sri Jagannath Express",
+      "direction": "UP",
+      "chainage_km": 152.0,
+      "speed_kmph": 82.0,
+      "current_delay_mins": 7,
+      "current_station": null,
+      "next_station": "BBS",
+      "last_updated_utc": 1795071592,
+      "status": "RUNNING_NORMAL"
+    }
+  ],
+  "inferred_freight_shadows": [
+    {
+      "block_id": "DN_CTC_BRAG",
+      "direction": "DN",
+      "chainage_km": 121.5,
+      "confidence": 0.88,
+      "source": "KINEMATIC_INFERENCE",
+      "clearance_station": "BRAG",
+      "clearance_eta_mins": 14.0
+    }
+  ],
+  "weather": {
+    "rain_mm_hr": 2.5,
+    "wind_speed_kmph": 18.0,
+    "condition": "LIGHT_DRIZZLE"
+  }
+}
