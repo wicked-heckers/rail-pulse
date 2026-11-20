@@ -47,3 +47,7 @@ class ULIPFoisEnterpriseConnector:
             speed_kmph,
         )
         return result
+
+    # Class-level alias
+    ingest_telemetry_payload = process_freight_telemetry
+

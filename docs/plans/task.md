@@ -22,3 +22,9 @@
 | **018** | Phase 3: ML & Rescue Engine | Task 3.1: Synthetic ECoR Data Generator & Quantile Training | Completed | Generated 5,000 corridor delay cascade rows and trained LightGBM P10/P50/P90 boosters (`p10.txt`, `p50.txt`, `p90.txt`) |
 | **019** | Phase 3: ML & Rescue Engine | Task 3.2: Quantile ML Wrapper with Non-Crossing Guard | Completed | Implemented `quantile_ml.py` with monotonicity sorting, distance spread floor, and survival CDF interpolation (3/3 PASS) |
 | **020** | Phase 3: ML & Rescue Engine | Task 3.3: Early-Junction Rescue & Multimodal Bailout | Completed | Implemented `rescue_engine.py` with Safe-Boarding pre-boarding lock, commercial halt filtering, and Cuttack NH-16 highway router (2/2 PASS) |
+| **021** | Phase 4: Ingestion & Resilience | Task 4.1: Strategy Pattern Providers & State Store | Completed | Implemented in-process `CorridorStateStore`, `DemoSimulationProvider`, `LiveFeedProvider`, and `ULIPFoisConnector` (4/4 PASS) |
+| **022** | Phase 4: Ingestion & Resilience | Task 4.2: Circuit-Breaker Redis Integration & Fallback | Completed | Implemented `RedisCircuitBreakerClient` with zero-500 fallback to in-memory state and local JSON snapshots (4/4 PASS) |
+| **023** | Phase 5: REST API & Stream | Task 5.1: FastAPI Lifespan, Endpoints & WebSocket Manager | Completed | Implemented `/api/v1` suite (/health, /corridor, /forecast, /rescue, /webhooks, /demo) + 1.5s non-blocking WS broadcaster (7/7 PASS) |
+| **024** | Phase 6: Validation & Deploy | Task 6.1: 50-Run Backtest Benchmark & Docker Container | In Progress | `run_backtest.py` MAE benchmark (>50% error reduction proof) + multi-stage Docker build |
+
+| **025** | System Refactor & Bug Hunt | Task 7.1: Comprehensive Verification & Bug Hunting | Pending | End-to-end stress tests, edge case fuzzing, and code polish |

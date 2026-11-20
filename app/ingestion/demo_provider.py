@@ -148,3 +148,8 @@ class DemoSimulationProvider(CorridorDataProvider):
 
     async def inject_freight(self, block_id: str, confidence: float, duration_mins: float) -> None:
         self._injected_freights[block_id] = duration_mins
+
+    async def tick(self) -> dict[str, Any]:
+        """Convenience alias for get_corridor_snapshot."""
+        return await self.get_corridor_snapshot()
+

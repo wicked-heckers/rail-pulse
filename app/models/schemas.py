@@ -146,3 +146,70 @@ class QuantileResult(BaseModel):
     p50_eta_epoch: int
     p90_eta_epoch: int
     min_spread_applied: float = 0.0
+
+
+# --- API Request & Response Contracts ---
+
+class RescueEvaluateRequest(BaseModel):
+    train_no: str
+    destination_code: str
+    connection_deadline_utc: int
+    transfer_buffer_mins: int = 15
+    passenger_status: Literal["PRE_BOARDING", "ON_BOARD"] = "ON_BOARD"
+
+
+class ULIPTelemetryPayload(BaseModel):
+    rake_id: str
+    block_id: str
+    direction: Literal["DN", "UP"]
+    speed_kmph: float = 35.0
+    origin: str | None = None
+    destination: str | None = None
+    cargo_type: str = "COAL"
+    timestamp_epoch: int | None = None
+
+
+class DemoScenarioStartRequest(BaseModel):
+    scenario_name: str = "DHAULI_CASCADE"
+    speed_multiplier: int = 1
+
+
+class DemoDelayInjectRequest(BaseModel):
+    train_no: str
+    added_delay_mins: float
+
+
+class DemoSpeedRequest(BaseModel):
+    speed_multiplier: int = 1
+
+
+class ForecastResponse(BaseModel):
+    train_no: str
+    train_name: str
+    direction: Literal["DN", "UP"]
+    current_chainage_km: float
+    current_delay_mins: float
+    naive_ntes_eta_epoch: int
+    naive_ntes_delay_mins: float
+    p10_eta_epoch: int
+    p50_eta_epoch: int
+    p90_eta_epoch: int
+    p10_delay_mins: float
+    p50_delay_mins: float
+    p90_delay_mins: float
+    usable_slack_mins: float
+    station_timeline: list[StationArrival]
+    causal_cards: list[CausalCard]
+    overtakes_count: int = 0
+
+
+class HealthResponse(BaseModel):
+    status: str
+    environment: str
+    database: str
+    redis: str
+    active_provider: str
+    ml_models_loaded: bool
+    active_trains_count: int
+    timestamp_epoch: int
+

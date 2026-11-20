@@ -84,6 +84,12 @@ class RedisCircuitBreakerClient:
         if self._redis:
             await self._redis.aclose()
 
+    async def is_healthy(self) -> bool:
+        """Returns True if Redis is online and circuit breaker is closed."""
+        client = await self.get_client()
+        return client is not None and self._is_healthy
+
+
 
 # Global Redis singleton
 redis_client = RedisCircuitBreakerClient()

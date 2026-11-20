@@ -23,6 +23,10 @@ class QuantileMLEngine:
     _p90_model: lgb.Booster | None = None
 
     @classmethod
+    def is_loaded(cls) -> bool:
+        return cls._p10_model is not None and cls._p50_model is not None and cls._p90_model is not None
+
+    @classmethod
     def load_models(cls, artifacts_dir: Path | None = None) -> bool:
         if cls._p10_model is not None and cls._p50_model is not None and cls._p90_model is not None:
             return True
