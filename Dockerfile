@@ -18,11 +18,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy application source, data, ML models, and configuration
+# Copy application source, data, ML models, frontend, and configuration
 COPY app/ app/
 COPY data/ data/
 COPY ml/ ml/
+COPY frontend/ frontend/
+COPY scripts/ scripts/
 COPY pytest.ini .
+
 
 # Expose HTTP / WebSocket port
 EXPOSE 8000

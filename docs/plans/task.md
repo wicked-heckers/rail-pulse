@@ -27,5 +27,9 @@
 | **023** | Phase 5: REST API & Stream | Task 5.1: FastAPI Lifespan, Endpoints & WebSocket Manager | Completed | Implemented `/api/v1` suite (/health, /corridor, /forecast, /rescue, /webhooks, /demo) + 1.5s non-blocking WS broadcaster (7/7 PASS) |
 | **024** | Phase 6: Validation & Deploy | Task 6.1: 50-Run Backtest Benchmark & Docker Container | Completed | Implemented `ml/run_backtest.py` (68.7% MAE reduction, 92.0% coverage), production `Dockerfile`, and `docker-compose.yml` (1/1 PASS) |
 | **025** | System Refactor & Bug Hunt | Task 7.1: Comprehensive Verification & Bug Hunting | Completed | Verified 37/37 unit & integration tests, live server smoke curls on port 8888, resolved asyncio thread offloading (EC-13), cascaded double overtakes (EC-08), and state epoch synchronization |
+| **026** | Phase 8: Spec Parity & DB Tooling | Task 8.1: Unified Predict-Cascade Endpoint & DB Seeder CLI | Completed | Implemented Section 7.2 unified `POST /api/v1/predict-cascade` and PostgreSQL/PostGIS migration CLI `scripts/seed_database.py` (8/8 PASS) |
+| **027** | Phase 9: Frontend Control Center | Task 9.1: Interactive Map, Marey Diagram & Judge Dashboard | Completed | Built dark-mode Leaflet corridor map, Canvas Marey space-time overtake diagram, What-If slider drawer, and Bailout alert UI (38/38 PASS) |
+| **028** | Phase 9: Full-Stack Integration | Task 9.2: Static Asset Mounting & Single-Command Deployment | Completed | Mounted `/static` and `/dashboard` in FastAPI lifespan with auto-detecting HTML/JSON root router and container build |
+
 
 

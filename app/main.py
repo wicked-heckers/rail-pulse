@@ -1,10 +1,13 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.deps import demo_provider
 from app.api.v1 import corridor, demo, forecast, health, rescue, webhooks
@@ -13,8 +16,10 @@ from app.config import settings
 from app.core.state_store import state_store
 from app.engine.quantile_ml import QuantileMLEngine
 
+BASE_DIR = Path(__file__).resolve().parent.parent
 logging.basicConfig(level=settings.LOG_LEVEL)
 logger = logging.getLogger("railpulse.main")
+
 
 
 @asynccontextmanager
@@ -91,6 +96,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount Static Files (Frontend UI Assets)
+static_dir = BASE_DIR / "frontend" / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
 # Mount API Routers
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(corridor.router, prefix="/api/v1/corridor")
@@ -102,17 +112,37 @@ app.include_router(ws_router, prefix="/ws")
 
 
 @app.get("/", tags=["Root"])
-async def root() -> dict[str, Any]:
-    """Root metadata endpoint with corridor overview and API sitemap."""
+async def root(request: Request) -> Any:
+    """
+    Root endpoint: serves interactive control-room dashboard when visited from browsers,
+    or JSON metadata dictionary for automated API clients.
+    """
+    accept = request.headers.get("accept", "")
+    index_file = BASE_DIR / "frontend" / "index.html"
+    if "text/html" in accept and index_file.exists():
+        return FileResponse(index_file)
+
     return {
         "project": "RAIL-PULSE",
         "description": "ECoR Predictive Delay Cascade & Multimodal Rescue Engine",
         "corridor": "Bhadrak (BHC, 0.0km) -> Puri (PURI, 206.0km)",
         "version": settings.VERSION,
+        "dashboard_url": "/dashboard",
         "docs_url": "/docs",
         "openapi_url": "/openapi.json",
         "health_check": "/api/v1/health",
         "topology": "/api/v1/corridor/topology",
         "state": "/api/v1/corridor/state",
+        "predict_cascade": "/api/v1/predict-cascade",
         "websocket": "/ws/corridor",
     }
+
+
+@app.get("/dashboard", response_class=FileResponse, tags=["Dashboard"])
+async def dashboard():
+    """Serves the interactive RAIL-PULSE control-room dashboard."""
+    index_file = BASE_DIR / "frontend" / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    return {"error": "Dashboard template not found"}
+

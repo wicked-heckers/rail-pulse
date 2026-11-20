@@ -175,6 +175,44 @@ async def test_ulip_fois_webhook():
         assert data["override_applied"] is True
 
 
+@pytest.mark.asyncio
+async def test_predict_cascade_unified_endpoint():
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        # Start demo scenario first
+        await client.post(
+            "/api/v1/demo/scenario/start",
+            json={"scenario_name": "DHAULI_CASCADE", "speed_multiplier": 1},
+        )
+
+        resp = await client.post(
+            "/api/v1/predict-cascade",
+            json={
+                "train_number": "12821",
+                "current_station": "BHC",
+                "injected_delay_mins": 28.0,
+                "connection_target": {
+                    "station_code": "BBS",
+                    "deadline_time": "12:15",
+                    "transfer_buffer_mins": 15,
+                },
+                "passenger_status": "ON_BOARD",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["train_number"] == "12821"
+        assert data["train_name"] == "Dhauli Express"
+        assert "naive_ntes_eta" in data
+        assert "p10_safe_report" in data["quantiles_target"]
+        assert "p50_expected" in data["quantiles_target"]
+        assert "p90_worst_case" in data["quantiles_target"]
+        assert isinstance(data["overtake_alerts"], list)
+        assert "fsi_score" in data["freight_shadow"]
+        assert "survival_probability_pct" in data["connection_audit"]
+
+
+
 def test_websocket_corridor_stream(test_client):
     with test_client.websocket_connect("/ws/corridor") as websocket:
         # Handshake snapshot is delivered immediately

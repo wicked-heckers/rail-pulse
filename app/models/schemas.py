@@ -213,3 +213,30 @@ class HealthResponse(BaseModel):
     active_trains_count: int
     timestamp_epoch: int
 
+
+# --- Unified Predict-Cascade Contract (Section 7.2) ---
+
+class ConnectionTarget(BaseModel):
+    station_code: str = "BBS"
+    deadline_time: str = "12:15"
+    transfer_buffer_mins: int = 15
+
+
+class PredictCascadeRequest(BaseModel):
+    train_number: str
+    current_station: str | None = None
+    injected_delay_mins: float = 0.0
+    connection_target: ConnectionTarget | None = None
+    passenger_status: Literal["PRE_BOARDING", "ON_BOARD"] = "ON_BOARD"
+
+
+class PredictCascadeResponse(BaseModel):
+    train_number: str
+    train_name: str
+    naive_ntes_eta: str
+    quantiles_target: dict[str, str]
+    overtake_alerts: list[dict[str, Any]]
+    freight_shadow: dict[str, Any]
+    connection_audit: dict[str, Any]
+
+
