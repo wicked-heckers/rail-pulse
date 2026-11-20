@@ -25,6 +25,6 @@
 | **021** | Phase 4: Ingestion & Resilience | Task 4.1: Strategy Pattern Providers & State Store | Completed | Implemented in-process `CorridorStateStore`, `DemoSimulationProvider`, `LiveFeedProvider`, and `ULIPFoisConnector` (4/4 PASS) |
 | **022** | Phase 4: Ingestion & Resilience | Task 4.2: Circuit-Breaker Redis Integration & Fallback | Completed | Implemented `RedisCircuitBreakerClient` with zero-500 fallback to in-memory state and local JSON snapshots (4/4 PASS) |
 | **023** | Phase 5: REST API & Stream | Task 5.1: FastAPI Lifespan, Endpoints & WebSocket Manager | Completed | Implemented `/api/v1` suite (/health, /corridor, /forecast, /rescue, /webhooks, /demo) + 1.5s non-blocking WS broadcaster (7/7 PASS) |
-| **024** | Phase 6: Validation & Deploy | Task 6.1: 50-Run Backtest Benchmark & Docker Container | In Progress | `run_backtest.py` MAE benchmark (>50% error reduction proof) + multi-stage Docker build |
+| **024** | Phase 6: Validation & Deploy | Task 6.1: 50-Run Backtest Benchmark & Docker Container | Completed | Implemented `ml/run_backtest.py` (68.7% MAE reduction, 92.0% coverage), production `Dockerfile`, and `docker-compose.yml` (1/1 PASS) |
+| **025** | System Refactor & Bug Hunt | Task 7.1: Comprehensive Verification & Bug Hunting | In Progress | Full test suite verification (36/36 PASS), live Uvicorn curl smoke checks, and 22 edge cases audit |
 
-| **025** | System Refactor & Bug Hunt | Task 7.1: Comprehensive Verification & Bug Hunting | Pending | End-to-end stress tests, edge case fuzzing, and code polish |
