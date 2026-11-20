@@ -1,3 +1,4 @@
+import asyncio
 import time
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
@@ -33,8 +34,9 @@ async def evaluate_rescue(
     snapshot = await state_store.get_snapshot()
     current_epoch = snapshot.get("tick_utc", int(time.time()))
 
-    # Run physics simulator to get projected timeline
-    sim_result = simulate_corridor_overtakes(
+    # Run physics simulator in worker thread
+    sim_result = await asyncio.to_thread(
+        simulate_corridor_overtakes,
         target_train_no=request.train_no,
         active_trains=active_trains,
         topology=topology,
@@ -42,8 +44,9 @@ async def evaluate_rescue(
         current_epoch=current_epoch,
     )
 
-    # Evaluate rescue decision
-    result = evaluate_connection_rescue(
+    # Evaluate rescue decision in worker thread
+    result = await asyncio.to_thread(
+        evaluate_connection_rescue,
         train_state=target_train,
         destination_code=request.destination_code,
         connection_deadline_epoch=request.connection_deadline_utc,
@@ -53,5 +56,6 @@ async def evaluate_rescue(
         topology=topology,
         current_epoch=current_epoch,
     )
+
 
     return result

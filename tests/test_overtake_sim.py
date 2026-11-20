@@ -84,3 +84,53 @@ def test_no_overtake_when_trailing_train_has_lower_priority(topology):
     # Priority 1 train must NOT be overtaken
     assert sim_res.overtakes_count == 0
     assert sim_res.total_loop_hold_mins == 0.0
+
+
+def test_cascaded_double_priority_overtake_ec08(topology):
+    """
+    EC-08 Defense:
+    When a slower train is in a loop line and two higher priority expresses
+    (e.g., Vande Bharat and Tejas Rajdhani) are trailing in close succession,
+    the simulator must extend the loop hold to absorb both overtakes.
+    """
+    passenger = TrainKinematicState(
+        train_no="18410",
+        train_name="Sri Jagannath Express",
+        direction="DN",
+        priority_rank=3,
+        chainage_km=51.0,
+        speed_kmph=70.0,
+        current_delay_mins=35.0,
+    )
+    vande_bharat = TrainKinematicState(
+        train_no="22895",
+        train_name="Vande Bharat Express",
+        direction="DN",
+        priority_rank=1,
+        chainage_km=10.0,
+        speed_kmph=130.0,
+        current_delay_mins=2.0,
+    )
+    rajdhani = TrainKinematicState(
+        train_no="20818",
+        train_name="BBS Tejas Rajdhani",
+        direction="DN",
+        priority_rank=1,
+        chainage_km=0.0,
+        speed_kmph=130.0,
+        current_delay_mins=3.0,
+    )
+
+    sim_res = simulate_corridor_overtakes(
+        target_train_no="18410",
+        active_trains=[passenger, vande_bharat, rajdhani],
+        topology=topology,
+        injected_delay_mins=0.0,
+    )
+
+    assert sim_res.overtakes_count == 2
+    assert sim_res.total_loop_hold_mins == 26.0  # 16m + 10m
+    double_cards = [c for c in sim_res.causal_cards if c.event == "CASCADE_DOUBLE_OVERTAKE"]
+    assert len(double_cards) == 1
+    assert "2nd overtake" in double_cards[0].human_message
+

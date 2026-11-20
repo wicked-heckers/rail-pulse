@@ -90,7 +90,7 @@ class QuantileMLEngine:
             r50 = 0.0
             r90 = base_uncertainty
 
-        raw_p10 = max(0.0, p50_base + r10)
+        raw_p10 = max(-5.0, p50_base + r10)
         raw_p50 = max(0.0, p50_base + r50)
         raw_p90 = max(0.0, p50_base + r90)
 
@@ -98,9 +98,12 @@ class QuantileMLEngine:
         p10, p50, p90 = sorted([raw_p10, raw_p50, raw_p90])
 
         # 2. Distance-Scaled Minimum Spread Guarantee
-        min_spread = max(3.0, remaining_km * 0.06)
-        p10 = min(p10, max(0.0, p50 - min_spread * 0.5))
+        min_spread = max(5.0, remaining_km * 0.10)
+        p10 = min(p10, max(-5.0, p50 - min_spread))
         p90 = max(p90, p50 + min_spread)
+
+
+
 
         p10 = round(p10, 1)
         p50 = round(p50, 1)

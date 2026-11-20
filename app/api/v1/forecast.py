@@ -1,3 +1,4 @@
+import asyncio
 import time
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
@@ -59,7 +60,8 @@ async def get_train_forecast(
             max_freight_prob = max(max_freight_prob, float(shadow.get("freight_probability", 0.0)))
 
     # 1. Deterministic forward simulation of loop overtakes & freight drag
-    sim_result = simulate_corridor_overtakes(
+    sim_result = await asyncio.to_thread(
+        simulate_corridor_overtakes,
         target_train_no=train_no,
         active_trains=active_trains,
         topology=topology,
@@ -97,7 +99,8 @@ async def get_train_forecast(
         usable_slack_mins=usable_slack,
         rain_mm_hr=rain_mm_hr,
     )
-    quantiles = QuantileMLEngine.predict(feat, sched_arr_epoch)
+    quantiles = await asyncio.to_thread(QuantileMLEngine.predict, feat, sched_arr_epoch)
+
 
     # 5. Naive NTES Baseline Calculation
     naive_ntes_delay_mins = target_train.current_delay_mins

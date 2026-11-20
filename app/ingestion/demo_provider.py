@@ -127,9 +127,10 @@ class DemoSimulationProvider(CorridorDataProvider):
                 freight_probability=0.88,
                 status="PHANTOM_FREIGHT_SHADOW",
                 clearance_station="BRAG",
-                clearance_eta_mins=14.0,
+                clearance_eta_mins=20.0,
             )
         ]
+
 
         return {
             "tick_utc": self.sim_clock_secs,

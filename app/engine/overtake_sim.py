@@ -157,7 +157,35 @@ def simulate_corridor_overtakes(
                     # Book loop slot and extend simulation departure
                     loop_occupancy[stn_code].append((arr_epoch, arr_epoch + int(hold_mins * 60)))
                     current_sim_time += int(hold_mins * 60)
+
+                    # EC-08: Cascaded Double Priority Overtake check
+                    for sec_state, sec_master in trailing_high_priority:
+                        if sec_state.train_no == trail_state.train_no:
+                            continue
+                        sec_speed = sec_master.get("max_speed_kmph", 130)
+                        sec_dist = abs(stn_km - sec_state.chainage_km)
+                        sec_eta_mins = (sec_dist / sec_speed) * 60.0 + sec_state.current_delay_mins
+                        sec_arr_epoch = current_epoch + int(sec_eta_mins * 60)
+                        sec_gap_secs = sec_arr_epoch - current_sim_time
+                        if -180 <= sec_gap_secs <= 600:
+                            second_hold_mins = 10.0
+                            total_loop_hold_mins += second_hold_mins
+                            accumulated_delay_mins += second_hold_mins
+                            overtakes_count += 1
+                            causal_cards.append(
+                                CausalCard(
+                                    event="CASCADE_DOUBLE_OVERTAKE",
+                                    station_code=stn_code,
+                                    station_name=stn_name,
+                                    added_delay_mins=second_hold_mins,
+                                    caused_by_train=f"{sec_state.train_no} {sec_state.train_name}",
+                                    human_message=f"Extended +{second_hold_mins:.0f} min loop hold at {stn_name} for 2nd overtake by {sec_state.train_no} {sec_state.train_name}",
+                                )
+                            )
+                            current_sim_time += int(second_hold_mins * 60)
+                            break
                     break
+
 
         dwell_mins = scheduled_halt.get("scheduled_dwell_m", 2) if scheduled_halt else 2
         dep_epoch = current_sim_time + int(dwell_mins * 60)
