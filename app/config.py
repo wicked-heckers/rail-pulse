@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     OPEN_METEO_BASE_URL: str = "https://api.open-meteo.com/v1/forecast"
     OSRM_BASE_URL: str = "https://router.project-osrm.org/route/v1/driving"
     OSRM_TIMEOUT_SECONDS: float = 2.0
+    MAPBOX_ACCESS_TOKEN: str | None = None
+    MAPBOX_DIRECTIONS_BASE_URL: str = "https://api.mapbox.com/directions/v5/mapbox/driving"
 
     # Ingestion & Simulation Controls
     DEFAULT_PROVIDER_MODE: Literal["DEMO_SIMULATION", "LIVE_POLLER", "REPLAY"] = "DEMO_SIMULATION"

@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timezone
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
@@ -8,6 +9,65 @@ from app.config import settings
 from app.core.database import LocalRoadMatrixFallback
 from app.engine.quantile_ml import QuantileMLEngine, calculate_connection_survival
 from app.models.schemas import QuantileFeatureVector, SimulationResult, TrainKinematicState
+
+_MAPBOX_CACHE: dict[str, tuple[float, float, str, float]] = {}
+
+
+def get_mapbox_road_route_sync(
+    from_code: str,
+    to_code: str,
+    from_coords: tuple[float, float],
+    to_coords: tuple[float, float],
+    timeout: float = 2.0,
+) -> dict[str, Any] | None:
+    """
+    Queries live Mapbox Directions API with in-memory caching and strict timeout.
+    Returns dynamic drive metrics or None on failure/missing token.
+    """
+    token = settings.MAPBOX_ACCESS_TOKEN
+    if not token:
+        return None
+
+    cache_key = f"{from_code}_{to_code}"
+    now = time.time()
+    if cache_key in _MAPBOX_CACHE:
+        dist_km, dur_mins, polyline, exp = _MAPBOX_CACHE[cache_key]
+        if now < exp:
+            return {
+                "distance_km": dist_km,
+                "base_drive_mins": dur_mins,
+                "polyline": polyline,
+                "highway_name": "NH-16 Expressway (Live Mapbox Traffic)",
+                "provider": "MAPBOX_LIVE",
+            }
+
+    # Mapbox coordinate format: longitude,latitude
+    url = (
+        f"{settings.MAPBOX_DIRECTIONS_BASE_URL}/"
+        f"{from_coords[1]},{from_coords[0]};{to_coords[1]},{to_coords[0]}"
+        f"?overview=simplified&access_token={token}"
+    )
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.get(url)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("routes"):
+                    route = data["routes"][0]
+                    dist_km = round(route["distance"] / 1000.0, 1)
+                    dur_mins = round(route["duration"] / 60.0, 1)
+                    polyline = route.get("geometry", "")
+                    _MAPBOX_CACHE[cache_key] = (dist_km, dur_mins, polyline, now + 300.0)
+                    return {
+                        "distance_km": dist_km,
+                        "base_drive_mins": dur_mins,
+                        "polyline": polyline,
+                        "highway_name": "NH-16 Expressway (Live Mapbox Traffic)",
+                        "provider": "MAPBOX_LIVE",
+                    }
+    except Exception:
+        pass
+    return None
 
 
 async def fetch_osrm_drive_time(

@@ -46,6 +46,10 @@ async def seed_postgres_database() -> None:
 
             # 2. Create All Tables
             await conn.run_sync(Base.metadata.create_all)
+            await conn.execute(text("ALTER TABLE stations ADD COLUMN IF NOT EXISTS corridor_branch VARCHAR(32) DEFAULT 'MAINLINE';"))
+            await conn.execute(text("ALTER TABLE stations ADD COLUMN IF NOT EXISTS geom geometry(Point, 4326);"))
+            await conn.execute(text("ALTER TABLE track_blocks ADD COLUMN IF NOT EXISTS is_single_line_throat BOOLEAN DEFAULT FALSE;"))
+            await conn.execute(text("ALTER TABLE track_blocks ADD COLUMN IF NOT EXISTS geom geometry(LineString, 4326);"))
             logger.info("SQLAlchemy ORM tables verified/created.")
 
         # 3. Load Seed JSON
@@ -64,10 +68,12 @@ async def seed_postgres_database() -> None:
                 await conn.execute(
                     text("""
                     INSERT INTO stations (station_code, station_name, corridor_branch, chainage_km,
-                        has_750m_goods_loop, passenger_loops_dn, passenger_loops_up, is_major_junction, road_exit_penalty_m, geom)
-                    VALUES (:code, :name, :branch, :km, :loop, :loops_dn, :loops_up, :junc, :exit_p, ST_GeomFromEWKT(:geom))
+                        lat, lon, has_750m_goods_loop, passenger_loops_dn, passenger_loops_up, is_major_junction, road_exit_penalty_m, geom)
+                    VALUES (:code, :name, :branch, :km, :lat, :lon, :loop, :loops_dn, :loops_up, :junc, :exit_p, ST_GeomFromEWKT(:geom))
                     ON CONFLICT (station_code) DO UPDATE SET
                         chainage_km = EXCLUDED.chainage_km,
+                        lat = EXCLUDED.lat,
+                        lon = EXCLUDED.lon,
                         has_750m_goods_loop = EXCLUDED.has_750m_goods_loop,
                         is_major_junction = EXCLUDED.is_major_junction;
                     """),
@@ -76,6 +82,8 @@ async def seed_postgres_database() -> None:
                         "name": s["station_name"],
                         "branch": s.get("corridor_branch", "MAINLINE"),
                         "km": s["chainage_km"],
+                        "lat": s["lat"],
+                        "lon": s["lon"],
                         "loop": s.get("has_750m_goods_loop", False),
                         "loops_dn": s.get("passenger_loops_dn", 1),
                         "loops_up": s.get("passenger_loops_up", 1),
@@ -148,7 +156,7 @@ async def seed_postgres_database() -> None:
                 for h in t.get("halts", []):
                     await conn.execute(
                         text("""
-                        INSERT INTO schedule_halts (train_no, station_code, stop_sequence, day_offset,
+                        INSERT INTO train_schedule_halts (train_no, station_code, stop_sequence, day_offset,
                             sched_arr_min_day, sched_dep_min_day, is_commercial_halt, scheduled_dwell_m)
                         VALUES (:no, :stn, :seq, :day, :arr, :dep, :comm, :dwell)
                         ON CONFLICT DO NOTHING;
@@ -170,16 +178,20 @@ async def seed_postgres_database() -> None:
             for r in road_data.get("routes", []):
                 await conn.execute(
                     text("""
-                    INSERT INTO road_transfer_cache (from_station, destination_code, distance_km,
-                        base_drive_mins, highway_name, polyline)
-                    VALUES (:from_s, :dest, :dist, :drive, :hwy, :poly)
-                    ON CONFLICT DO NOTHING;
+                    INSERT INTO road_transfer_cache (from_station, to_station, distance_km,
+                        base_drive_mins, typical_peak_drive_mins, station_exit_penalty_mins, highway_name, polyline)
+                    VALUES (:from_s, :to_s, :dist, :drive, :peak, :exit_p, :hwy, :poly)
+                    ON CONFLICT (from_station, to_station) DO UPDATE SET
+                        distance_km = EXCLUDED.distance_km,
+                        base_drive_mins = EXCLUDED.base_drive_mins;
                     """),
                     {
                         "from_s": r["from_station"],
-                        "dest": r["destination_code"],
+                        "to_s": r.get("destination_code") or r.get("to_station", "BBS"),
                         "dist": r["distance_km"],
                         "drive": r["base_drive_mins"],
+                        "peak": r.get("typical_peak_drive_mins", r["base_drive_mins"] * 1.25),
+                        "exit_p": r.get("station_exit_penalty_mins", 12.0),
                         "hwy": r.get("highway_name", "NH-16"),
                         "poly": r.get("polyline", ""),
                     },

@@ -20,6 +20,7 @@ class StationModel(Base):
 
     station_code = Column(String(10), primary_key=True)
     station_name = Column(String(100), nullable=False)
+    corridor_branch = Column(String(32), default="MAINLINE")
     chainage_km = Column(Float, nullable=False, index=True)
     lat = Column(Float, nullable=False)
     lon = Column(Float, nullable=False)
@@ -49,6 +50,7 @@ class TrackBlockModel(Base):
     free_flow_mins = Column(Float, nullable=False)
     freight_injection_weight = Column(Float, default=0.15)
     terminal_slack_mins = Column(Float, default=0.0)
+    is_single_line_throat = Column(Boolean, default=False)
 
     # Relationships
     origin_station = relationship("StationModel", foreign_keys=[from_station], back_populates="outgoing_blocks")
