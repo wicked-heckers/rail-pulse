@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RAIL-PULSE | Predictive Rail Intelligence & Rescue Corridor</title>
   
-  <!-- Inter Font -->
+  <!-- Inter & JetBrains Mono Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -42,10 +42,10 @@
   <!-- Custom App Styles -->
   <link rel="stylesheet" href="/static/style.css" />
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900 relative">
 
   <!-- TOP APP HEADER -->
-  <header class="border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-50">
+  <header class="border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-40">
     <div class="flex items-center space-x-3.5">
       <div class="relative flex items-center justify-center w-9 h-9 rounded-xl bg-blue-600 text-white font-bold text-sm shadow-sm shadow-blue-500/20">
         <span>RP</span>
@@ -96,6 +96,29 @@
     </div>
   </header>
 
+  <!-- QUICK CORRIDOR TELEMETRY STRIP -->
+  <section class="border-b border-slate-200/60 bg-white/60 px-6 py-2 hidden lg:flex items-center justify-between text-xs text-slate-500 max-w-[1680px] w-full mx-auto">
+    <div class="flex items-center gap-6">
+      <span class="flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <strong class="text-slate-700">3 Active Trains</strong> on Bhadrak-Puri Trunk
+      </span>
+      <span class="text-slate-300">•</span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+        <strong class="text-slate-700">Barang Bottleneck:</strong> 58-Wagon Coal Rake ahead
+      </span>
+      <span class="text-slate-300">•</span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+        <strong class="text-slate-700">Priority Overtake:</strong> CTC Loop Line 2
+      </span>
+    </div>
+    <div class="font-mono text-[11px] text-slate-400">
+      Click any station or train on the map to inspect live block telemetry
+    </div>
+  </section>
+
   <!-- MAIN DASHBOARD CONTENT -->
   <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 p-5 max-w-[1680px] w-full mx-auto">
 
@@ -122,7 +145,7 @@
 
         <!-- REFINED FLOATING INFORMATION CHIP -->
         <div class="absolute bottom-6 left-6 z-10 bg-white/95 backdrop-blur-md border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs shadow-md flex items-center gap-3 max-w-sm">
-          <div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+          <div class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></div>
           <div>
             <div class="font-semibold text-slate-800">Active Freight Shadow: Barang Junction</div>
             <div class="text-[11px] text-slate-500 font-mono">58-Wagon Coal Rake ahead • ~20m Loop Clearance</div>
@@ -153,13 +176,13 @@
         
         <!-- APPLE-STYLE SEGMENTED CONTROL -->
         <div class="bg-slate-100 p-1 rounded-xl flex gap-1 border border-slate-200/70 text-xs">
-          <button id="tab-12821" class="flex-1 py-1.5 px-3 rounded-lg font-semibold bg-white text-slate-900 shadow-sm border border-slate-200/60 transition">
+          <button id="tab-12821" class="btn-press flex-1 py-1.5 px-3 rounded-lg font-semibold bg-white text-slate-900 shadow-sm border border-slate-200/60 transition">
             12821 Dhauli Exp (Target)
           </button>
-          <button id="tab-22895" class="flex-1 py-1.5 px-3 rounded-lg font-medium text-slate-600 hover:text-slate-900 transition">
+          <button id="tab-22895" class="btn-press flex-1 py-1.5 px-3 rounded-lg font-medium text-slate-600 hover:text-slate-900 transition">
             22895 Vande Bharat
           </button>
-          <button id="tab-18410" class="flex-1 py-1.5 px-3 rounded-lg font-medium text-slate-600 hover:text-slate-900 transition">
+          <button id="tab-18410" class="btn-press flex-1 py-1.5 px-3 rounded-lg font-medium text-slate-600 hover:text-slate-900 transition">
             18410 Jagannath Exp
           </button>
         </div>
@@ -239,8 +262,8 @@
           
           <!-- ASYMMETRIC SAFETY TOGGLE -->
           <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-mono">
-            <button id="toggle-unboarded" class="px-2.5 py-0.5 rounded text-slate-500 hover:text-slate-900 transition">At Home</button>
-            <button id="toggle-onboard" class="px-2.5 py-0.5 rounded bg-white text-emerald-800 font-bold shadow-sm border border-slate-200/60 transition">On Board</button>
+            <button id="toggle-unboarded" class="btn-press px-2.5 py-0.5 rounded text-slate-500 hover:text-slate-900 transition">At Home</button>
+            <button id="toggle-onboard" class="btn-press px-2.5 py-0.5 rounded bg-white text-emerald-800 font-bold shadow-sm border border-slate-200/60 transition">On Board</button>
           </div>
         </div>
 
@@ -267,8 +290,11 @@
     </section>
   </main>
 
+  <!-- DRAWER BACKDROP (SMOOTH DISMISSAL) -->
+  <div id="drawer-backdrop" class="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 hidden opacity-0 transition-opacity duration-300"></div>
+
   <!-- SLIDE-OVER JUDGE SIMULATOR DRAWER -->
-  <aside id="judge-drawer" class="fixed right-0 top-0 bottom-0 w-96 bg-white border-l border-slate-200 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 p-6 flex flex-col gap-6 overflow-y-auto">
+  <aside id="judge-drawer" class="drawer fixed right-0 top-0 bottom-0 w-96 bg-white border-l border-slate-200 shadow-2xl z-50 p-6 flex flex-col gap-6 overflow-y-auto">
     <div class="flex items-center justify-between border-b border-slate-200 pb-4">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
@@ -279,12 +305,12 @@
           <p class="text-xs text-slate-500">Inject perturbations & verify cascade</p>
         </div>
       </div>
-      <button id="btn-close-drawer" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition">
+      <button id="btn-close-drawer" class="btn-press p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
       </button>
     </div>
 
-    <!-- DELAY SLIDER -->
+    <!-- DELAY SLIDER WITH LIVE IMPACT PREVIEW -->
     <div class="flex flex-col gap-2">
       <div class="flex justify-between items-center text-xs font-mono">
         <span class="text-slate-600 font-semibold">INJECT DELAY (DHAULI EXPRESS):</span>
@@ -298,7 +324,14 @@
         <span>45m</span>
         <span>60m</span>
       </div>
-      <button id="btn-apply-delay" class="btn-press mt-3 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition">
+
+      <!-- Live Dynamic Impact Preview Pill -->
+      <div id="slider-preview-box" class="bg-blue-50/60 border border-blue-100 rounded-lg p-2.5 mt-2 text-xs text-slate-700 flex items-center justify-between">
+        <span>Projected Impact:</span>
+        <strong id="slider-preview-text" class="text-blue-700 font-mono">BBS ETA ~12:24 PM (+39m)</strong>
+      </div>
+
+      <button id="btn-apply-delay" class="btn-press mt-2 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition">
         Apply Delay to Corridor
       </button>
     </div>
@@ -334,6 +367,66 @@
       </button>
     </div>
   </aside>
+
+  <!-- INTERACTIVE BAILOUT CAB CONFIRMATION MODAL -->
+  <div id="bailout-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
+    <div class="modal-card bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-5 flex flex-col gap-4 transform scale-95 transition-transform duration-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            🚕
+          </div>
+          <div>
+            <h4 class="font-bold text-sm text-slate-900">NH-16 Express Rescue Cab</h4>
+            <p class="text-[11px] text-slate-500">Cuttack Junction → Bhubaneswar Station</p>
+          </div>
+        </div>
+        <button id="btn-close-modal" class="btn-press p-1 rounded-lg text-slate-400 hover:text-slate-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <div class="bg-emerald-50 border border-emerald-200/80 rounded-xl p-3 text-emerald-900">
+          <div class="font-semibold flex items-center gap-1.5">
+            <span>✓</span> Guaranteed Connection Survival: 98%
+          </div>
+          <p class="text-[11px] text-emerald-800 mt-1">Saves ~38 minutes over remaining on train. You will arrive at Bhubaneswar by 11:38 AM, in time for connection.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 font-mono text-[11px] bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div>
+            <span class="text-slate-400">PICKUP POINT:</span>
+            <div class="text-slate-800 font-semibold">CTC Platform 1 Exit</div>
+          </div>
+          <div>
+            <span class="text-slate-400">EST. DRIVE TIME:</span>
+            <div class="text-slate-800 font-bold">38 mins (28.4 km)</div>
+          </div>
+          <div class="mt-2">
+            <span class="text-slate-400">VEHICLE ASSIGNED:</span>
+            <div class="text-slate-800 font-semibold">OD-02-AK-4491 (EV)</div>
+          </div>
+          <div class="mt-2">
+            <span class="text-slate-400">DRIVER ETA:</span>
+            <div class="text-emerald-700 font-bold">3 mins to Porch</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button id="btn-cancel-modal" class="btn-press flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">
+          Dismiss
+        </button>
+        <button id="btn-confirm-booking" class="btn-press flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition">
+          Confirm Deboarding
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING TOAST NOTIFICATION CONTAINER (SONNER INSPIRED) -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
 
   <!-- JAVASCRIPT APP ENTRYPOINT -->
   <script src="/static/app.js"></script>

@@ -16,19 +16,28 @@ const wsStatusBadge = document.getElementById("ws-status-badge");
 const wsDot = document.getElementById("ws-dot");
 const wsText = document.getElementById("ws-text");
 const judgeDrawer = document.getElementById("judge-drawer");
+const drawerBackdrop = document.getElementById("drawer-backdrop");
 const btnJudgeDrawer = document.getElementById("btn-judge-drawer");
 const btnCloseDrawer = document.getElementById("btn-close-drawer");
 const sliderDelay = document.getElementById("slider-delay");
 const sliderValDisp = document.getElementById("slider-val-disp");
+const sliderPreviewText = document.getElementById("slider-preview-text");
 const btnApplyDelay = document.getElementById("btn-apply-delay");
 const btnResetDemo = document.getElementById("btn-reset-demo");
 const btnInjectFreight = document.getElementById("btn-inject-freight");
 const btnScenarioStandard = document.getElementById("btn-scenario-standard");
 
+// Bailout Modal DOM Elements
+const bailoutModal = document.getElementById("bailout-modal");
+const btnCloseModal = document.getElementById("btn-close-modal");
+const btnCancelModal = document.getElementById("btn-cancel-modal");
+const btnConfirmBooking = document.getElementById("btn-confirm-booking");
+
 // Initialize Application
 document.addEventListener("DOMContentLoaded", async () => {
   initMap();
   initDrawer();
+  initBailoutModal();
   initTabsAndToggles();
   await loadTopology();
   connectWebSocket();
@@ -36,6 +45,47 @@ document.addEventListener("DOMContentLoaded", async () => {
   drawMareyDiagram();
   window.addEventListener("resize", () => drawMareyDiagram());
 });
+
+// Toast Notification Manager (Sonner-inspired)
+function showToast(title, message, type = "info") {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  let borderClass = "border-slate-200";
+  let icon = "ℹ️";
+
+  if (type === "success") {
+    borderClass = "border-emerald-200 bg-emerald-50/90 text-emerald-900";
+    icon = "✓";
+  } else if (type === "warn") {
+    borderClass = "border-amber-200 bg-amber-50/90 text-amber-900";
+    icon = "⚠️";
+  } else if (type === "error") {
+    borderClass = "border-rose-200 bg-rose-50/90 text-rose-900";
+    icon = "⚡";
+  } else {
+    borderClass = "border-slate-200 bg-white/95 text-slate-800";
+  }
+
+  toast.className = `toast-item flex items-start gap-3 p-3.5 rounded-xl border ${borderClass} shadow-lg backdrop-blur-md text-xs`;
+  toast.innerHTML = `
+    <span class="font-bold text-sm leading-none mt-0.5">${icon}</span>
+    <div class="flex-1">
+      <div class="font-bold">${title}</div>
+      <div class="text-slate-600 mt-0.5">${message}</div>
+    </div>
+  `;
+
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("show"));
+
+  setTimeout(() => {
+    toast.classList.remove("show");
+    toast.classList.add("hide");
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
 
 // 1. Initialize Map with Clean CartoDB Positron Light Tiles
 function initMap() {
@@ -69,14 +119,14 @@ async function loadTopology() {
           color: isFreightBlock ? "#d97706" : "#059669",
           weight: isFreightBlock ? 5 : 3.5,
           opacity: isFreightBlock ? 0.9 : 0.75,
-          className: isFreightBlock ? "pulsing-freight-track" : "",
+          className: isFreightBlock ? "pulsing-freight-track cursor-pointer" : "cursor-pointer",
         }).addTo(map);
 
         line.bindPopup(`
           <div class="font-mono text-xs text-slate-800 p-1">
             <strong>${props.block_id}</strong> (${props.direction})<br/>
             Length: ${props.length_km} km | MPS: ${props.mps_kmph} km/h<br/>
-            ${isFreightBlock ? '<span class="text-amber-700 font-bold">⚠ ACTIVE FREIGHT SHADOW (COAL RAKE)</span>' : ''}
+            ${isFreightBlock ? '<span class="text-amber-700 font-bold">⚠ ACTIVE FREIGHT SHADOW (COAL RAKE)</span>' : '<span class="text-emerald-700 font-semibold">Track Block Clear</span>'}
           </div>
         `);
       } else if (props.feature_type === "STATION") {
@@ -84,18 +134,37 @@ async function loadTopology() {
         const isJunction = props.is_major_junction;
 
         const circle = L.circleMarker(coord, {
-          radius: isJunction ? 6.5 : 4,
+          radius: isJunction ? 7 : 4.5,
           fillColor: "#ffffff",
           color: isJunction ? "#1e3a8a" : "#64748b",
-          weight: isJunction ? 2.5 : 1.5,
+          weight: isJunction ? 3 : 2,
           fillOpacity: 1.0,
+          className: "cursor-pointer",
         }).addTo(map);
+
+        // Click on station to zoom & show rich details
+        circle.on("click", () => {
+          map.flyTo(coord, 11, { duration: 0.8 });
+          showToast(`Station Selected: ${props.station_name} (${props.station_code})`, `Chainage: ${props.chainage_km.toFixed(1)} km | Platforms: 4 | Loop Capacity: 750m`);
+        });
 
         circle.bindTooltip(`<strong>${props.station_code}</strong> - ${props.station_name}`, {
           permanent: isJunction,
           direction: "right",
           className: "leaflet-tooltip",
         });
+
+        circle.bindPopup(`
+          <div class="font-sans text-xs text-slate-800 p-1">
+            <h4 class="font-bold text-slate-900">${props.station_name} (${props.station_code})</h4>
+            <div class="text-[11px] text-slate-600 mt-1 font-mono">
+              Chainage: ${props.chainage_km.toFixed(1)} km from BHC<br/>
+              Type: ${isJunction ? 'Major Junction / Overtake Node' : 'Intermediate Crossing Station'}<br/>
+              ${props.station_code === 'CTC' ? '<span class="text-blue-700 font-bold">★ Active Priority Overtake Loop Active</span>' : ''}
+              ${props.station_code === 'BRAG' ? '<span class="text-amber-700 font-bold">★ Coal Freight Goods Loop Exit</span>' : ''}
+            </div>
+          </div>
+        `);
       }
     });
 
@@ -106,12 +175,17 @@ async function loadTopology() {
       [20.350, 85.830],
       [20.296, 85.824], // Bhubaneswar
     ];
-    L.polyline(nh16Coords, {
+    const roadLine = L.polyline(nh16Coords, {
       color: "#2563eb",
-      weight: 3,
+      weight: 3.5,
       dashArray: "5, 5",
-      opacity: 0.8,
-    }).addTo(map).bindTooltip("NH-16 Expressway Rescue Route (38 mins)", { direction: "top" });
+      opacity: 0.85,
+    }).addTo(map);
+    
+    roadLine.bindTooltip("NH-16 Expressway Rescue Route (38 mins drive)", { direction: "top" });
+    roadLine.on("click", () => {
+      openBailoutModal();
+    });
 
   } catch (err) {
     console.error("Failed to load corridor topology:", err);
@@ -166,17 +240,23 @@ function updateTrainPositions(trains) {
 
     if (!trainMarkers[t.train_no]) {
       const icon = L.divIcon({
-        className: "custom-div-icon",
+        className: "custom-div-icon cursor-pointer",
         html: `
-          <div style="background-color: ${bgColor}; color: ${textColor}; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.2)">
+          <div style="background-color: ${bgColor}; color: ${textColor}; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; border: 2.5px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.25)">
             ${t.direction === "DN" ? "▼" : "▲"}
           </div>
         `,
-        iconSize: [26, 26],
-        iconAnchor: [13, 13],
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
       });
 
-      trainMarkers[t.train_no] = L.marker(latlng, { icon }).addTo(map);
+      const marker = L.marker(latlng, { icon }).addTo(map);
+      marker.on("click", () => {
+        selectTrain(t.train_no);
+        map.flyTo(latlng, 11, { duration: 0.8 });
+        showToast(`Tracking ${t.train_no} ${t.train_name}`, `Speed: ${t.speed_kmph.toFixed(0)} km/h • Current Delay: +${t.current_delay_mins.toFixed(0)}m`);
+      });
+      trainMarkers[t.train_no] = marker;
     } else {
       trainMarkers[t.train_no].setLatLng(latlng);
     }
@@ -318,10 +398,19 @@ async function evaluateBailout(trainNo) {
             <div class="text-slate-800 font-bold">${plan.road_drive_mins} mins</div>
           </div>
         </div>
-        <div class="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200/80 p-2.5 rounded-lg font-medium">
-          ${plan.human_guidance}
+        <div class="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200/80 p-2.5 rounded-lg font-medium flex items-center justify-between">
+          <span>${plan.human_guidance}</span>
+          <button id="btn-open-bailout-modal" class="btn-press ml-2 px-2.5 py-1 rounded bg-emerald-600 text-white font-semibold text-[10px] shrink-0">
+            Book Cab
+          </button>
         </div>
       `;
+
+      // Attach listener to Book Cab button
+      const btnBook = document.getElementById("btn-open-bailout-modal");
+      if (btnBook) {
+        btnBook.addEventListener("click", () => openBailoutModal());
+      }
     } else {
       content.innerHTML = `
         <div class="text-xs text-emerald-700 font-mono font-medium flex items-center gap-2">
@@ -422,13 +511,46 @@ function drawMareyDiagram() {
   ctx.fillText("⚡ Overtake at CTC Loop", padLeft + xSpan * 2.1 + 8, stations[1].y - 8);
 }
 
-// 9. Drawer & Slider Interactions
+// 9. Drawer & Slider Interactions with Live Preview & Backdrop Dismiss
+function openDrawer() {
+  judgeDrawer.classList.add("open");
+  drawerBackdrop.classList.remove("hidden");
+  requestAnimationFrame(() => drawerBackdrop.classList.remove("opacity-0"));
+}
+
+function closeDrawer() {
+  judgeDrawer.classList.remove("open");
+  drawerBackdrop.classList.add("opacity-0");
+  setTimeout(() => drawerBackdrop.classList.add("hidden"), 300);
+}
+
 function initDrawer() {
-  btnJudgeDrawer.addEventListener("click", () => judgeDrawer.classList.remove("translate-x-full"));
-  btnCloseDrawer.addEventListener("click", () => judgeDrawer.classList.add("translate-x-full"));
+  btnJudgeDrawer.addEventListener("click", openDrawer);
+  btnCloseDrawer.addEventListener("click", closeDrawer);
+  drawerBackdrop.addEventListener("click", closeDrawer);
+
+  // Keyboard navigation: Escape closes drawer and modals
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeDrawer();
+      closeBailoutModal();
+    }
+  });
 
   sliderDelay.addEventListener("input", (e) => {
-    sliderValDisp.textContent = `+${e.target.value} mins`;
+    const val = parseInt(e.target.value);
+    sliderValDisp.textContent = `+${val} mins`;
+
+    // Dynamic Live Preview Calculation
+    const baseHour = 11;
+    const baseMin = 48 + val;
+    const calcMin = baseMin % 60;
+    const calcHour = baseHour + Math.floor(baseMin / 60);
+    const ampm = calcHour >= 12 ? "PM" : "AM";
+    const hourDisp = calcHour > 12 ? calcHour - 12 : calcHour;
+    const padMin = calcMin < 10 ? `0${calcMin}` : calcMin;
+
+    sliderPreviewText.textContent = `BBS ETA ~${hourDisp}:${padMin} ${ampm} (+${(val + 24)}m cascade)`;
   });
 
   btnApplyDelay.addEventListener("click", async () => {
@@ -439,7 +561,8 @@ function initDrawer() {
       body: JSON.stringify({ train_no: "12821", added_delay_mins: addedMins }),
     });
     await fetchForecast(selectedTrain);
-    judgeDrawer.classList.add("translate-x-full");
+    closeDrawer();
+    showToast("Delay Injected", `+${addedMins} mins applied to Dhauli Express at Bhadrak`, "warn");
   });
 
   btnResetDemo.addEventListener("click", async () => {
@@ -449,7 +572,8 @@ function initDrawer() {
       body: JSON.stringify({ scenario_name: "DHAULI_CASCADE", speed_multiplier: 1 }),
     });
     await fetchForecast(selectedTrain);
-    judgeDrawer.classList.add("translate-x-full");
+    closeDrawer();
+    showToast("Corridor Reset", "All blocks and trains restored to baseline schedule", "success");
   });
 
   btnInjectFreight.addEventListener("click", async () => {
@@ -464,7 +588,8 @@ function initDrawer() {
       }),
     });
     await fetchForecast(selectedTrain);
-    judgeDrawer.classList.add("translate-x-full");
+    closeDrawer();
+    showToast("Freight Confirmed", "ULIP FOIS Coal Rake confirmed at Barang Junction loop", "warn");
   });
 
   btnScenarioStandard.addEventListener("click", async () => {
@@ -474,7 +599,8 @@ function initDrawer() {
       body: JSON.stringify({ scenario_name: "DHAULI_CASCADE", speed_multiplier: 1 }),
     });
     await fetchForecast("12821");
-    judgeDrawer.classList.add("translate-x-full");
+    closeDrawer();
+    showToast("Scenario 1 Loaded", "Standard SIH26028 Demo: Dhauli hold + Vande Bharat pass", "info");
   });
 
   // Speed Multipliers
@@ -495,29 +621,60 @@ function initDrawer() {
             b.className = "btn-press py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-mono font-semibold border border-slate-200 hover:bg-slate-200 transition";
           }
         });
+        showToast("Simulation Speed", `Time-warp multiplier set to ${spd}x`, "info");
       });
     }
   });
 }
 
-// 10. Tabs & Asymmetric Safety Toggles
+// 10. Bailout Modal Controls
+function openBailoutModal() {
+  bailoutModal.classList.remove("hidden");
+  requestAnimationFrame(() => {
+    bailoutModal.classList.remove("opacity-0");
+    bailoutModal.querySelector(".modal-card").classList.remove("scale-95");
+    bailoutModal.querySelector(".modal-card").classList.add("scale-100");
+  });
+}
+
+function closeBailoutModal() {
+  bailoutModal.classList.add("opacity-0");
+  bailoutModal.querySelector(".modal-card").classList.remove("scale-100");
+  bailoutModal.querySelector(".modal-card").classList.add("scale-95");
+  setTimeout(() => bailoutModal.classList.add("hidden"), 200);
+}
+
+function initBailoutModal() {
+  btnCloseModal.addEventListener("click", closeBailoutModal);
+  btnCancelModal.addEventListener("click", closeBailoutModal);
+  btnConfirmBooking.addEventListener("click", () => {
+    closeBailoutModal();
+    showToast("Cab Confirmed & Locked", "Driver OD-02-AK-4491 is arriving at Cuttack Junction Exit. Safe travels!", "success");
+  });
+}
+
+// 11. Train Switcher Helper
+function selectTrain(trainNo) {
+  selectedTrain = trainNo;
+  ["12821", "22895", "18410"].forEach((n) => {
+    const b = document.getElementById(`tab-${n}`);
+    if (b) {
+      if (n === trainNo) {
+        b.className = "btn-press flex-1 py-1.5 px-3 rounded-lg font-semibold bg-white text-slate-900 shadow-sm border border-slate-200/60 transition";
+      } else {
+        b.className = "btn-press flex-1 py-1.5 px-3 rounded-lg font-medium text-slate-600 hover:text-slate-900 transition";
+      }
+    }
+  });
+  fetchForecast(selectedTrain);
+}
+
+// 12. Tabs & Asymmetric Safety Toggles
 function initTabsAndToggles() {
-  // Train Tabs
   ["12821", "22895", "18410"].forEach((tNo) => {
     const tab = document.getElementById(`tab-${tNo}`);
     if (tab) {
-      tab.addEventListener("click", async () => {
-        selectedTrain = tNo;
-        ["12821", "22895", "18410"].forEach((n) => {
-          const b = document.getElementById(`tab-${n}`);
-          if (n === tNo) {
-            b.className = "flex-1 py-1.5 px-3 rounded-lg font-semibold bg-white text-slate-900 shadow-sm border border-slate-200/60 transition";
-          } else {
-            b.className = "flex-1 py-1.5 px-3 rounded-lg font-medium text-slate-600 hover:text-slate-900 transition";
-          }
-        });
-        await fetchForecast(selectedTrain);
-      });
+      tab.addEventListener("click", () => selectTrain(tNo));
     }
   });
 
@@ -527,15 +684,17 @@ function initTabsAndToggles() {
 
   toggleUnboarded.addEventListener("click", async () => {
     passengerStatus = "PRE_BOARDING";
-    toggleUnboarded.className = "px-2.5 py-0.5 rounded bg-white text-amber-800 font-bold shadow-sm border border-slate-200/60 transition";
-    toggleOnboard.className = "px-2.5 py-0.5 rounded text-slate-500 hover:text-slate-900 transition";
+    toggleUnboarded.className = "btn-press px-2.5 py-0.5 rounded bg-white text-amber-800 font-bold shadow-sm border border-slate-200/60 transition";
+    toggleOnboard.className = "btn-press px-2.5 py-0.5 rounded text-slate-500 hover:text-slate-900 transition";
     await evaluateBailout(selectedTrain);
+    showToast("Passenger Mode: At Home", "Safe-Boarding Lock active: road bailout suppressed to prevent missed train", "info");
   });
 
   toggleOnboard.addEventListener("click", async () => {
     passengerStatus = "ON_BOARD";
-    toggleOnboard.className = "px-2.5 py-0.5 rounded bg-white text-emerald-800 font-bold shadow-sm border border-slate-200/60 transition";
-    toggleUnboarded.className = "px-2.5 py-0.5 rounded text-slate-500 hover:text-slate-900 transition";
+    toggleOnboard.className = "btn-press px-2.5 py-0.5 rounded bg-white text-emerald-800 font-bold shadow-sm border border-slate-200/60 transition";
+    toggleUnboarded.className = "btn-press px-2.5 py-0.5 rounded text-slate-500 hover:text-slate-900 transition";
     await evaluateBailout(selectedTrain);
+    showToast("Passenger Mode: On Board", "Dynamic In-Journey Bailout active: evaluating Cuttack NH-16 highway options", "info");
   });
 }
