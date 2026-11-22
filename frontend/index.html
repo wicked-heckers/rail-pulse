@@ -313,7 +313,15 @@
     <!-- DELAY SLIDER WITH LIVE IMPACT PREVIEW -->
     <div class="flex flex-col gap-2">
       <div class="flex justify-between items-center text-xs font-mono">
-        <span class="text-slate-600 font-semibold">INJECT DELAY (DHAULI EXPRESS):</span>
+        <span class="text-slate-600 font-semibold">TARGET TRAIN:</span>
+        <select id="select-delay-train" class="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          <option value="12821">12821 - Dhauli Express</option>
+          <option value="22895">22895 - Vande Bharat Express</option>
+          <option value="18410">18410 - Jagannath Express</option>
+        </select>
+      </div>
+      <div class="flex justify-between items-center text-xs font-mono mt-2">
+        <span class="text-slate-600 font-semibold">INJECT DELAY:</span>
         <span id="slider-val-disp" class="text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">+15 mins</span>
       </div>
       <input id="slider-delay" type="range" min="0" max="60" step="5" value="15" class="w-full accent-blue-600 bg-slate-200 rounded-lg h-2 cursor-pointer mt-2" />

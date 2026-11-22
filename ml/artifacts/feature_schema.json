@@ -1,0 +1,17 @@
+{
+  "version":"1.0",
+  "features":[
+    "current_delay_mins",
+    "sim_freight_penalty_mins",
+    "sim_overtake_hold_mins",
+    "sim_overtake_count",
+    "usable_slack_mins",
+    "freight_shadow_prob",
+    "remaining_distance_km",
+    "remaining_commercial_halts",
+    "train_priority_rank",
+    "rain_mm_hr",
+    "is_peak_hour",
+    "downstream_junction_load"
+  ]
+}

@@ -126,16 +126,27 @@ class SimulationResult(BaseModel):
 
 class QuantileFeatureVector(BaseModel):
     current_delay_mins: float
-    p50_base_delay_mins: float
-    freight_probability: float = 0.0
-    overtake_count: int = 0
-    overtake_mins: float = 0.0
-    remaining_km: float = 0.0
-    remaining_halts: int = 0
+    sim_freight_penalty_mins: float = 0.0
+    sim_overtake_hold_mins: float = 0.0
+    sim_overtake_count: int = 0
     usable_slack_mins: float = 0.0
+    freight_shadow_prob: float = 0.0
+    remaining_distance_km: float = 0.0
+    remaining_commercial_halts: int = 0
+    train_priority_rank: int = 3
     rain_mm_hr: float = 0.0
+    is_peak_hour: int = 0
+    downstream_junction_load: float = 0.0
+
+    # Backwards-compatible aliases
+    p50_base_delay_mins: float = 0.0
+    freight_probability: float | None = None
+    overtake_count: int | None = None
+    overtake_mins: float | None = None
+    remaining_km: float | None = None
+    remaining_halts: int | None = None
     hour_of_day: int = 12
-    junction_congestion_idx: float = 0.0
+    junction_congestion_idx: float | None = None
 
 
 class QuantileResult(BaseModel):

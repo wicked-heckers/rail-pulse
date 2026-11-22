@@ -554,15 +554,21 @@ function initDrawer() {
   });
 
   btnApplyDelay.addEventListener("click", async () => {
+    const selectDelayTrain = document.getElementById("select-delay-train");
+    const targetTrainNo = selectDelayTrain ? selectDelayTrain.value : selectedTrain;
     const addedMins = parseFloat(sliderDelay.value);
     await fetch("/api/v1/demo/inject-delay", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ train_no: "12821", added_delay_mins: addedMins }),
+      body: JSON.stringify({ train_no: targetTrainNo, added_delay_mins: addedMins }),
     });
-    await fetchForecast(selectedTrain);
+    if (targetTrainNo !== selectedTrain) {
+      selectTrain(targetTrainNo);
+    } else {
+      await fetchForecast(selectedTrain);
+    }
     closeDrawer();
-    showToast("Delay Injected", `+${addedMins} mins applied to Dhauli Express at Bhadrak`, "warn");
+    showToast("Delay Injected", `+${addedMins} mins applied to Train ${targetTrainNo}`, "warn");
   });
 
   btnResetDemo.addEventListener("click", async () => {
@@ -656,6 +662,10 @@ function initBailoutModal() {
 // 11. Train Switcher Helper
 function selectTrain(trainNo) {
   selectedTrain = trainNo;
+  const selectDelayTrain = document.getElementById("select-delay-train");
+  if (selectDelayTrain) {
+    selectDelayTrain.value = trainNo;
+  }
   ["12821", "22895", "18410"].forEach((n) => {
     const b = document.getElementById(`tab-${n}`);
     if (b) {

@@ -75,6 +75,7 @@ def evaluate_connection_rescue(
         p10_epoch=quantiles.p10_eta_epoch,
         p50_epoch=quantiles.p50_eta_epoch,
         p90_epoch=quantiles.p90_eta_epoch,
+        sched_arr_epoch=sched_arr,
     )
     survival_pct = round(survival_prob * 100.0, 1)
 

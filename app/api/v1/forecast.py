@@ -102,11 +102,17 @@ async def get_train_forecast(
         current_delay_mins=target_train.current_delay_mins,
         p50_base_delay_mins=p50_base_delay,
         freight_probability=max_freight_prob,
+        freight_shadow_prob=max_freight_prob,
         overtake_count=sim_result.overtakes_count,
+        sim_overtake_count=sim_result.overtakes_count,
         overtake_mins=sim_result.total_loop_hold_mins,
+        sim_overtake_hold_mins=sim_result.total_loop_hold_mins,
         remaining_km=remaining_km,
+        remaining_distance_km=remaining_km,
         remaining_halts=len(adjusted_timeline),
+        remaining_commercial_halts=len(adjusted_timeline),
         usable_slack_mins=usable_slack,
+        train_priority_rank=target_train.priority_rank,
         rain_mm_hr=rain_mm_hr,
     )
     quantiles = await asyncio.to_thread(QuantileMLEngine.predict, feat, sched_arr_epoch)
