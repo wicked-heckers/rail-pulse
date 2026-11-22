@@ -37,6 +37,7 @@
 | **033** | Documentation & Strategy | Task 12.2: Brutally Honest Codebase Audit & Future Engineering Roadmap | Completed | Rewrote `docs/CODEBASE_EXHAUSTIVE_ARCHITECTURE.md` with transparent audit of simulated vs missing external services (PostGIS, Redis, Google Maps/OSRM, CRIS feeds, real historical data ML) and 5-phase production roadmap |
 | **034** | Branch Merge & Integration | Task 13.1: Pull and Integrate `Direct-integration(s)` Branch | Completed | Pulled `origin/Direct-integration(s)` (`28a7c94`) into `main`, integrated new LightGBM CQR models (`lgbm_p10.txt`, `lgbm_p50.txt`, `lgbm_p90.txt`), Two-Piece Normal CDF `survival_math.py`, Target Train selector in UI, and verified all 38 tests + live smoke test |
 | **035** | Live Services & Infrastructure | Task 14.1: Live Mapbox API, Docker PostGIS Seeding & Redis Connection | Completed | Wired up live Mapbox Directions API for road bailout, spun up PostGIS and Redis containers via Docker Compose, seeded 9 stations and 16 blocks into PostGIS, connected Redis with verified health check, and passed all 38 tests |
+| **036** | Frontend Map Bugfix | Task 14.2: Replace Carto Basemap with Mapbox Light-v11 & OSM Fallback | Completed | Removed expired/unauthenticated CartoDB tile layer; replaced with dynamic Mapbox Light-v11 tile layer using user token from `/api/v1/corridor/config` and automatic OpenStreetMap fallback |
 
 
 

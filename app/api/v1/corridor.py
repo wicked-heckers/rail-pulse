@@ -100,6 +100,20 @@ async def get_corridor_topology(
     }
 
 
+@router.get("/config")
+async def get_corridor_client_config() -> dict[str, Any]:
+    """
+    Returns public frontend configuration including Mapbox token.
+    """
+    from app.config import settings
+    return {
+        "mapbox_access_token": settings.MAPBOX_ACCESS_TOKEN,
+        "corridor_name": settings.CORRIDOR_NAME,
+        "corridor_start_km": settings.CORRIDOR_START_KM,
+        "corridor_end_km": settings.CORRIDOR_END_KM,
+    }
+
+
 @router.get("/state")
 async def get_corridor_state(
     state_store: CorridorStateStore = Depends(get_state_store),

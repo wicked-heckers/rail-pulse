@@ -35,7 +35,7 @@ const btnConfirmBooking = document.getElementById("btn-confirm-booking");
 
 // Initialize Application
 document.addEventListener("DOMContentLoaded", async () => {
-  initMap();
+  await initMap();
   initDrawer();
   initBailoutModal();
   initTabsAndToggles();
@@ -87,18 +87,49 @@ function showToast(title, message, type = "info") {
   }, 3500);
 }
 
-// 1. Initialize Map with Clean CartoDB Positron Light Tiles
-function initMap() {
+// 1. Initialize Map with Mapbox Light-v11 & OpenStreetMap Fallback
+async function initMap() {
   map = L.map("corridor-map", {
     zoomControl: true,
     attributionControl: false,
   }).setView([20.40, 85.90], 9);
 
-  // CartoDB Positron Light Basemap
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    maxZoom: 18,
-    subdomains: "abcd",
-  }).addTo(map);
+  let mapboxToken = null;
+  try {
+    const cfgRes = await fetch("/api/v1/corridor/config");
+    if (cfgRes.ok) {
+      const cfg = await cfgRes.json();
+      mapboxToken = cfg.mapbox_access_token;
+    }
+  } catch (e) {
+    console.warn("Could not fetch corridor config:", e);
+  }
+
+  const osmUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+  if (mapboxToken) {
+    const mapboxUrl = `https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`;
+    const mapboxLayer = L.tileLayer(mapboxUrl, {
+      maxZoom: 18,
+      tileSize: 512,
+      zoomOffset: -1,
+      attribution: "© Mapbox © OpenStreetMap",
+    });
+
+    mapboxLayer.on("tileerror", function () {
+      console.warn("Mapbox tile loading failed, switching to OpenStreetMap fallback...");
+      map.removeLayer(mapboxLayer);
+      L.tileLayer(osmUrl, { maxZoom: 18 }).addTo(map);
+    });
+
+    mapboxLayer.addTo(map);
+  } else {
+    // Zero-token fallback: public clean OpenStreetMap tiles
+    L.tileLayer(osmUrl, {
+      maxZoom: 18,
+      attribution: "© OpenStreetMap contributors",
+    }).addTo(map);
+  }
 }
 
 // 2. Load Topology & Draw Infrastructure
