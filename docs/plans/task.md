@@ -35,6 +35,7 @@
 | **031** | Phase 11: Frontend UX & Polish | Task 11.1: Interactive Map Exploration, Toast Feedback & Fluid Micro-Interactions | Completed | Added interactive station and train clicking with smooth map flyTo, Sonner-style floating toast notifications, interactive NH-16 cab reservation modal, slider live impact preview, backdrop dismissal, and Escape keyboard shortcuts |
 | **032** | Documentation | Task 12.1: Exhaustive Codebase Architecture & Technical Documentation | Completed | Authored `docs/CODEBASE_EXHAUSTIVE_ARCHITECTURE.md` detailing end-to-end architecture, kinematic equations, zero-external AI/API guarantee, local LightGBM models, 38 passing tests, and frontend integration |
 | **033** | Documentation & Strategy | Task 12.2: Brutally Honest Codebase Audit & Future Engineering Roadmap | Completed | Rewrote `docs/CODEBASE_EXHAUSTIVE_ARCHITECTURE.md` with transparent audit of simulated vs missing external services (PostGIS, Redis, Google Maps/OSRM, CRIS feeds, real historical data ML) and 5-phase production roadmap |
+| **034** | Branch Merge & Integration | Task 13.1: Pull and Integrate `Direct-integration(s)` Branch | Completed | Pulled `origin/Direct-integration(s)` (`28a7c94`) into `main`, integrated new LightGBM CQR models (`lgbm_p10.txt`, `lgbm_p50.txt`, `lgbm_p90.txt`), Two-Piece Normal CDF `survival_math.py`, Target Train selector in UI, and verified all 38 tests + live smoke test |
 
 
 
