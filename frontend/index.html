@@ -1,246 +1,265 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RAIL-PULSE | ECoR Cascade-Aware Intelligence & Rescue Engine</title>
+  <title>RAIL-PULSE | Predictive Rail Intelligence & Rescue Corridor</title>
+  
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+          },
           colors: {
-            rail: {
-              950: '#060913',
-              900: '#0b1329',
-              800: '#142146',
-              700: '#1f3164',
-              cyan: '#00f0ff',
-              emerald: '#10b981',
-              amber: '#f59e0b',
-              rose: '#f43f5e',
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
             }
           }
         }
       }
     }
   </script>
+  
+  <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Custom App Styles -->
   <link rel="stylesheet" href="/static/style.css" />
 </head>
-<body class="bg-rail-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-rail-cyan selection:text-black">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
 
   <!-- TOP APP HEADER -->
-  <header class="border-b border-slate-800 bg-rail-900/90 backdrop-blur px-6 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-50">
-    <div class="flex items-center space-x-3">
-      <div class="relative flex items-center justify-center w-9 h-9 rounded-lg bg-rail-cyan/10 border border-rail-cyan/30 text-rail-cyan font-bold text-lg shadow-[0_0_15px_rgba(0,240,255,0.2)]">
+  <header class="border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-50">
+    <div class="flex items-center space-x-3.5">
+      <div class="relative flex items-center justify-center w-9 h-9 rounded-xl bg-blue-600 text-white font-bold text-sm shadow-sm shadow-blue-500/20">
         <span>RP</span>
-        <span class="absolute -top-1 -right-1 flex h-3 w-3">
+        <span class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
         </span>
       </div>
       <div>
-        <h1 class="font-bold text-lg tracking-wider text-slate-100 flex items-center gap-2">
-          RAIL-PULSE
-          <span class="text-xs px-2 py-0.5 rounded bg-rail-cyan/20 text-rail-cyan border border-rail-cyan/30 font-mono">ECoR TRUNK</span>
-        </h1>
-        <p class="text-xs text-slate-400">Cascade-Aware Overtake Predictor & Multimodal Bailout Router (SIH26028)</p>
+        <div class="flex items-center gap-2">
+          <h1 class="font-bold text-base tracking-tight text-slate-900">RAIL-PULSE</h1>
+          <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-mono">ECoR Trunk</span>
+        </div>
+        <p class="text-xs text-slate-500">Predictive Delay Cascade Engine & Multimodal Bailout Router</p>
       </div>
     </div>
 
-    <!-- BENCHMARK SCORECARD BADGE -->
-    <div class="hidden md:flex items-center gap-4 bg-slate-950/80 px-4 py-1.5 rounded-lg border border-slate-800 text-xs font-mono">
-      <div>
+    <!-- BENCHMARK ACCURACY SCORECARD -->
+    <div class="hidden md:flex items-center gap-4 bg-slate-50 px-4 py-1.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-700">
+      <div class="flex items-center gap-1.5">
         <span class="text-slate-400">NTES MAE:</span>
-        <span class="text-rose-400 font-bold ml-1">10.6m</span>
+        <span class="text-rose-600 font-semibold">10.6m</span>
       </div>
-      <div class="text-slate-600">→</div>
-      <div>
+      <span class="text-slate-300">→</span>
+      <div class="flex items-center gap-1.5">
         <span class="text-slate-400">RAIL-PULSE:</span>
-        <span class="text-emerald-400 font-bold ml-1">3.3m</span>
+        <span class="text-emerald-700 font-semibold">3.3m</span>
       </div>
-      <div class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
-        -68.7% ERROR
+      <div class="px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-800 font-bold border border-emerald-200/60">
+        -68.7% Error
       </div>
-      <div class="border-l border-slate-800 pl-3">
+      <div class="border-l border-slate-200 pl-3 flex items-center gap-1">
         <span class="text-slate-400">Coverage:</span>
-        <span class="text-rail-cyan font-bold ml-1">92.0%</span>
+        <span class="text-blue-700 font-bold">92.0%</span>
       </div>
     </div>
 
-    <!-- CONNECTION STATE & CONTROLS -->
+    <!-- LIVE STATUS & SIMULATION CONTROLS -->
     <div class="flex items-center gap-3">
-      <div id="ws-status-badge" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono bg-slate-800 border border-slate-700 text-slate-300">
-        <span id="ws-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-        <span id="ws-text">CONNECTING</span>
+      <div id="ws-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono bg-slate-100 border border-slate-200 text-slate-600 transition-colors">
+        <span id="ws-dot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+        <span id="ws-text" class="font-medium">Connecting...</span>
       </div>
-      <button id="btn-judge-drawer" class="px-3 py-1.5 rounded-lg bg-rail-cyan/15 hover:bg-rail-cyan/25 border border-rail-cyan/40 text-rail-cyan text-xs font-medium transition flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,240,255,0.15)]">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-        Judge Simulator
+      <button id="btn-judge-drawer" class="btn-press px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-xs font-medium transition flex items-center gap-2 shadow-sm">
+        <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+        <span>Simulation Controls</span>
       </button>
     </div>
   </header>
 
-  <!-- MAIN DASHBOARD SPLIT VIEW -->
-  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 overflow-hidden">
+  <!-- MAIN DASHBOARD CONTENT -->
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 p-5 max-w-[1680px] w-full mx-auto">
 
-    <!-- LEFT / CENTER: CORRIDOR RADAR MAP & MAREY DIAGRAM (7 COLS) -->
-    <section class="lg:col-span-7 flex flex-col gap-4">
+    <!-- LEFT / CENTER: CORRIDOR RADAR MAP & SPACE-TIME TRAJECTORY (7 COLS) -->
+    <section class="lg:col-span-7 flex flex-col gap-5">
       
-      <!-- RADAR MAP CONTAINER -->
-      <div class="flex-1 bg-rail-900/60 rounded-xl border border-slate-800/80 p-3 flex flex-col min-h-[420px] relative shadow-lg">
-        <div class="flex items-center justify-between mb-2 px-1">
+      <!-- RADAR MAP CARD -->
+      <div class="bg-white rounded-2xl border border-slate-200/90 p-4 flex flex-col min-h-[460px] relative shadow-sm">
+        <div class="flex flex-wrap items-center justify-between mb-3 px-1 gap-2">
           <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-rail-cyan"></span>
-            <h2 class="font-semibold text-sm tracking-wide text-slate-200">ECoR Live Corridor Radar (Bhadrak → Puri)</h2>
+            <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+            <h2 class="font-semibold text-sm tracking-tight text-slate-900">ECoR Live Corridor Radar</h2>
+            <span class="text-xs text-slate-400 font-normal">(Bhadrak → Cuttack → Bhubaneswar → Puri)</span>
           </div>
-          <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-500"></span> Main</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-500 animate-pulse"></span> Freight Shadow</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-rose-500"></span> Vande Bharat (T1)</span>
+          <div class="flex items-center gap-3 text-xs text-slate-500 font-medium">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Main Track</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Freight Shadow</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> NH-16 Rescue</span>
           </div>
         </div>
 
         <!-- LEAFLET MAP ELEMENT -->
-        <div id="corridor-map" class="flex-1 rounded-lg overflow-hidden bg-slate-950 border border-slate-800/60 z-0"></div>
+        <div id="corridor-map" class="flex-1 rounded-xl overflow-hidden border border-slate-200 z-0"></div>
 
-        <!-- MAP OVERLAY BADGE -->
-        <div class="absolute bottom-6 left-6 z-10 bg-slate-950/85 backdrop-blur border border-slate-800 px-3 py-2 rounded-lg text-xs font-mono shadow-xl flex flex-col gap-1">
-          <div class="text-slate-400 flex items-center justify-between gap-4">
-            <span>ACTIVE FREIGHT SHADOW:</span>
-            <span class="text-amber-400 font-bold">Barang Junction (DN_CTC_BRAG)</span>
-          </div>
-          <div class="text-slate-400 flex items-center justify-between gap-4">
-            <span>STR VALUE:</span>
-            <span class="text-slate-200 font-bold">1.85 (Implied 58-Wagon Coal Rake)</span>
-          </div>
-          <div class="text-slate-400 flex items-center justify-between gap-4">
-            <span>EST. LOOP CLEARANCE:</span>
-            <span class="text-emerald-400 font-bold">20.0 mins at BRAG 750m Loop</span>
+        <!-- REFINED FLOATING INFORMATION CHIP -->
+        <div class="absolute bottom-6 left-6 z-10 bg-white/95 backdrop-blur-md border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs shadow-md flex items-center gap-3 max-w-sm">
+          <div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+          <div>
+            <div class="font-semibold text-slate-800">Active Freight Shadow: Barang Junction</div>
+            <div class="text-[11px] text-slate-500 font-mono">58-Wagon Coal Rake ahead • ~20m Loop Clearance</div>
           </div>
         </div>
       </div>
 
-      <!-- BOTTOM: MAREY SPACE-TIME OVERTAKE DIAGRAM -->
-      <div class="bg-rail-900/60 rounded-xl border border-slate-800/80 p-3 flex flex-col h-56 shadow-lg">
-        <div class="flex items-center justify-between mb-1 px-1">
+      <!-- MAREY SPACE-TIME OVERTAKE TRAJECTORY -->
+      <div class="bg-white rounded-2xl border border-slate-200/90 p-4 flex flex-col h-64 shadow-sm">
+        <div class="flex items-center justify-between mb-2 px-1">
           <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
-            <h3 class="font-semibold text-xs tracking-wide text-slate-200">Marey Space-Time Overtake Trajectory</h3>
+            <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+            <h3 class="font-semibold text-xs tracking-tight text-slate-900">Space-Time Overtake Trajectory (Marey Graph)</h3>
           </div>
-          <span class="text-xs text-slate-400 font-mono">Dhauli (Held in Loop) vs Vande Bharat (Mainline Through)</span>
+          <span class="text-xs text-slate-400 font-mono">Dhauli Exp (Loop Hold) vs Vande Bharat (Mainline Pass)</span>
         </div>
-        <canvas id="marey-canvas" class="flex-1 w-full bg-slate-950 rounded-lg border border-slate-800/60"></canvas>
+        <div class="flex-1 relative w-full h-full rounded-xl overflow-hidden border border-slate-200 bg-white">
+          <canvas id="marey-canvas" class="w-full h-full block"></canvas>
+        </div>
       </div>
     </section>
 
     <!-- RIGHT: PREDICTIVE CASCADE INTELLIGENCE & BAILOUT ROUTER (5 COLS) -->
-    <section class="lg:col-span-5 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-100px)]">
+    <section class="lg:col-span-5 flex flex-col gap-5">
 
       <!-- TRAIN SELECTOR TABS -->
-      <div class="bg-rail-900/60 rounded-xl border border-slate-800/80 p-3 shadow-lg">
-        <div class="flex items-center gap-2 mb-3">
-          <button id="tab-12821" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-rail-cyan/20 border border-rail-cyan/40 text-rail-cyan transition">
-            12821 Dhauli Exp (T2)
+      <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm flex flex-col gap-4">
+        
+        <!-- APPLE-STYLE SEGMENTED CONTROL -->
+        <div class="bg-slate-100 p-1 rounded-xl flex gap-1 border border-slate-200/70 text-xs">
+          <button id="tab-12821" class="flex-1 py-1.5 px-3 rounded-lg font-semibold bg-white text-slate-900 shadow-sm border border-slate-200/60 transition">
+            12821 Dhauli Exp (Target)
           </button>
-          <button id="tab-22895" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-slate-800/60 border border-slate-700 text-slate-300 hover:bg-slate-800 transition">
-            22895 Vande Bharat (T1)
+          <button id="tab-22895" class="flex-1 py-1.5 px-3 rounded-lg font-medium text-slate-600 hover:text-slate-900 transition">
+            22895 Vande Bharat
           </button>
-          <button id="tab-18410" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-slate-800/60 border border-slate-700 text-slate-300 hover:bg-slate-800 transition">
-            18410 Jagannath (UP)
+          <button id="tab-18410" class="flex-1 py-1.5 px-3 rounded-lg font-medium text-slate-600 hover:text-slate-900 transition">
+            18410 Jagannath Exp
           </button>
         </div>
 
-        <!-- PREDICTION COMPARISON CARD -->
-        <div class="bg-slate-950/80 rounded-lg border border-slate-800 p-4">
-          <div class="flex items-center justify-between mb-3 border-b border-slate-800/60 pb-2">
+        <!-- PRIMARY PREDICTION HERO CARD -->
+        <div class="bg-slate-50/70 rounded-xl border border-slate-200/80 p-4 flex flex-col gap-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-200">
             <div>
-              <span class="text-xs text-slate-400 font-mono">TARGET DESTINATION:</span>
-              <h4 class="font-bold text-base text-slate-100">Bhubaneswar (BBS, 143.0 km)</h4>
+              <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Target Destination</span>
+              <h4 class="font-bold text-base text-slate-900">Bhubaneswar (BBS, 143.0 km)</h4>
             </div>
             <div class="text-right">
-              <span class="text-xs text-slate-400 font-mono">CURRENT DELAY:</span>
-              <div id="disp-current-delay" class="text-base font-bold text-amber-400 font-mono">+28.0 mins</div>
+              <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Current Delay</span>
+              <div id="disp-current-delay" class="text-sm font-bold text-amber-700 font-mono bg-amber-50 px-2 py-0.5 rounded border border-amber-200/70 inline-block mt-0.5">+28.0 mins</div>
             </div>
           </div>
 
-          <!-- COMPARISON BARS -->
-          <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="bg-slate-900/90 rounded-lg p-2.5 border border-slate-800">
-              <span class="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Naive NTES Baseline</span>
-              <div id="disp-naive-eta" class="text-xl font-bold font-mono text-slate-300 mt-1">11:48 AM</div>
-              <span class="text-[11px] text-rose-400 flex items-center gap-1 mt-0.5">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                Overtake & Freight Blind
-              </span>
+          <!-- SIDE-BY-SIDE ETA COMPARISON -->
+          <div class="grid grid-cols-2 gap-3">
+            <!-- NAIVE NTES BASELINE -->
+            <div class="bg-white rounded-xl p-3.5 border border-slate-200 shadow-sm flex flex-col justify-between">
+              <div>
+                <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-mono">NTES Baseline (Published)</span>
+                <div id="disp-naive-eta" class="text-2xl font-bold font-mono text-slate-700 mt-1">11:48 AM</div>
+              </div>
+              <div class="text-[11px] text-rose-600 font-medium flex items-center gap-1 mt-2">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                <span>Overtake & freight blind</span>
+              </div>
             </div>
 
-            <div class="bg-rail-cyan/10 rounded-lg p-2.5 border border-rail-cyan/30 shadow-[0_0_15px_rgba(0,240,255,0.08)]">
-              <span class="text-[10px] text-rail-cyan uppercase font-mono tracking-wider font-semibold">RAIL-PULSE P50 ETA</span>
-              <div id="disp-p50-eta" class="text-xl font-bold font-mono text-rail-cyan mt-1">12:09 PM</div>
-              <span class="text-[11px] text-emerald-400 flex items-center gap-1 mt-0.5 font-semibold">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                Cascade Calibrated
-              </span>
+            <!-- RAIL-PULSE CASCADE P50 -->
+            <div class="bg-blue-50/70 rounded-xl p-3.5 border border-blue-200 shadow-sm flex flex-col justify-between">
+              <div>
+                <span class="text-[10px] font-bold text-blue-700 uppercase tracking-wider font-mono">RAIL-PULSE P50 ETA</span>
+                <div id="disp-p50-eta" class="text-2xl font-bold font-mono text-blue-900 mt-1">12:09 PM</div>
+              </div>
+              <div class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 mt-2">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                <span>Cascade calibrated</span>
+              </div>
             </div>
           </div>
 
-          <!-- UNCERTAINTY QUANTILE FAN (P10 - P50 - P90) -->
-          <div class="mb-2">
-            <div class="flex items-center justify-between text-xs font-mono text-slate-400 mb-1.5">
-              <span>P10 (Optimistic): <strong id="disp-p10-eta" class="text-emerald-400">11:44</strong></span>
-              <span>P50: <strong id="disp-p50-eta-sub" class="text-rail-cyan">12:09</strong></span>
-              <span>P90 (Worst): <strong id="disp-p90-eta" class="text-rose-400">12:24</strong></span>
+          <!-- CALIBRATED UNCERTAINTY DISTRIBUTION (P10 - P50 - P90) -->
+          <div class="bg-white rounded-xl p-3.5 border border-slate-200/90 shadow-sm">
+            <div class="flex items-center justify-between text-xs font-mono text-slate-600 mb-2">
+              <span>P10 (Best): <strong id="disp-p10-eta" class="text-emerald-700">11:44 AM</strong></span>
+              <span>P50: <strong id="disp-p50-eta-sub" class="text-blue-700">12:09 PM</strong></span>
+              <span>P90 (Worst): <strong id="disp-p90-eta" class="text-rose-700">12:24 PM</strong></span>
             </div>
-            <div class="w-full h-3 rounded-full bg-slate-900 border border-slate-800 relative overflow-hidden">
-              <div class="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-emerald-500 via-rail-cyan to-rose-500 opacity-80" style="left: 15%; width: 70%;"></div>
-              <div class="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_8px_white]" style="left: 50%;"></div>
+            
+            <!-- Sleek Gradient Confidence Interval Bar -->
+            <div class="w-full h-2 rounded-full bg-slate-100 border border-slate-200 relative overflow-hidden my-2">
+              <div class="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-emerald-400 via-blue-500 to-rose-400 opacity-80" style="left: 15%; width: 70%;"></div>
+              <div class="absolute top-0 bottom-0 w-1.5 bg-slate-900 rounded-full" style="left: 50%;"></div>
             </div>
-            <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+            
+            <div class="flex justify-between text-[10px] font-mono text-slate-400 mt-1">
               <span>Safe Station Reporting</span>
-              <span>50% Probable</span>
+              <span>50% Probable Arrival</span>
               <span>Cascade Ceiling</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- EARLY-JUNCTION BAILOUT ROUTER CARD -->
-      <div class="bg-rail-900/60 rounded-xl border border-slate-800/80 p-4 shadow-lg">
+      <!-- IN-JOURNEY BAILOUT ROUTER & GUARDRAIL -->
+      <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
-            <div class="w-6 h-6 rounded bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <div class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
             </div>
-            <h3 class="font-bold text-sm text-slate-100">In-Journey Bailout Router</h3>
+            <h3 class="font-bold text-sm text-slate-900">In-Journey Bailout Router</h3>
           </div>
           
           <!-- ASYMMETRIC SAFETY TOGGLE -->
-          <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[11px] font-mono">
-            <button id="toggle-unboarded" class="px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition">At Home</button>
-            <button id="toggle-onboard" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 transition">On Board</button>
+          <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-mono">
+            <button id="toggle-unboarded" class="px-2.5 py-0.5 rounded text-slate-500 hover:text-slate-900 transition">At Home</button>
+            <button id="toggle-onboard" class="px-2.5 py-0.5 rounded bg-white text-emerald-800 font-bold shadow-sm border border-slate-200/60 transition">On Board</button>
           </div>
         </div>
 
-        <div id="bailout-content" class="bg-slate-950/80 rounded-lg border border-slate-800 p-3.5 flex flex-col gap-3">
+        <div id="bailout-content" class="bg-slate-50 rounded-xl border border-slate-200 p-3.5 flex flex-col gap-3">
           <!-- Dynamically populated by app.js -->
         </div>
       </div>
 
-      <!-- CAUSAL CARDS DISRUPTION BREAKDOWN -->
-      <div class="bg-rail-900/60 rounded-xl border border-slate-800/80 p-4 shadow-lg flex-1">
+      <!-- DETERMINISTIC CAUSAL CARDS BREAKDOWN -->
+      <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm flex-1">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-            Deterministic Causal Cards
+          <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+            Causal Delay Breakdown
           </h3>
-          <span class="text-xs text-slate-400 font-mono" id="cards-count">2 Events</span>
+          <span class="text-xs text-slate-500 font-mono" id="cards-count">2 Events</span>
         </div>
 
-        <div id="causal-cards-container" class="flex flex-col gap-2.5 overflow-y-auto max-h-48 pr-1">
+        <div id="causal-cards-container" class="flex flex-col gap-2.5 overflow-y-auto max-h-52 pr-1">
           <!-- Dynamically populated by app.js -->
         </div>
       </div>
@@ -249,15 +268,18 @@
   </main>
 
   <!-- SLIDE-OVER JUDGE SIMULATOR DRAWER -->
-  <aside id="judge-drawer" class="fixed right-0 top-0 bottom-0 w-96 bg-rail-900 border-l border-slate-800 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 p-6 flex flex-col gap-6 overflow-y-auto">
-    <div class="flex items-center justify-between border-b border-slate-800 pb-4">
-      <div class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded bg-rail-cyan/20 border border-rail-cyan/40 flex items-center justify-center text-rail-cyan">
+  <aside id="judge-drawer" class="fixed right-0 top-0 bottom-0 w-96 bg-white border-l border-slate-200 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 p-6 flex flex-col gap-6 overflow-y-auto">
+    <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
         </div>
-        <h3 class="font-bold text-base text-slate-100">Judge Simulator Controls</h3>
+        <div>
+          <h3 class="font-bold text-base text-slate-900">Judge Simulator Controls</h3>
+          <p class="text-xs text-slate-500">Inject perturbations & verify cascade</p>
+        </div>
       </div>
-      <button id="btn-close-drawer" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200">
+      <button id="btn-close-drawer" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
       </button>
     </div>
@@ -265,48 +287,48 @@
     <!-- DELAY SLIDER -->
     <div class="flex flex-col gap-2">
       <div class="flex justify-between items-center text-xs font-mono">
-        <span class="text-slate-300">INJECT DELAY (DHAULI EXPRESS):</span>
-        <span id="slider-val-disp" class="text-rail-cyan font-bold">+15 mins</span>
+        <span class="text-slate-600 font-semibold">INJECT DELAY (DHAULI EXPRESS):</span>
+        <span id="slider-val-disp" class="text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">+15 mins</span>
       </div>
-      <input id="slider-delay" type="range" min="0" max="60" step="5" value="15" class="w-full accent-rail-cyan bg-slate-800 rounded-lg h-2 cursor-pointer" />
-      <div class="flex justify-between text-[10px] font-mono text-slate-500">
+      <input id="slider-delay" type="range" min="0" max="60" step="5" value="15" class="w-full accent-blue-600 bg-slate-200 rounded-lg h-2 cursor-pointer mt-2" />
+      <div class="flex justify-between text-[10px] font-mono text-slate-400 mt-1">
         <span>0m</span>
         <span>15m</span>
         <span>30m</span>
         <span>45m</span>
         <span>60m</span>
       </div>
-      <button id="btn-apply-delay" class="mt-2 w-full py-2 rounded-lg bg-rail-cyan/20 hover:bg-rail-cyan/30 text-rail-cyan border border-rail-cyan/40 text-xs font-semibold transition">
+      <button id="btn-apply-delay" class="btn-press mt-3 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition">
         Apply Delay to Corridor
       </button>
     </div>
 
     <!-- SIMULATION SPEED -->
-    <div class="flex flex-col gap-2 border-t border-slate-800 pt-4">
-      <span class="text-xs font-mono text-slate-300">TIME-WARP SPEED MULTIPLIER:</span>
-      <div class="grid grid-cols-3 gap-2">
-        <button id="btn-speed-1" class="py-2 rounded-lg bg-slate-800 text-slate-200 text-xs font-mono font-bold border border-slate-700 hover:border-rail-cyan transition">1x Real</button>
-        <button id="btn-speed-10" class="py-2 rounded-lg bg-rail-cyan/20 text-rail-cyan text-xs font-mono font-bold border border-rail-cyan/40">10x Fast</button>
-        <button id="btn-speed-30" class="py-2 rounded-lg bg-slate-800 text-slate-200 text-xs font-mono font-bold border border-slate-700 hover:border-rail-cyan transition">30x Ultra</button>
+    <div class="flex flex-col gap-2 border-t border-slate-200 pt-4">
+      <span class="text-xs font-mono font-semibold text-slate-600">TIME-WARP SPEED MULTIPLIER:</span>
+      <div class="grid grid-cols-3 gap-2 mt-1">
+        <button id="btn-speed-1" class="btn-press py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-mono font-semibold border border-slate-200 hover:bg-slate-200 transition">1x Real</button>
+        <button id="btn-speed-10" class="btn-press py-2 rounded-xl bg-blue-50 text-blue-700 text-xs font-mono font-bold border border-blue-200 transition">10x Fast</button>
+        <button id="btn-speed-30" class="btn-press py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-mono font-semibold border border-slate-200 hover:bg-slate-200 transition">30x Ultra</button>
       </div>
     </div>
 
     <!-- SCENARIO PRESETS -->
-    <div class="flex flex-col gap-2 border-t border-slate-800 pt-4">
-      <span class="text-xs font-mono text-slate-300">ONE-CLICK DEMO SCENARIOS:</span>
-      <button id="btn-scenario-standard" class="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-left text-slate-200 border border-slate-700 transition flex flex-col">
-        <span class="font-bold text-rail-cyan">1. Standard SIH26028 Demo</span>
-        <span class="text-[11px] text-slate-400">Dhauli at Cuttack + Vande Bharat Overtake + Barang Freight</span>
+    <div class="flex flex-col gap-2.5 border-t border-slate-200 pt-4">
+      <span class="text-xs font-mono font-semibold text-slate-600">ONE-CLICK DEMO SCENARIOS:</span>
+      <button id="btn-scenario-standard" class="btn-press w-full py-2.5 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs text-left border border-slate-200 transition flex flex-col gap-0.5">
+        <span class="font-bold text-blue-700">1. Standard SIH26028 Demo</span>
+        <span class="text-[11px] text-slate-500">Dhauli at Cuttack + Vande Bharat Overtake + Barang Freight</span>
       </button>
-      <button id="btn-inject-freight" class="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-left text-slate-200 border border-slate-700 transition flex flex-col">
-        <span class="font-bold text-amber-400">2. Confirm ULIP FOIS Coal Rake</span>
-        <span class="text-[11px] text-slate-400">Forces 20m Clearance at Barang Goods Loop</span>
+      <button id="btn-inject-freight" class="btn-press w-full py-2.5 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs text-left border border-slate-200 transition flex flex-col gap-0.5">
+        <span class="font-bold text-amber-700">2. Confirm ULIP FOIS Coal Rake</span>
+        <span class="text-[11px] text-slate-500">Forces 20m Clearance at Barang Goods Loop</span>
       </button>
     </div>
 
     <!-- RESET BUTTON -->
-    <div class="mt-auto border-t border-slate-800 pt-4">
-      <button id="btn-reset-demo" class="w-full py-2.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition flex items-center justify-center gap-2">
+    <div class="mt-auto border-t border-slate-200 pt-4">
+      <button id="btn-reset-demo" class="btn-press w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition flex items-center justify-center gap-2">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
         Reset Corridor to Zero State
       </button>

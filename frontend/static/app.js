@@ -1,5 +1,6 @@
 /**
  * RAIL-PULSE Interactive Control Room Dashboard
+ * Clean, Pale-White & Professional Frontend
  * ECoR Cascade Overtake Predictor & Multimodal Bailout Engine
  */
 
@@ -33,17 +34,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   connectWebSocket();
   await fetchForecast(selectedTrain);
   drawMareyDiagram();
+  window.addEventListener("resize", () => drawMareyDiagram());
 });
 
-// 1. Initialize Map
+// 1. Initialize Map with Clean CartoDB Positron Light Tiles
 function initMap() {
   map = L.map("corridor-map", {
     zoomControl: true,
     attributionControl: false,
   }).setView([20.40, 85.90], 9);
 
-  // Dark basemap with offline fallback
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  // CartoDB Positron Light Basemap
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
     maxZoom: 18,
     subdomains: "abcd",
   }).addTo(map);
@@ -64,17 +66,17 @@ async function loadTopology() {
         const isFreightBlock = props.block_id === "DN_CTC_BRAG";
 
         const line = L.polyline(coords, {
-          color: isFreightBlock ? "#f59e0b" : "#10b981",
-          weight: isFreightBlock ? 5 : 3,
-          opacity: 0.8,
+          color: isFreightBlock ? "#d97706" : "#059669",
+          weight: isFreightBlock ? 5 : 3.5,
+          opacity: isFreightBlock ? 0.9 : 0.75,
           className: isFreightBlock ? "pulsing-freight-track" : "",
         }).addTo(map);
 
         line.bindPopup(`
-          <div class="font-mono text-xs text-slate-900">
+          <div class="font-mono text-xs text-slate-800 p-1">
             <strong>${props.block_id}</strong> (${props.direction})<br/>
             Length: ${props.length_km} km | MPS: ${props.mps_kmph} km/h<br/>
-            ${isFreightBlock ? '<span class="text-amber-600 font-bold">⚠ ACTIVE FREIGHT SHADOW</span>' : ''}
+            ${isFreightBlock ? '<span class="text-amber-700 font-bold">⚠ ACTIVE FREIGHT SHADOW (COAL RAKE)</span>' : ''}
           </div>
         `);
       } else if (props.feature_type === "STATION") {
@@ -82,17 +84,17 @@ async function loadTopology() {
         const isJunction = props.is_major_junction;
 
         const circle = L.circleMarker(coord, {
-          radius: isJunction ? 7 : 4,
-          fillColor: isJunction ? "#00f0ff" : "#94a3b8",
-          color: "#060913",
-          weight: 2,
-          fillOpacity: 0.9,
+          radius: isJunction ? 6.5 : 4,
+          fillColor: "#ffffff",
+          color: isJunction ? "#1e3a8a" : "#64748b",
+          weight: isJunction ? 2.5 : 1.5,
+          fillOpacity: 1.0,
         }).addTo(map);
 
         circle.bindTooltip(`<strong>${props.station_code}</strong> - ${props.station_name}`, {
           permanent: isJunction,
           direction: "right",
-          className: "bg-slate-900 border border-slate-700 text-slate-100 text-[10px] px-1 py-0.5 rounded",
+          className: "leaflet-tooltip",
         });
       }
     });
@@ -105,11 +107,11 @@ async function loadTopology() {
       [20.296, 85.824], // Bhubaneswar
     ];
     L.polyline(nh16Coords, {
-      color: "#38bdf8",
+      color: "#2563eb",
       weight: 3,
-      dashArray: "6, 6",
-      opacity: 0.85,
-    }).addTo(map).bindTooltip("NH-16 Expressway Bailout Route (38 mins)", { direction: "top" });
+      dashArray: "5, 5",
+      opacity: 0.8,
+    }).addTo(map).bindTooltip("NH-16 Expressway Rescue Route (38 mins)", { direction: "top" });
 
   } catch (err) {
     console.error("Failed to load corridor topology:", err);
@@ -124,9 +126,9 @@ function connectWebSocket() {
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
-    wsStatusBadge.className = "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono bg-emerald-500/10 border border-emerald-500/30 text-emerald-300";
-    wsDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
-    wsText.textContent = "LIVE SYNC (1.5s)";
+    wsStatusBadge.className = "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono bg-emerald-50 border border-emerald-200 text-emerald-800 transition-colors";
+    wsDot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+    wsText.textContent = "Live Sync (1.5s)";
   };
 
   ws.onmessage = (event) => {
@@ -141,9 +143,9 @@ function connectWebSocket() {
   };
 
   ws.onclose = () => {
-    wsStatusBadge.className = "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono bg-slate-800 border border-slate-700 text-slate-400";
-    wsDot.className = "w-2 h-2 rounded-full bg-amber-400";
-    wsText.textContent = "RECONNECTING...";
+    wsStatusBadge.className = "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono bg-amber-50 border border-amber-200 text-amber-800 transition-colors";
+    wsDot.className = "w-2 h-2 rounded-full bg-amber-500";
+    wsText.textContent = "Reconnecting...";
     setTimeout(connectWebSocket, 2000);
   };
 }
@@ -157,15 +159,16 @@ function updateTrainPositions(trains) {
     const isDhauli = t.train_no === "12821";
     const isVandeBharat = t.train_no === "22895";
 
-    let color = "#10b981";
-    if (isDhauli) color = "#f59e0b";
-    if (isVandeBharat) color = "#00f0ff";
+    let bgColor = "#059669";
+    let textColor = "#ffffff";
+    if (isDhauli) bgColor = "#d97706";
+    if (isVandeBharat) bgColor = "#2563eb";
 
     if (!trainMarkers[t.train_no]) {
       const icon = L.divIcon({
         className: "custom-div-icon",
         html: `
-          <div style="background-color: ${color}; color: #000; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px; border: 2px solid white; box-shadow: 0 0 10px ${color}">
+          <div style="background-color: ${bgColor}; color: ${textColor}; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.2)">
             ${t.direction === "DN" ? "▼" : "▲"}
           </div>
         `,
@@ -179,9 +182,9 @@ function updateTrainPositions(trains) {
     }
 
     trainMarkers[t.train_no].bindTooltip(`
-      <div class="font-mono text-xs text-slate-900">
+      <div class="font-mono text-xs text-slate-900 p-1">
         <strong>${t.train_no} ${t.train_name}</strong><br/>
-        Speed: ${t.speed_kmph.toFixed(0)} km/h | Delay: +${t.current_delay_mins.toFixed(0)}m<br/>
+        Speed: ${t.speed_kmph.toFixed(0)} km/h • Delay: +${t.current_delay_mins.toFixed(0)}m<br/>
         Chainage: ${t.chainage_km.toFixed(1)} km (${t.status})
       </div>
     `);
@@ -229,31 +232,31 @@ function renderCausalCards(cards) {
   document.getElementById("cards-count").textContent = `${cards.length} Events`;
 
   if (cards.length === 0) {
-    container.innerHTML = `<div class="text-xs text-slate-500 font-mono text-center py-4">No delay disruptions detected on track.</div>`;
+    container.innerHTML = `<div class="text-xs text-slate-400 font-mono text-center py-4">No delay disruptions detected on track.</div>`;
     return;
   }
 
   cards.forEach((card) => {
-    let badgeColor = "bg-amber-500/20 text-amber-300 border-amber-500/30";
+    let badgeColor = "bg-amber-50 text-amber-800 border-amber-200";
     let icon = "⚠";
 
     if (card.event === "PRIORITY_OVERTAKE_HOLD" || card.event === "CASCADE_DOUBLE_OVERTAKE") {
-      badgeColor = "bg-rose-500/20 text-rose-300 border-rose-500/30";
+      badgeColor = "bg-rose-50 text-rose-700 border-rose-200";
       icon = "⚡";
     } else if (card.event === "FREIGHT_SHADOW_DRAG") {
-      badgeColor = "bg-amber-500/20 text-amber-300 border-amber-500/30";
+      badgeColor = "bg-amber-50 text-amber-800 border-amber-200";
       icon = "🚂";
     }
 
     const div = document.createElement("div");
-    div.className = "bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex items-start gap-3";
+    div.className = "bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-start gap-3 transition-colors hover:border-slate-300";
     div.innerHTML = `
-      <div class="px-2 py-0.5 rounded text-xs font-mono font-bold border ${badgeColor} flex items-center gap-1 mt-0.5">
+      <div class="px-2 py-0.5 rounded-md text-xs font-mono font-bold border ${badgeColor} flex items-center gap-1 mt-0.5">
         <span>${icon}</span> +${card.added_delay_mins.toFixed(0)}m
       </div>
       <div class="flex-1">
-        <div class="text-xs font-bold text-slate-200">${card.station_name}</div>
-        <p class="text-[11px] text-slate-400 mt-0.5">${card.human_message}</p>
+        <div class="text-xs font-bold text-slate-900">${card.station_name}</div>
+        <p class="text-[11px] text-slate-600 mt-0.5 leading-relaxed">${card.human_message}</p>
       </div>
     `;
     container.appendChild(div);
@@ -281,51 +284,51 @@ async function evaluateBailout(trainNo) {
 
     if (data.safe_boarding_lock) {
       content.innerHTML = `
-        <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-xs">
-          <div class="flex items-center gap-2 text-amber-400 font-bold mb-1">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs">
+          <div class="flex items-center gap-2 text-amber-900 font-bold mb-1">
+            <svg class="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
             Asymmetric Liability Guardrail Active
           </div>
-          <p class="text-slate-300">Passenger is unboarded. To prevent liability from slack recovery, road bailout is suppressed.</p>
-          <div class="mt-2 text-slate-400 font-mono">
-            Mandatory Station Reporting: <strong class="text-emerald-400">11:44 AM (P10)</strong>
+          <p class="text-slate-700">Passenger is unboarded. To prevent liability from slack recovery, road bailout is suppressed.</p>
+          <div class="mt-2 text-slate-600 font-mono text-[11px]">
+            Mandatory Station Reporting: <strong class="text-emerald-700">11:44 AM (P10)</strong>
           </div>
         </div>
       `;
     } else if (data.bailout_recommended && data.bailout_plan) {
       const plan = data.bailout_plan;
       content.innerHTML = `
-        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-          <span class="text-xs text-rose-400 font-bold flex items-center gap-1 font-mono">
-            <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+          <span class="text-xs text-rose-700 font-bold flex items-center gap-1.5 font-mono">
+            <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
             Connection Survival: ${data.survival_probability_pct}% (HIGH RISK MISS)
           </span>
-          <span class="text-xs text-emerald-400 font-bold font-mono">Save ~${plan.minutes_saved.toFixed(0)} mins</span>
+          <span class="text-xs text-emerald-700 font-bold font-mono bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Save ~${plan.minutes_saved.toFixed(0)} mins</span>
         </div>
-        <div class="text-xs text-slate-300">
-          <strong>Recommended Action:</strong> Deboard at <span class="text-rail-cyan font-bold">${plan.deboard_station_name}</span>.
+        <div class="text-xs text-slate-800">
+          <strong>Recommended Action:</strong> Deboard at <span class="text-blue-700 font-bold">${plan.deboard_station_name}</span>.
         </div>
-        <div class="grid grid-cols-2 gap-2 text-[11px] font-mono bg-slate-900/90 p-2.5 rounded border border-slate-800">
+        <div class="grid grid-cols-2 gap-2 text-[11px] font-mono bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm">
           <div>
-            <span class="text-slate-500">ROAD TRANSIT:</span>
-            <div class="text-slate-200">${plan.road_mode}</div>
+            <span class="text-slate-400">ROAD TRANSIT:</span>
+            <div class="text-slate-800 font-semibold">${plan.road_mode}</div>
           </div>
           <div>
-            <span class="text-slate-500">ROAD DURATION:</span>
-            <div class="text-slate-200 font-bold">${plan.road_drive_mins} mins</div>
+            <span class="text-slate-400">ROAD DURATION:</span>
+            <div class="text-slate-800 font-bold">${plan.road_drive_mins} mins</div>
           </div>
         </div>
-        <div class="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 p-2 rounded">
+        <div class="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200/80 p-2.5 rounded-lg font-medium">
           ${plan.human_guidance}
         </div>
       `;
     } else {
       content.innerHTML = `
-        <div class="text-xs text-emerald-400 font-mono flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-          Train Projected on Track | Connection Survival: ${data.survival_probability_pct || 91}% (SAFE)
+        <div class="text-xs text-emerald-700 font-mono font-medium flex items-center gap-2">
+          <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          Train Projected on Track • Survival: ${data.survival_probability_pct || 91}% (SAFE)
         </div>
-        <p class="text-[11px] text-slate-400">Current train progression is sufficient to meet downstream connection deadline.</p>
+        <p class="text-[11px] text-slate-500">Current train progression is sufficient to meet downstream connection deadline.</p>
       `;
     }
   } catch (err) {
@@ -333,7 +336,7 @@ async function evaluateBailout(trainNo) {
   }
 }
 
-// 8. Draw Marey Space-Time Diagram (Canvas)
+// 8. Draw Marey Space-Time Diagram on Light Canvas
 function drawMareyDiagram() {
   const canvas = document.getElementById("marey-canvas");
   if (!canvas) return;
@@ -348,12 +351,12 @@ function drawMareyDiagram() {
 
   const w = rect.width;
   const h = rect.height;
-  const padLeft = 60, padRight = 20, padTop = 15, padBottom = 25;
+  const padLeft = 60, padRight = 25, padTop = 18, padBottom = 28;
 
   ctx.clearRect(0, 0, w, h);
 
   // Background Grid
-  ctx.strokeStyle = "#1e293b";
+  ctx.strokeStyle = "#e2e8f0";
   ctx.lineWidth = 1;
 
   // Stations on Y-Axis
@@ -365,9 +368,9 @@ function drawMareyDiagram() {
   ];
 
   ctx.fillStyle = "#64748b";
-  ctx.font = "10px ui-monospace, monospace";
+  ctx.font = "10px 'JetBrains Mono', ui-monospace, monospace";
   stations.forEach((s) => {
-    ctx.fillText(`${s.code}`, 10, s.y + 4);
+    ctx.fillText(`${s.code}`, 12, s.y + 4);
     ctx.beginPath();
     ctx.moveTo(padLeft, s.y);
     ctx.lineTo(w - padRight, s.y);
@@ -380,7 +383,7 @@ function drawMareyDiagram() {
 
   times.forEach((t, i) => {
     const x = padLeft + i * xSpan;
-    ctx.fillText(t, x - 12, h - 8);
+    ctx.fillText(t, x - 14, h - 8);
     ctx.beginPath();
     ctx.moveTo(x, padTop);
     ctx.lineTo(x, h - padBottom);
@@ -388,7 +391,7 @@ function drawMareyDiagram() {
   });
 
   // Trajectory 1: 12821 Dhauli Express (Delayed + Loop Line Hold at Cuttack)
-  ctx.strokeStyle = "#f59e0b";
+  ctx.strokeStyle = "#d97706";
   ctx.lineWidth = 2.5;
   ctx.beginPath();
   ctx.moveTo(padLeft + xSpan * 0.3, padTop); // Dep BHC 10:10
@@ -399,7 +402,7 @@ function drawMareyDiagram() {
   ctx.stroke();
 
   // Trajectory 2: 22895 Vande Bharat Express (Fast Mainline Overtake at 130 km/h)
-  ctx.strokeStyle = "#00f0ff";
+  ctx.strokeStyle = "#2563eb";
   ctx.lineWidth = 2.5;
   ctx.beginPath();
   ctx.moveTo(padLeft + xSpan * 1.4, padTop); // Dep BHC 10:42
@@ -409,12 +412,13 @@ function drawMareyDiagram() {
   ctx.stroke();
 
   // Annotate Overtake Point
-  ctx.fillStyle = "#f43f5e";
+  ctx.fillStyle = "#dc2626";
   ctx.beginPath();
   ctx.arc(padLeft + xSpan * 2.1, stations[1].y, 4, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "#38bdf8";
+  ctx.fillStyle = "#1e3a8a";
+  ctx.font = "bold 10px 'Inter', sans-serif";
   ctx.fillText("⚡ Overtake at CTC Loop", padLeft + xSpan * 2.1 + 8, stations[1].y - 8);
 }
 
@@ -486,9 +490,9 @@ function initDrawer() {
         [1, 10, 30].forEach((s) => {
           const b = document.getElementById(`btn-speed-${s}`);
           if (s === spd) {
-            b.className = "py-2 rounded-lg bg-rail-cyan/20 text-rail-cyan text-xs font-mono font-bold border border-rail-cyan/40";
+            b.className = "btn-press py-2 rounded-xl bg-blue-50 text-blue-700 text-xs font-mono font-bold border border-blue-200 transition";
           } else {
-            b.className = "py-2 rounded-lg bg-slate-800 text-slate-200 text-xs font-mono font-bold border border-slate-700 hover:border-rail-cyan transition";
+            b.className = "btn-press py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-mono font-semibold border border-slate-200 hover:bg-slate-200 transition";
           }
         });
       });
@@ -507,9 +511,9 @@ function initTabsAndToggles() {
         ["12821", "22895", "18410"].forEach((n) => {
           const b = document.getElementById(`tab-${n}`);
           if (n === tNo) {
-            b.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-rail-cyan/20 border border-rail-cyan/40 text-rail-cyan transition";
+            b.className = "flex-1 py-1.5 px-3 rounded-lg font-semibold bg-white text-slate-900 shadow-sm border border-slate-200/60 transition";
           } else {
-            b.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-slate-800/60 border border-slate-700 text-slate-300 hover:bg-slate-800 transition";
+            b.className = "flex-1 py-1.5 px-3 rounded-lg font-medium text-slate-600 hover:text-slate-900 transition";
           }
         });
         await fetchForecast(selectedTrain);
@@ -523,15 +527,15 @@ function initTabsAndToggles() {
 
   toggleUnboarded.addEventListener("click", async () => {
     passengerStatus = "PRE_BOARDING";
-    toggleUnboarded.className = "px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 transition";
-    toggleOnboard.className = "px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition";
+    toggleUnboarded.className = "px-2.5 py-0.5 rounded bg-white text-amber-800 font-bold shadow-sm border border-slate-200/60 transition";
+    toggleOnboard.className = "px-2.5 py-0.5 rounded text-slate-500 hover:text-slate-900 transition";
     await evaluateBailout(selectedTrain);
   });
 
   toggleOnboard.addEventListener("click", async () => {
     passengerStatus = "ON_BOARD";
-    toggleOnboard.className = "px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 transition";
-    toggleUnboarded.className = "px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition";
+    toggleOnboard.className = "px-2.5 py-0.5 rounded bg-white text-emerald-800 font-bold shadow-sm border border-slate-200/60 transition";
+    toggleUnboarded.className = "px-2.5 py-0.5 rounded text-slate-500 hover:text-slate-900 transition";
     await evaluateBailout(selectedTrain);
   });
 }
