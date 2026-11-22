@@ -1,8 +1,18 @@
 from typing import Any
+
 from fastapi import APIRouter, Depends
 
-from app.api.deps import get_demo_provider, get_state_store, CorridorStateStore, DemoSimulationProvider
-from app.models.schemas import DemoDelayInjectRequest, DemoScenarioStartRequest, DemoSpeedRequest
+from app.api.deps import (
+    CorridorStateStore,
+    DemoSimulationProvider,
+    get_demo_provider,
+    get_state_store,
+)
+from app.models.schemas import (
+    DemoDelayInjectRequest,
+    DemoScenarioStartRequest,
+    DemoSpeedRequest,
+)
 
 router = APIRouter(tags=["Demo & Simulation Controls"])
 

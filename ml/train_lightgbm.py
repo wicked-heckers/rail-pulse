@@ -1,5 +1,6 @@
 import csv
 from pathlib import Path
+
 import lightgbm as lgb
 import numpy as np
 
@@ -15,9 +16,9 @@ def train_quantile_models(data_path: Path, artifacts_dir: Path) -> dict[str, str
     # Load dataset
     features = []
     targets = []
-    with open(data_path, "r", encoding="utf-8") as f:
+    with open(data_path, encoding="utf-8") as f:
         reader = csv.reader(f)
-        headers = next(reader)
+        _ = next(reader)  # Skip header row
         for row in reader:
             features.append([float(val) for val in row[:-1]])
             targets.append(float(row[-1]))

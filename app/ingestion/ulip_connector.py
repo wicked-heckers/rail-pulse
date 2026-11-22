@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+
 from app.core.state_store import state_store
 from app.models.schemas import FreightInferenceResult
 

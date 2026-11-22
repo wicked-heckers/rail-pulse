@@ -1,4 +1,3 @@
-import pytest
 from ml.run_backtest import run_50_run_benchmark
 
 

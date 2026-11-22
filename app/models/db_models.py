@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -98,4 +99,4 @@ class RoadTransferCacheModel(Base):
     typical_peak_drive_mins = Column(Float, nullable=False)
     station_exit_penalty_mins = Column(Float, default=12.0)
     polyline = Column(Text, nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))

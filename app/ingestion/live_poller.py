@@ -1,6 +1,6 @@
-import asyncio
 import logging
 from typing import Any
+
 import httpx
 
 from app.config import settings
@@ -40,7 +40,7 @@ class LiveFeedProvider(CorridorDataProvider):
                         "wind_speed_kmph": wind,
                         "condition": cond,
                     }
-        except Exception as e:
+        except (httpx.HTTPError, ValueError, KeyError) as e:
             logger.warning("Open-Meteo live weather fetch failed (using cache): %s", e)
 
         return self.cached_weather

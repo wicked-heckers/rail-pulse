@@ -11,7 +11,6 @@ from app.engine.quantile_ml import QuantileMLEngine
 from app.models.schemas import QuantileFeatureVector
 
 
-
 def run_50_run_benchmark(data_path: Path | None = None) -> dict[str, Any]:
     """
     Evaluates 50 corridor delayed trips comparing:
@@ -25,11 +24,9 @@ def run_50_run_benchmark(data_path: Path | None = None) -> dict[str, Any]:
     if not csv_file.exists():
         raise FileNotFoundError(f"Training/Evaluation data not found at {csv_file}")
 
-    rows: list[dict[str, str]] = []
-    with open(csv_file, mode="r", encoding="utf-8") as f:
+    with open(csv_file, encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        for r in reader:
-            rows.append(r)
+        rows: list[dict[str, str]] = list(reader)
 
     # Sample 50 representative corridor runs from the tail of the dataset
     test_runs = rows[-50:]

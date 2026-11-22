@@ -1,7 +1,8 @@
 from typing import Any
+
 from fastapi import APIRouter, Depends
 
-from app.api.deps import get_state_store, get_topology, CorridorStateStore
+from app.api.deps import CorridorStateStore, get_state_store, get_topology
 
 router = APIRouter(tags=["Corridor"])
 

@@ -11,7 +11,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.deps import demo_provider
 from app.api.v1 import corridor, demo, forecast, health, rescue, webhooks
-from app.api.ws import router as ws_router, ws_manager
+from app.api.ws import router as ws_router
+from app.api.ws import ws_manager
 from app.config import settings
 from app.core.state_store import state_store
 from app.engine.quantile_ml import QuantileMLEngine
@@ -53,7 +54,7 @@ async def lifespan(app: FastAPI):
                 await state_store.update_weather(snap["weather"])
             except asyncio.CancelledError:
                 break
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Provider worker error: {e}")
 
     async def _ws_broadcaster():
@@ -64,7 +65,7 @@ async def lifespan(app: FastAPI):
                 await ws_manager.broadcast(snap)
             except asyncio.CancelledError:
                 break
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"WS broadcaster error: {e}")
 
     provider_task = asyncio.create_task(_provider_worker())

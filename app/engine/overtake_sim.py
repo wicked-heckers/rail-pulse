@@ -21,7 +21,6 @@ def simulate_corridor_overtakes(
     Deterministic forward discrete-event simulator evaluating priority overtakes
     and loop-line hold conflicts across the corridor over the next 180 minutes.
     """
-    stations_map = {s["station_code"]: s for s in topology["stations"]}
     trains_master_map = {t["train_no"]: t for t in topology.get("trains", [])}
     freight_map = freight_penalties or {}
 
@@ -135,56 +134,55 @@ def simulate_corridor_overtakes(
             trail_eta_mins = (trail_dist / trail_speed) * 60.0 + trail_state.current_delay_mins
             trail_arr_epoch = current_epoch + int(trail_eta_mins * 60)
 
-            # Conflict condition: trailing train arrives within 10 min window of target train
+            # Conflict condition: trailing train arrives within 10 min window of target train and loop available
             headway_gap_secs = trail_arr_epoch - arr_epoch
-            if -300 <= headway_gap_secs <= 600:  # Within 5 mins before or 10 mins after
-                if available_loops > len(loop_occupancy[stn_code]):
-                    hold_mins = 16.0  # Standard loop line hold + turnout + signal clearance
-                    total_loop_hold_mins += hold_mins
-                    accumulated_delay_mins += hold_mins
-                    overtakes_count += 1
+            if (-300 <= headway_gap_secs <= 600) and (available_loops > len(loop_occupancy[stn_code])):
+                hold_mins = 16.0  # Standard loop line hold + turnout + signal clearance
+                total_loop_hold_mins += hold_mins
+                accumulated_delay_mins += hold_mins
+                overtakes_count += 1
 
-                    hold_card = CausalCard(
-                        event="PRIORITY_OVERTAKE_HOLD",
-                        station_code=stn_code,
-                        station_name=stn_name,
-                        added_delay_mins=hold_mins,
-                        caused_by_train=f"{trail_state.train_no} {trail_state.train_name}",
-                        human_message=f"Expected +{hold_mins:.0f} min hold at {stn_name} Loop Line for {trail_state.train_no} {trail_state.train_name} overtake",
-                    )
-                    causal_cards.append(hold_card)
+                hold_card = CausalCard(
+                    event="PRIORITY_OVERTAKE_HOLD",
+                    station_code=stn_code,
+                    station_name=stn_name,
+                    added_delay_mins=hold_mins,
+                    caused_by_train=f"{trail_state.train_no} {trail_state.train_name}",
+                    human_message=f"Expected +{hold_mins:.0f} min hold at {stn_name} Loop Line for {trail_state.train_no} {trail_state.train_name} overtake",
+                )
+                causal_cards.append(hold_card)
 
-                    # Book loop slot and extend simulation departure
-                    loop_occupancy[stn_code].append((arr_epoch, arr_epoch + int(hold_mins * 60)))
-                    current_sim_time += int(hold_mins * 60)
+                # Book loop slot and extend simulation departure
+                loop_occupancy[stn_code].append((arr_epoch, arr_epoch + int(hold_mins * 60)))
+                current_sim_time += int(hold_mins * 60)
 
-                    # EC-08: Cascaded Double Priority Overtake check
-                    for sec_state, sec_master in trailing_high_priority:
-                        if sec_state.train_no == trail_state.train_no:
-                            continue
-                        sec_speed = sec_master.get("max_speed_kmph", 130)
-                        sec_dist = abs(stn_km - sec_state.chainage_km)
-                        sec_eta_mins = (sec_dist / sec_speed) * 60.0 + sec_state.current_delay_mins
-                        sec_arr_epoch = current_epoch + int(sec_eta_mins * 60)
-                        sec_gap_secs = sec_arr_epoch - current_sim_time
-                        if -180 <= sec_gap_secs <= 600:
-                            second_hold_mins = 10.0
-                            total_loop_hold_mins += second_hold_mins
-                            accumulated_delay_mins += second_hold_mins
-                            overtakes_count += 1
-                            causal_cards.append(
-                                CausalCard(
-                                    event="CASCADE_DOUBLE_OVERTAKE",
-                                    station_code=stn_code,
-                                    station_name=stn_name,
-                                    added_delay_mins=second_hold_mins,
-                                    caused_by_train=f"{sec_state.train_no} {sec_state.train_name}",
-                                    human_message=f"Extended +{second_hold_mins:.0f} min loop hold at {stn_name} for 2nd overtake by {sec_state.train_no} {sec_state.train_name}",
-                                )
+                # EC-08: Cascaded Double Priority Overtake check
+                for sec_state, sec_master in trailing_high_priority:
+                    if sec_state.train_no == trail_state.train_no:
+                        continue
+                    sec_speed = sec_master.get("max_speed_kmph", 130)
+                    sec_dist = abs(stn_km - sec_state.chainage_km)
+                    sec_eta_mins = (sec_dist / sec_speed) * 60.0 + sec_state.current_delay_mins
+                    sec_arr_epoch = current_epoch + int(sec_eta_mins * 60)
+                    sec_gap_secs = sec_arr_epoch - current_sim_time
+                    if -180 <= sec_gap_secs <= 600:
+                        second_hold_mins = 10.0
+                        total_loop_hold_mins += second_hold_mins
+                        accumulated_delay_mins += second_hold_mins
+                        overtakes_count += 1
+                        causal_cards.append(
+                            CausalCard(
+                                event="CASCADE_DOUBLE_OVERTAKE",
+                                station_code=stn_code,
+                                station_name=stn_name,
+                                added_delay_mins=second_hold_mins,
+                                caused_by_train=f"{sec_state.train_no} {sec_state.train_name}",
+                                human_message=f"Extended +{second_hold_mins:.0f} min loop hold at {stn_name} for 2nd overtake by {sec_state.train_no} {sec_state.train_name}",
                             )
-                            current_sim_time += int(second_hold_mins * 60)
-                            break
-                    break
+                        )
+                        current_sim_time += int(second_hold_mins * 60)
+                        break
+                break
 
 
         dwell_mins = scheduled_halt.get("scheduled_dwell_m", 2) if scheduled_halt else 2

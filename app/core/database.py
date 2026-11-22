@@ -1,7 +1,8 @@
 import json
 import logging
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -31,7 +32,7 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_session() -> AsyncGenerator[AsyncSession]:
     """FastAPI dependency for obtaining an asynchronous database session."""
     async with AsyncSessionLocal() as session:
         try:
@@ -59,7 +60,7 @@ class LocalTopologyFallback:
             raise FileNotFoundError(f"Seed topology file not found at {target_path}")
 
         logger.info("Loading topology from local JSON fallback: %s", target_path)
-        with open(target_path, "r", encoding="utf-8") as f:
+        with open(target_path, encoding="utf-8") as f:
             data = json.load(f)
 
         cls._cached_data = data
@@ -84,7 +85,7 @@ class LocalRoadMatrixFallback:
         if not target_path.exists():
             raise FileNotFoundError(f"Seed OSRM matrix file not found at {target_path}")
 
-        with open(target_path, "r", encoding="utf-8") as f:
+        with open(target_path, encoding="utf-8") as f:
             data = json.load(f)
 
         cls._cached_matrix = data

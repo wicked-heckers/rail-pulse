@@ -1,5 +1,6 @@
 from typing import Any
-from fastapi import APIRouter, Header, HTTPException
+
+from fastapi import APIRouter, Header
 
 from app.ingestion.ulip_connector import ULIPFoisEnterpriseConnector
 from app.models.schemas import ULIPTelemetryPayload

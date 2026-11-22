@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import ClassVar
 
 import lightgbm as lgb
 import numpy as np
@@ -23,7 +23,7 @@ class QuantileMLEngine:
     _p10_model: lgb.Booster | None = None
     _p50_model: lgb.Booster | None = None
     _p90_model: lgb.Booster | None = None
-    _features: list[str] = [
+    _features: ClassVar[list[str]] = [
         "current_delay_mins",
         "sim_freight_penalty_mins",
         "sim_overtake_hold_mins",
@@ -58,14 +58,14 @@ class QuantileMLEngine:
             try:
                 with open(schema_path) as f:
                     cls._features = json.load(f).get("features", cls._features)
-            except Exception as e:
+            except (OSError, json.JSONDecodeError, ValueError) as e:
                 logger.warning("Could not read feature_schema.json: %s", e)
 
         if cqr_path.exists():
             try:
                 with open(cqr_path) as f:
                     cls._q_cqr = float(json.load(f).get("q_cqr", cls._q_cqr))
-            except Exception as e:
+            except (OSError, json.JSONDecodeError, ValueError) as e:
                 logger.warning("Could not read cqr_calibration.json: %s", e)
 
         # Check for upgraded lgbm_p*.txt or fallback to p*.txt
@@ -92,7 +92,7 @@ class QuantileMLEngine:
                 cls._q_cqr,
             )
             return True
-        except Exception as e:
+        except (lgb.basic.LightGBMError, OSError) as e:
             logger.error("Failed to load LightGBM boosters: %s", e)
             return False
 
@@ -109,11 +109,11 @@ class QuantileMLEngine:
         models_loaded = cls.load_models()
 
         # Map input features to the locked 12-feature schema
-        overtake_hold = features.sim_overtake_hold_mins or (features.overtake_mins or 0.0)
-        overtake_count = features.sim_overtake_count or (features.overtake_count or 0)
-        freight_prob = features.freight_shadow_prob if features.freight_shadow_prob > 0 else (features.freight_probability or 0.0)
-        rem_km = features.remaining_distance_km if features.remaining_distance_km > 0 else (features.remaining_km or 0.0)
-        rem_halts = features.remaining_commercial_halts if features.remaining_commercial_halts > 0 else (features.remaining_halts or 0)
+        overtake_hold = features.sim_overtake_hold_mins if features.sim_overtake_hold_mins is not None else (features.overtake_mins if features.overtake_mins is not None else 0.0)
+        overtake_count = features.sim_overtake_count if features.sim_overtake_count is not None else (features.overtake_count if features.overtake_count is not None else 0)
+        freight_prob = features.freight_shadow_prob if features.freight_shadow_prob > 0 else (features.freight_probability if features.freight_probability is not None else 0.0)
+        rem_km = features.remaining_distance_km if features.remaining_distance_km > 0 else (features.remaining_km if features.remaining_km is not None else 0.0)
+        rem_halts = features.remaining_commercial_halts if features.remaining_commercial_halts > 0 else (features.remaining_halts if features.remaining_halts is not None else 0)
         is_peak = features.is_peak_hour if features.is_peak_hour in (0, 1) else (1 if features.hour_of_day in (8, 9, 10, 11, 17, 18, 19, 20) else 0)
         junc_load = features.downstream_junction_load if features.downstream_junction_load > 0 else (
             features.junction_congestion_idx * 5.0 if features.junction_congestion_idx else 2.0

@@ -31,9 +31,6 @@ class CorridorStateStore:
     async def update_trains(self, trains: list[TrainKinematicState]) -> None:
         async with self._lock:
             for t in trains:
-                # Apply any judge injected delay
-                injected = self._injected_delays.get(t.train_no, 0.0)
-                t.current_delay_mins += injected
                 self._trains[t.train_no] = t
             if trains and trains[0].last_updated_epoch > 0:
                 self._last_tick_epoch = trains[0].last_updated_epoch

@@ -1,5 +1,4 @@
 import httpx
-import json
 
 
 def run_live_test(base_url: str = "http://127.0.0.1:8000"):

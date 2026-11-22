@@ -1,6 +1,6 @@
-import pytest
 import httpx
-from starlette.testclient import TestClient
+import pytest
+from fastapi.testclient import TestClient
 
 from app.main import app
 
@@ -224,3 +224,22 @@ def test_websocket_corridor_stream(test_client):
         websocket.send_text("ping")
         reply = websocket.receive_text()
         assert reply == "pong"
+
+
+@pytest.mark.asyncio
+async def test_delay_injection_no_double_counting():
+    """Verify that injecting delay does not compound on subsequent snapshot ticks."""
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        # Reset to base scenario
+        await client.post("/api/v1/demo/scenario/start", json={"scenario_name": "DHAULI_CASCADE", "speed_multiplier": 1})
+        f_before = (await client.get("/api/v1/trains/12821/forecast")).json()
+        base_delay = f_before["current_delay_mins"]
+
+        # Inject +15 min delay
+        inj_resp = await client.post("/api/v1/demo/inject-delay", json={"train_no": "12821", "added_delay_mins": 15.0})
+        assert inj_resp.status_code == 200
+
+        # Verify new delay is exactly base_delay + 15
+        f_after = (await client.get("/api/v1/trains/12821/forecast")).json()
+        assert f_after["current_delay_mins"] == pytest.approx(base_delay + 15.0, abs=1.0)
+

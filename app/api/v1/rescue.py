@@ -1,9 +1,10 @@
 import asyncio
 import time
 from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.api.deps import get_state_store, get_topology, CorridorStateStore
+from app.api.deps import CorridorStateStore, get_state_store, get_topology
 from app.engine.overtake_sim import simulate_corridor_overtakes
 from app.engine.rescue_engine import evaluate_connection_rescue
 from app.models.schemas import RescueEvaluateRequest
@@ -55,6 +56,7 @@ async def evaluate_rescue(
         sim_result=sim_result,
         topology=topology,
         current_epoch=current_epoch,
+        use_live_traffic=(snapshot.get("mode") == "LIVE_FEED"),
     )
 
 

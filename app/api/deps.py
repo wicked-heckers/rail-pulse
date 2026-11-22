@@ -1,7 +1,8 @@
 from typing import Any
+
 from app.core.database import LocalTopologyFallback
-from app.core.redis_client import redis_client, RedisCircuitBreakerClient
-from app.core.state_store import state_store, CorridorStateStore
+from app.core.redis_client import RedisCircuitBreakerClient, redis_client
+from app.core.state_store import CorridorStateStore, state_store
 from app.ingestion.demo_provider import DemoSimulationProvider
 
 # Singleton demo provider for demo mode

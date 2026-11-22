@@ -1,5 +1,6 @@
+import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
@@ -8,7 +9,13 @@ import httpx
 from app.config import settings
 from app.core.database import LocalRoadMatrixFallback
 from app.engine.quantile_ml import QuantileMLEngine, calculate_connection_survival
-from app.models.schemas import QuantileFeatureVector, SimulationResult, TrainKinematicState
+from app.models.schemas import (
+    QuantileFeatureVector,
+    SimulationResult,
+    TrainKinematicState,
+)
+
+logger = logging.getLogger("railpulse.rescue")
 
 _MAPBOX_CACHE: dict[str, tuple[float, float, str, float]] = {}
 
@@ -65,12 +72,12 @@ def get_mapbox_road_route_sync(
                         "highway_name": "NH-16 Expressway (Live Mapbox Traffic)",
                         "provider": "MAPBOX_LIVE",
                     }
-    except Exception:
-        pass
+    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        logger.debug("Mapbox live route query bypassed: %s", exc)
     return None
 
 
-async def fetch_osrm_drive_time(
+def get_osrm_road_route_sync(
     from_coords: tuple[float, float],
     to_coords: tuple[float, float],
     timeout: float = 2.0,
@@ -81,8 +88,8 @@ async def fetch_osrm_drive_time(
     """
     url = f"{settings.OSRM_BASE_URL}/{from_coords[1]},{from_coords[0]};{to_coords[1]},{to_coords[0]}?overview=full"
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.get(url)
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.get(url)
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("routes"):
@@ -91,8 +98,8 @@ async def fetch_osrm_drive_time(
                     duration_mins = round(route["duration"] / 60.0, 1)
                     polyline = route.get("geometry", "")
                     return dist_km, duration_mins, polyline
-    except Exception:
-        pass
+    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        logger.debug("OSRM route query bypassed: %s", exc)
     return None
 
 
@@ -105,6 +112,7 @@ def evaluate_connection_rescue(
     sim_result: SimulationResult | None = None,
     topology: dict[str, Any] | None = None,
     current_epoch: int = 1795070000,
+    use_live_traffic: bool = False,
 ) -> dict[str, Any]:
     """
     Evaluates connection survival and early-junction road bailout options.
@@ -161,7 +169,7 @@ def evaluate_connection_rescue(
     bailout_plan = None
     if survival_prob < settings.BAILOUT_TRIGGER_SURVIVAL_THRESHOLD and sim_result and topology:
         # Check current hour in IST for peak traffic multiplier
-        ist_now = datetime.fromtimestamp(current_epoch, tz=timezone.utc).astimezone(ZoneInfo("Asia/Kolkata"))
+        ist_now = datetime.fromtimestamp(current_epoch, tz=UTC).astimezone(ZoneInfo("Asia/Kolkata"))
         is_peak_hour = (8 <= ist_now.hour <= 11) or (17 <= ist_now.hour <= 20)
         traffic_factor = settings.PEAK_HOUR_TRAFFIC_MULTIPLIER if is_peak_hour else 1.0
 
@@ -185,6 +193,17 @@ def evaluate_connection_rescue(
             if is_comm and is_junction and sufficient_reaction:
                 # Lookup road travel time
                 road_data = LocalRoadMatrixFallback.get_route(stn_code, destination_code)
+                if use_live_traffic and settings.MAPBOX_ACCESS_TOKEN:
+                    dest_info = stations_map.get(destination_code, {})
+                    stn_lat, stn_lon = stn_info.get("lat"), stn_info.get("lon")
+                    dest_lat, dest_lon = dest_info.get("lat"), dest_info.get("lon")
+                    if stn_lat and stn_lon and dest_lat and dest_lon:
+                        mapbox_res = get_mapbox_road_route_sync(
+                            stn_code, destination_code, (stn_lat, stn_lon), (dest_lat, dest_lon)
+                        )
+                        if mapbox_res:
+                            road_data = {**(road_data or {}), **mapbox_res}
+
                 if not road_data:
                     continue
 

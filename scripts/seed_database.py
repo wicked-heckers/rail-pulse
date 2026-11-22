@@ -8,18 +8,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import settings
-
-from app.models.db_models import (
-    Base,
-    RoadTransferCacheModel,
-    ScheduleHaltModel,
-    StationModel,
-    TrackBlockModel,
-    TrainMasterModel,
-)
+from app.models.db_models import Base
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("railpulse.seed")
@@ -41,7 +34,7 @@ async def seed_postgres_database() -> None:
             try:
                 await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
                 logger.info("PostGIS extension initialized.")
-            except Exception as e:
+            except SQLAlchemyError as e:
                 logger.warning("Could not create postgis extension directly (may already exist or insufficient privileges): %s", e)
 
             # 2. Create All Tables
@@ -54,12 +47,9 @@ async def seed_postgres_database() -> None:
 
         # 3. Load Seed JSON
         topo_path = BASE_DIR / "data" / "seed_ecor_topology.json"
-        with open(topo_path, mode="r", encoding="utf-8") as f:
-            topo = json.load(f)
-
         road_path = BASE_DIR / "data" / "seed_osrm_matrix.json"
-        with open(road_path, mode="r", encoding="utf-8") as f:
-            road_data = json.load(f)
+        topo = await asyncio.to_thread(lambda: json.loads(topo_path.read_text(encoding="utf-8")))
+        road_data = await asyncio.to_thread(lambda: json.loads(road_path.read_text(encoding="utf-8")))
 
         async with engine.begin() as conn:
             # Seed Stations
@@ -200,7 +190,7 @@ async def seed_postgres_database() -> None:
 
         logger.info("Database seeding successfully completed!")
 
-    except Exception as exc:
+    except (SQLAlchemyError, OSError) as exc:
         logger.warning("Postgres database connection could not be established (Docker/Postgres may be offline): %s", exc)
         logger.info("Notice: RAIL-PULSE automatically runs with 100% functionality via LocalTopologyFallback RAM mode.")
     finally:

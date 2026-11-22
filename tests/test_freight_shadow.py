@@ -1,4 +1,5 @@
 import pytest
+
 from app.core.database import LocalTopologyFallback
 from app.engine.freight_shadow import compute_str, evaluate_freight_probability
 

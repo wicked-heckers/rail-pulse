@@ -1,7 +1,13 @@
 import time
+
 from fastapi import APIRouter, Depends
 
-from app.api.deps import get_redis_client, get_state_store, RedisCircuitBreakerClient, CorridorStateStore
+from app.api.deps import (
+    CorridorStateStore,
+    RedisCircuitBreakerClient,
+    get_redis_client,
+    get_state_store,
+)
 from app.config import settings
 from app.engine.quantile_ml import QuantileMLEngine
 from app.models.schemas import HealthResponse

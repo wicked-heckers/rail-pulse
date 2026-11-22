@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from typing import Any
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.core.state_store import state_store
@@ -44,7 +45,7 @@ class WebSocketManager:
             try:
                 await asyncio.wait_for(ws.send_json(message), timeout=1.0)
                 return None
-            except Exception as exc:
+            except (WebSocketDisconnect, RuntimeError, TimeoutError, OSError) as exc:
                 logger.warning(f"Disconnecting unresponsive or closed client: {exc}")
                 return ws
 
@@ -73,7 +74,7 @@ async def websocket_corridor_endpoint(websocket: WebSocket) -> None:
     try:
         snapshot = await state_store.get_snapshot()
         await websocket.send_json(snapshot)
-    except Exception:
+    except (WebSocketDisconnect, RuntimeError, OSError):
         await ws_manager.disconnect(websocket)
         return
 
@@ -82,7 +83,7 @@ async def websocket_corridor_endpoint(websocket: WebSocket) -> None:
         while True:
             # Await client ping/messages (clients can send {"ping": 1})
             data = await websocket.receive_text()
-            if data == "ping":
+            if "ping" in data.lower():
                 await websocket.send_text("pong")
-    except (WebSocketDisconnect, Exception):
+    except (WebSocketDisconnect, RuntimeError, OSError):
         await ws_manager.disconnect(websocket)

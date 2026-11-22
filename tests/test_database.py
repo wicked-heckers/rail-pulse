@@ -1,7 +1,5 @@
-import pytest
-from app.config import settings
-from app.core.database import LocalTopologyFallback, LocalRoadMatrixFallback
-from app.models.db_models import StationModel, TrackBlockModel, TrainMasterModel
+from app.core.database import LocalRoadMatrixFallback, LocalTopologyFallback
+from app.models.db_models import StationModel, TrainMasterModel
 
 
 def test_seed_topology_loads_correctly():

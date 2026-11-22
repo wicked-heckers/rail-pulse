@@ -330,6 +330,7 @@ async function fetchForecast(trainNo) {
 
     // Update Bailout
     await evaluateBailout(trainNo);
+    drawMareyDiagram();
 
   } catch (err) {
     console.error("Failed to fetch forecast:", err);
@@ -510,15 +511,19 @@ function drawMareyDiagram() {
     ctx.stroke();
   });
 
-  // Trajectory 1: 12821 Dhauli Express (Delayed + Loop Line Hold at Cuttack)
+  // Trajectory 1: 12821 Dhauli Express (Dynamic Delay + Loop Line Hold at Cuttack)
+  const currentDelay = (currentForecast && currentForecast.current_delay_mins != null) ? currentForecast.current_delay_mins : 28.0;
+  const delayDelta = (currentDelay - 28.0) / 30.0; // Normalized in 30-min block spans
+  const dynamicShift = Math.max(-0.4, Math.min(2.0, delayDelta * 0.45));
+
   ctx.strokeStyle = "#d97706";
   ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.moveTo(padLeft + xSpan * 0.3, padTop); // Dep BHC 10:10
-  ctx.lineTo(padLeft + xSpan * 1.8, stations[1].y); // Arr CTC 10:55
-  ctx.lineTo(padLeft + xSpan * 2.4, stations[1].y); // Loop Hold at CTC until 11:12 (Plateau!)
-  ctx.lineTo(padLeft + xSpan * 4.2, stations[2].y); // Arr BBS 12:09
-  ctx.lineTo(padLeft + xSpan * 5.2, stations[3].y); // Arr PURI 12:35
+  ctx.moveTo(padLeft + xSpan * (0.3 + dynamicShift * 0.3), padTop); // Dep BHC
+  ctx.lineTo(padLeft + xSpan * (1.8 + dynamicShift * 0.7), stations[1].y); // Arr CTC
+  ctx.lineTo(padLeft + xSpan * (2.4 + dynamicShift * 0.8), stations[1].y); // Loop Hold at CTC (Plateau!)
+  ctx.lineTo(padLeft + xSpan * (4.2 + dynamicShift), stations[2].y); // Arr BBS
+  ctx.lineTo(padLeft + xSpan * (5.2 + dynamicShift), stations[3].y); // Arr PURI
   ctx.stroke();
 
   // Trajectory 2: 22895 Vande Bharat Express (Fast Mainline Overtake at 130 km/h)

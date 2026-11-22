@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from typing import Any
 
@@ -71,7 +70,7 @@ class DemoSimulationProvider(CorridorDataProvider):
         self.sim_clock_secs += int(sim_delta_secs)
         delta_hours = sim_delta_secs / 3600.0
 
-        for t_no, t in self._trains.items():
+        for t in self._trains.values():
             # If train is halted at station, transition to moving after 2 minutes
             if t["status"] == "AT_STATION_HALT":
                 if sim_delta_secs > 10:
@@ -86,12 +85,15 @@ class DemoSimulationProvider(CorridorDataProvider):
                 t["chainage_km"] = round(new_km, 2)
                 # Check for station arrival
                 for stn in self.stations:
-                    if abs(new_km - stn["chainage_km"]) < 0.8 and t["status"] != "AT_STATION_HALT":
-                        if stn["station_code"] == t.get("next_station"):
-                            t["status"] = "AT_STATION_HALT"
-                            t["current_station"] = stn["station_code"]
-                            t["speed_kmph"] = 0.0
-                            break
+                    if (
+                        abs(new_km - stn["chainage_km"]) < 0.8
+                        and t["status"] != "AT_STATION_HALT"
+                        and stn["station_code"] == t.get("next_station")
+                    ):
+                        t["status"] = "AT_STATION_HALT"
+                        t["current_station"] = stn["station_code"]
+                        t["speed_kmph"] = 0.0
+                        break
             else:
                 new_km = max(0.0, t["chainage_km"] - dist_moved)
                 t["chainage_km"] = round(new_km, 2)

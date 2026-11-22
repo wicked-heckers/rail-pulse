@@ -1,11 +1,12 @@
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
+
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.api.deps import get_state_store, get_topology, CorridorStateStore
+from app.api.deps import CorridorStateStore, get_state_store, get_topology
 from app.engine.overtake_sim import simulate_corridor_overtakes
 from app.engine.quantile_ml import QuantileMLEngine
 from app.engine.rescue_engine import evaluate_connection_rescue
@@ -193,11 +194,15 @@ async def predict_cascade_unified(
         )
         active_trains.append(target_train)
     else:
+        target_train = target_train.model_copy(deep=True)
+        if request.injected_delay_mins > 0:
+            target_train.current_delay_mins = max(target_train.current_delay_mins, request.injected_delay_mins)
         if request.current_station:
             stations_map = {s["station_code"]: s for s in topology.get("stations", [])}
             if request.current_station in stations_map:
                 target_train.current_station = request.current_station
                 target_train.chainage_km = stations_map[request.current_station]["chainage_km"]
+        active_trains = [target_train if t.train_no == train_no else t for t in active_trains]
 
     freight_penalties = await state_store.get_freight_penalties()
 
@@ -268,7 +273,7 @@ async def predict_cascade_unified(
     # Format HH:MM in IST
     ist = ZoneInfo("Asia/Kolkata")
     def _fmt(epoch: int) -> str:
-        return datetime.fromtimestamp(epoch, tz=timezone.utc).astimezone(ist).strftime("%H:%M")
+        return datetime.fromtimestamp(epoch, tz=UTC).astimezone(ist).strftime("%H:%M")
 
     naive_ntes_epoch = sched_arr_epoch + int(target_train.current_delay_mins * 60)
     naive_ntes_eta_str = _fmt(naive_ntes_epoch)
@@ -308,7 +313,7 @@ async def predict_cascade_unified(
         # Parse HH:MM into today's epoch in IST
         parts = request.connection_target.deadline_time.split(":")
         hh, mm = int(parts[0]), int(parts[1])
-        ref_dt = datetime.fromtimestamp(current_epoch, tz=timezone.utc).astimezone(ist)
+        ref_dt = datetime.fromtimestamp(current_epoch, tz=UTC).astimezone(ist)
         target_deadline_dt = ref_dt.replace(hour=hh, minute=mm, second=0, microsecond=0)
         target_deadline_epoch = int(target_deadline_dt.timestamp())
         if target_deadline_epoch <= current_epoch:
@@ -325,6 +330,7 @@ async def predict_cascade_unified(
             sim_result=sim_result,
             topology=topology,
             current_epoch=current_epoch,
+            use_live_traffic=(snapshot.get("mode") == "LIVE_FEED"),
         )
 
         bailout_rec = None

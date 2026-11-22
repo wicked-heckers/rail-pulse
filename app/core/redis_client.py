@@ -4,6 +4,7 @@ import time
 from typing import Any
 
 from redis.asyncio import Redis, from_url
+from redis.exceptions import RedisError
 
 from app.config import settings
 
@@ -41,7 +42,7 @@ class RedisCircuitBreakerClient:
                 await self._redis.ping()
                 self._is_healthy = True
                 logger.info("Connected to Redis successfully.")
-            except Exception as e:
+            except (RedisError, OSError, TimeoutError) as e:
                 self._is_healthy = False
                 self._last_error_time = now
                 logger.warning("Redis is offline / unreachable (Circuit Breaker OPEN): %s", e)
@@ -58,7 +59,7 @@ class RedisCircuitBreakerClient:
         try:
             val = await client.get("corridor:ecor:snapshot:latest")
             return json.loads(val) if val else None
-        except Exception as e:
+        except (RedisError, OSError, TimeoutError) as e:
             self._record_failure(e)
             return None
 
@@ -71,13 +72,14 @@ class RedisCircuitBreakerClient:
         try:
             await client.set("corridor:ecor:snapshot:latest", json.dumps(snapshot_data), ex=ttl)
             return True
-        except Exception as e:
+        except (RedisError, OSError, TimeoutError) as e:
             self._record_failure(e)
             return False
 
     def _record_failure(self, exc: Exception) -> None:
         self._is_healthy = False
         self._last_error_time = time.time()
+        self._redis = None
         logger.warning("Redis operation failed. Opening circuit breaker: %s", exc)
 
     async def close(self) -> None:
