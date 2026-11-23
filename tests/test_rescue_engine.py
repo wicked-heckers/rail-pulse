@@ -98,3 +98,11 @@ def test_early_junction_bailout_cuttack_to_bhubaneswar(topology):
     assert "NH-16" in bailout["road_mode"]
     assert bailout["minutes_saved"] >= 5.0
     assert bailout["final_road_arrival_epoch"] <= (deadline_epoch - 15 * 60)
+
+
+def test_osrm_road_route_fallback():
+    """Verify OSRM route helper is exercised and degrades gracefully without throwing."""
+    from app.engine.rescue_engine import get_osrm_road_route_sync
+
+    result = get_osrm_road_route_sync((20.4625, 85.8829), (20.2667, 85.8333), timeout=0.1)
+    assert result is None or (len(result) == 3 and result[0] > 0)

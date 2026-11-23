@@ -107,15 +107,39 @@ export async function setSpeedMultiplier(multiplier: number): Promise<any> {
   return await res.json();
 }
 
+export async function injectFreightShadow(
+  blockId = 'DN_CTC_BRAG',
+  penaltyMins = 20.0,
+  confidence = 0.88
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/demo/inject-freight`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ block_id: blockId, penalty_mins: penaltyMins, confidence }),
+  });
+  return await res.json();
+}
+
+export async function resetCorridor(): Promise<any> {
+  const res = await fetch(`${API_BASE}/demo/reset`, {
+    method: 'POST',
+  });
+  return await res.json();
+}
+
 export async function injectULIPFreight(): Promise<any> {
   const res = await fetch(`${API_BASE}/webhooks/ulip-fois`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-ULIP-API-Key': 'railpulse-enterprise-ulip-key',
+    },
     body: JSON.stringify({
       rake_id: 'BOXN_COAL_CONFIRMED',
       block_id: 'DN_CTC_BRAG',
       direction: 'DN',
       speed_kmph: 28.0,
+      cargo_type: 'COAL',
     }),
   });
   return await res.json();

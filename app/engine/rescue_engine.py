@@ -193,16 +193,32 @@ def evaluate_connection_rescue(
             if is_comm and is_junction and sufficient_reaction:
                 # Lookup road travel time
                 road_data = LocalRoadMatrixFallback.get_route(stn_code, destination_code)
-                if use_live_traffic and settings.MAPBOX_ACCESS_TOKEN:
+                if use_live_traffic:
                     dest_info = stations_map.get(destination_code, {})
                     stn_lat, stn_lon = stn_info.get("lat"), stn_info.get("lon")
                     dest_lat, dest_lon = dest_info.get("lat"), dest_info.get("lon")
                     if stn_lat and stn_lon and dest_lat and dest_lon:
-                        mapbox_res = get_mapbox_road_route_sync(
-                            stn_code, destination_code, (stn_lat, stn_lon), (dest_lat, dest_lon)
-                        )
-                        if mapbox_res:
-                            road_data = {**(road_data or {}), **mapbox_res}
+                        # Tier 1: Try Mapbox if access token is present
+                        if settings.MAPBOX_ACCESS_TOKEN:
+                            mapbox_res = get_mapbox_road_route_sync(
+                                stn_code, destination_code, (stn_lat, stn_lon), (dest_lat, dest_lon)
+                            )
+                            if mapbox_res:
+                                road_data = {**(road_data or {}), **mapbox_res}
+
+                        # Tier 2: Try public OSRM router if Mapbox was bypassed or failed
+                        if not road_data or road_data.get("provider") != "MAPBOX_LIVE":
+                            osrm_res = get_osrm_road_route_sync((stn_lat, stn_lon), (dest_lat, dest_lon))
+                            if osrm_res:
+                                dist_km, dur_mins, polyline = osrm_res
+                                road_data = {
+                                    **(road_data or {}),
+                                    "distance_km": dist_km,
+                                    "base_drive_mins": dur_mins,
+                                    "polyline": polyline,
+                                    "highway_name": "NH-16 Expressway (Live OSRM Routing)",
+                                    "provider": "OSRM_LIVE",
+                                }
 
                 if not road_data:
                     continue

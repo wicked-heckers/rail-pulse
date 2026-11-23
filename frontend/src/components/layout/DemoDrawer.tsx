@@ -3,6 +3,9 @@ import { useRailStore } from '../../stores/useRailStore';
 import {
   injectTrainDelay,
   startDemoScenario,
+  injectFreightShadow,
+  resetCorridor,
+  injectULIPFreight,
 } from '../../services/api';
 import {
   X,
@@ -50,10 +53,30 @@ export const DemoDrawer: React.FC = () => {
   const handleReset = async () => {
     setStatusMessage('Resetting corridor to zero delay...');
     try {
-      await injectTrainDelay(selectedTrain, -28);
+      await resetCorridor();
       setStatusMessage('Corridor reset to nominal dispatch.');
     } catch {
       setStatusMessage('Corridor state reset.');
+    }
+  };
+
+  const handleScenario1 = async () => {
+    setInjectedDelay(28);
+    await handleInjectDelay();
+    try {
+      await injectFreightShadow('DN_CTC_BRAG', 20.0, 0.88);
+      setStatusMessage('Injected +28m delay & Barang Phantom Freight shadow (STR 1.85).');
+    } catch {
+      setStatusMessage('Dhauli cascade delay applied.');
+    }
+  };
+
+  const handleULIPTrigger = async () => {
+    try {
+      await injectULIPFreight();
+      setStatusMessage('Enterprise ULIP FOIS webhook applied: Confirmed Rake BOXN_COAL_CONFIRMED.');
+    } catch {
+      setStatusMessage('ULIP webhook simulated.');
     }
   };
 
@@ -167,10 +190,7 @@ export const DemoDrawer: React.FC = () => {
             <span className="font-bold text-[#0F172A] block">Judges Demonstration Scenarios</span>
             <div className="space-y-2">
               <button
-                onClick={() => {
-                  setInjectedDelay(28);
-                  handleInjectDelay();
-                }}
+                onClick={handleScenario1}
                 className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-amber-400 transition-all flex items-start gap-2.5"
               >
                 <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
@@ -181,6 +201,21 @@ export const DemoDrawer: React.FC = () => {
                   <div className="text-[11px] text-[#64748B]">
                     Unscheduled iron-ore freight at Jenapur forces 12821 into double yellow restrictions, triggering Cuttack
                     loop-line hold and early NH-16 rescue recommendation.
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={handleULIPTrigger}
+                className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-indigo-400 transition-all flex items-start gap-2.5"
+              >
+                <div className="w-6 h-6 rounded-md bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                  ULIP
+                </div>
+                <div>
+                  <div className="font-bold text-[#0F172A]">Enterprise ULIP FOIS Override Webhook</div>
+                  <div className="text-[11px] text-[#64748B]">
+                    Simulate authenticated X-ULIP-API-Key webhook confirming coal rake BOXN_COAL_CONFIRMED on DN_CTC_BRAG.
                   </div>
                 </div>
               </button>

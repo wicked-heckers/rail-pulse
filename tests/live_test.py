@@ -25,7 +25,10 @@ def run_live_test(base_url: str = "http://127.0.0.1:8000"):
             "passenger_status": "ON_BOARD",
         },
     ).json()
-    print("Survival Probability:", f"{r1['survival_probability_pct']}%", "| Risk:", r1["risk_level"], "| Bailout Recommended:", r1["bailout_recommended"])
+    print(
+        f"Survival Probability: {r1['survival_probability_pct']}% | "
+        f"Risk: {r1['risk_level']} | Bailout Recommended: {r1['bailout_recommended']}"
+    )
 
     print("\n--- 4. INJECTING +30 MIN DELAY ---")
     inj = client.post("/api/v1/demo/inject-delay", json={"train_no": "12821", "added_delay_mins": 30.0}).json()
@@ -50,11 +53,17 @@ def run_live_test(base_url: str = "http://127.0.0.1:8000"):
             "passenger_status": "ON_BOARD",
         },
     ).json()
-    print("Survival Probability:", f"{r2['survival_probability_pct']}%", "| Risk:", r2["risk_level"], "| Bailout Recommended:", r2["bailout_recommended"])
+    print(
+        f"Survival Probability: {r2['survival_probability_pct']}% | "
+        f"Risk: {r2['risk_level']} | Bailout Recommended: {r2['bailout_recommended']}"
+    )
     if r2.get("bailout_plan"):
         p = r2["bailout_plan"]
         print(f"  -> Recommended Deboard Station: {p['deboard_station_name']} ({p['deboard_station_code']})")
-        print(f"  -> Road Mode: {p['road_mode']} (drive: {p['road_drive_mins']} mins, exit: {p['station_exit_mins']} mins)")
+        print(
+            f"  -> Road Mode: {p['road_mode']} (drive: {p['road_drive_mins']} mins, "
+            f"exit: {p['station_exit_mins']} mins)"
+        )
         print(f"  -> Saves: {p['minutes_saved']} mins vs staying on train")
         print(f"  -> Road Connection Survival: {p['road_survival_pct']}%")
         print(f"  -> Advisory: {p['human_guidance']}")
