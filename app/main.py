@@ -98,6 +98,11 @@ app.add_middleware(
 )
 
 # Mount Static Files (Frontend UI Assets)
+dist_dir = BASE_DIR / "frontend" / "dist"
+assets_dir = dist_dir / "assets"
+if assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
 static_dir = BASE_DIR / "frontend" / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -119,7 +124,8 @@ async def root(request: Request) -> Any:
     or JSON metadata dictionary for automated API clients.
     """
     accept = request.headers.get("accept", "")
-    index_file = BASE_DIR / "frontend" / "index.html"
+    dist_index = BASE_DIR / "frontend" / "dist" / "index.html"
+    index_file = dist_index if dist_index.exists() else (BASE_DIR / "frontend" / "index.html")
     if "text/html" in accept and index_file.exists():
         return FileResponse(index_file)
 
@@ -142,7 +148,8 @@ async def root(request: Request) -> Any:
 @app.get("/dashboard", response_class=FileResponse, tags=["Dashboard"])
 async def dashboard():
     """Serves the interactive RAIL-PULSE control-room dashboard."""
-    index_file = BASE_DIR / "frontend" / "index.html"
+    dist_index = BASE_DIR / "frontend" / "dist" / "index.html"
+    index_file = dist_index if dist_index.exists() else (BASE_DIR / "frontend" / "index.html")
     if index_file.exists():
         return FileResponse(index_file)
     return {"error": "Dashboard template not found"}

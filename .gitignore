@@ -47,3 +47,10 @@ htmlcov/
 
 # Antigravity artifacts
 .system_generated/
+
+# Frontend / Node
+frontend/node_modules/
+*.tsbuildinfo
+.vite/
+!frontend/dist/
+!frontend/dist/**

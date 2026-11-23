@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #FAF9F6;
+    color: #1E293B;
+    overflow-x: hidden;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #E2E8F0;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #CBD5E1;
+}
+
+/* MapLibre popup refinement */
+.maplibregl-popup-content {
+  padding: 0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid #E2E8F0 !important;
+  background-color: #FFFFFF !important;
+}
+
+.maplibregl-popup-close-button {
+  padding: 4px 8px !important;
+  color: #64748B !important;
+  font-size: 16px !important;
+}
+
+/* Pulsing freight glow */
+@keyframes freightPulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.35; }
+}
+
+.pulsing-freight {
+  animation: freightPulse 2s ease-in-out infinite;
+}
