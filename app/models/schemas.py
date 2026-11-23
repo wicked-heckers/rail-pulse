@@ -191,6 +191,12 @@ class DemoDelayInjectRequest(BaseModel):
     added_delay_mins: float
 
 
+class DemoFreightInjectRequest(BaseModel):
+    block_id: str = "DN_CTC_BRAG"
+    penalty_mins: float = 20.0
+    confidence: float = 0.88
+
+
 class DemoSpeedRequest(BaseModel):
     speed_multiplier: int = 1
 

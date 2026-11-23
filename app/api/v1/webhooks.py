@@ -1,7 +1,8 @@
 from typing import Any
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, HTTPException, status
 
+from app.config import settings
 from app.ingestion.ulip_connector import ULIPFoisEnterpriseConnector
 from app.models.schemas import ULIPTelemetryPayload
 
@@ -17,6 +18,12 @@ async def ingest_ulip_fois_telemetry(
     Ingests authoritative freight rake telemetry from ULIP / FOIS API.
     Instantly upgrades inferred phantom freight shadows to confirmed rake presence.
     """
+    if settings.ULIP_API_KEY and x_ulip_api_key != settings.ULIP_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing X-ULIP-API-Key header",
+        )
+
     # Accept and apply enterprise payload
     result = await ULIPFoisEnterpriseConnector.ingest_telemetry_payload(payload.model_dump())
 

@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     OSRM_TIMEOUT_SECONDS: float = 2.0
     MAPBOX_ACCESS_TOKEN: str | None = None
     MAPBOX_DIRECTIONS_BASE_URL: str = "https://api.mapbox.com/directions/v5/mapbox/driving"
+    ULIP_API_KEY: str = "railpulse-enterprise-ulip-key"
 
     # Ingestion & Simulation Controls
     DEFAULT_PROVIDER_MODE: Literal["DEMO_SIMULATION", "LIVE_POLLER", "REPLAY"] = "DEMO_SIMULATION"

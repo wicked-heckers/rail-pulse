@@ -158,8 +158,24 @@ async def test_rescue_evaluation_endpoint():
 @pytest.mark.asyncio
 async def test_ulip_fois_webhook():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        # 1. Invalid key returns 401
+        unauth_resp = await client.post(
+            "/api/v1/webhooks/ulip-fois",
+            headers={"X-ULIP-API-Key": "wrong-key"},
+            json={
+                "rake_id": "BOXN_9921_COAL",
+                "block_id": "DN_CTC_BRAG",
+                "direction": "DN",
+                "speed_kmph": 28.0,
+                "cargo_type": "COAL",
+            },
+        )
+        assert unauth_resp.status_code == 401
+
+        # 2. Valid key returns 200 ACCEPTED
         resp = await client.post(
             "/api/v1/webhooks/ulip-fois",
+            headers={"X-ULIP-API-Key": "railpulse-enterprise-ulip-key"},
             json={
                 "rake_id": "BOXN_9921_COAL",
                 "block_id": "DN_CTC_BRAG",
@@ -173,6 +189,39 @@ async def test_ulip_fois_webhook():
         assert data["status"] == "ACCEPTED"
         assert data["rake_id"] == "BOXN_9921_COAL"
         assert data["override_applied"] is True
+
+
+@pytest.mark.asyncio
+async def test_demo_freight_inject_and_reset():
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        # 1. Inject freight on block
+        resp = await client.post(
+            "/api/v1/demo/inject-freight",
+            json={
+                "block_id": "DN_CTC_BRAG",
+                "penalty_mins": 25.0,
+                "confidence": 0.92,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "FREIGHT_INJECTED"
+        assert data["block_id"] == "DN_CTC_BRAG"
+        assert data["penalty_mins"] == 25.0
+
+        # Verify state includes the phantom freight
+        state_resp = await client.get("/api/v1/corridor/state")
+        assert state_resp.status_code == 200
+        st = state_resp.json()
+        matching_shadows = [f for f in st["phantom_freights"] if f["block_id"] == "DN_CTC_BRAG"]
+        assert len(matching_shadows) == 1
+        assert matching_shadows[0]["clearance_eta_mins"] == 25.0
+
+        # 2. Reset corridor
+        reset_resp = await client.post("/api/v1/demo/reset")
+        assert reset_resp.status_code == 200
+        r_data = reset_resp.json()
+        assert r_data["status"] == "RESET"
 
 
 @pytest.mark.asyncio

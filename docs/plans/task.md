@@ -46,6 +46,7 @@
 | **042** | Phase 16: Connection Guard & Rescue | Task 16.4: Safe-Boarding Lock & Cuttack NH-16 Rescue Card | Completed | Built `ConnectionGuard.tsx` survival meter, `RescueBanner.tsx` for Safe-Boarding pre-boarding lock and NH-16 road transfer card, and `CabModal.tsx` for simulated road transfer dispatch |
 | **043** | Phase 16: 60 FPS MapLibre Radar | Task 16.5: OpenFreeMap Vector Basemap & WebGL requestAnimationFrame Lerp | Completed | Built `CorridorMap.tsx`, `MapLegend.tsx`, and `useTrainAnimator.ts` with direct WebGL GeoJSON streaming, OpenFreeMap Positron vector tiles (zero API tokens), and offline style fallback |
 | **044** | Phase 16: Integration & Verification | Task 16.6: Presenter Drawer, Responsive Layout & FastAPI Static Mounting | Completed | Built `DemoDrawer.tsx` (Shift+D & logo trigger), assembled split-pane responsive `App.tsx`, compiled to `frontend/dist`, updated FastAPI static asset mounting at `/` and `/assets`, and verified with 39 passing tests |
+| **045** | Codebase Deep-Dive Audit | Task 17.1: Full Alignment Audit with Backend & Project Plans | Completed | Audited 5-stage pipeline, verified 14 edge cases, implemented missing `POST /demo/inject-freight` and `POST /demo/reset`, enforced enterprise ULIP header authentication, synchronized freight shadows to state snapshots, and verified with 40 passing tests & 53.7% MAE backtest |
 
 
 

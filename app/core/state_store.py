@@ -56,9 +56,21 @@ class CorridorStateStore:
             if train_no in self._trains:
                 self._trains[train_no].current_delay_mins += additional_mins
 
-    async def inject_freight_shadow(self, block_id: str, penalty_mins: float) -> None:
+    async def inject_freight_shadow(
+        self, block_id: str, penalty_mins: float, confidence: float = 0.88
+    ) -> None:
         async with self._lock:
             self._injected_freights[block_id] = penalty_mins
+            direction = "DN" if "DN" in block_id else "UP"
+            self._freight_shadows[block_id] = FreightInferenceResult(
+                block_id=block_id,
+                direction=direction,
+                str_value=1.85,
+                freight_probability=confidence,
+                status="PHANTOM_FREIGHT_SHADOW",
+                clearance_station="BRAG" if "BRAG" in block_id else "NRG",
+                clearance_eta_mins=penalty_mins,
+            )
 
     async def get_active_trains(self) -> list[TrainKinematicState]:
         async with self._lock:
@@ -76,9 +88,11 @@ class CorridorStateStore:
 
     async def get_snapshot(self) -> dict[str, Any]:
         async with self._lock:
+            data_quality = "LIVE_SIM" if self._provider_mode == "DEMO_SIMULATION" else "LIVE_FEED"
             return {
                 "tick_utc": self._last_tick_epoch,
                 "mode": self._provider_mode,
+                "data_quality": data_quality,
                 "speed_multiplier": self._speed_multiplier,
                 "trains": [t.model_dump() for t in self._trains.values()],
                 "phantom_freights": [f.model_dump() for f in self._freight_shadows.values()],

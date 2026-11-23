@@ -10,6 +10,7 @@ from app.api.deps import (
 )
 from app.models.schemas import (
     DemoDelayInjectRequest,
+    DemoFreightInjectRequest,
     DemoScenarioStartRequest,
     DemoSpeedRequest,
 )
@@ -89,4 +90,46 @@ async def update_simulation_speed(
     return {
         "status": "SPEED_UPDATED",
         "speed_multiplier": request.speed_multiplier,
+    }
+
+
+@router.post("/inject-freight")
+async def inject_freight_shadow(
+    request: DemoFreightInjectRequest,
+    state_store: CorridorStateStore = Depends(get_state_store),
+    demo_provider: DemoSimulationProvider = Depends(get_demo_provider),
+) -> dict[str, Any]:
+    """
+    Simulates a freight blockage disruption (e.g. iron-ore or coal rake) in a specific block.
+    """
+    await demo_provider.inject_freight(request.block_id, request.confidence, request.penalty_mins)
+    await state_store.inject_freight_shadow(request.block_id, request.penalty_mins, request.confidence)
+
+    return {
+        "status": "FREIGHT_INJECTED",
+        "block_id": request.block_id,
+        "penalty_mins": request.penalty_mins,
+        "confidence": request.confidence,
+    }
+
+
+@router.post("/reset")
+async def reset_corridor_state(
+    state_store: CorridorStateStore = Depends(get_state_store),
+    demo_provider: DemoSimulationProvider = Depends(get_demo_provider),
+) -> dict[str, Any]:
+    """
+    Resets corridor state, active delays, and injected freights to nominal timetable.
+    """
+    await state_store.reset()
+    demo_provider.__init__(speed_multiplier=1.0)
+    snapshot = await demo_provider.tick()
+    await state_store.update_trains(snapshot["trains"])
+    await state_store.update_freight_shadows(snapshot["phantom_freights"])
+    await state_store.update_weather(snapshot["weather"])
+
+    return {
+        "status": "RESET",
+        "message": "Corridor reset to nominal scheduled state",
+        "active_trains": len(snapshot["trains"]),
     }
