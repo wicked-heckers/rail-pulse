@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useTrainAnimator } from './useTrainAnimator';
 import { MapLegend } from './MapLegend';
 import { fetchCorridorConfig } from '../../services/api';
+import { useRailStore } from '../../stores/useRailStore';
 import { Maximize2, LocateFixed, ZoomIn, ZoomOut } from 'lucide-react';
 
 // Verified ECoR Track & Station Topology
@@ -64,6 +65,7 @@ function createBaseMapStyle(mapboxToken?: string | null): any {
 export const CorridorMap: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  const { selectedTrain, activeSnapshot } = useRailStore();
 
   // Attach 60 FPS GPU vector animator
   useTrainAnimator(mapRef);
@@ -391,11 +393,20 @@ export const CorridorMap: React.FC = () => {
 
   const handleLocateTarget = () => {
     if (!mapRef.current) return;
-    mapRef.current.flyTo({
-      center: [85.8828, 20.4631], // Cuttack area
-      zoom: 11.5,
-      speed: 1.2,
-    });
+    const target = activeSnapshot.trains.find((t) => t.train_no === selectedTrain);
+    if (target && target.lon != null && target.lat != null) {
+      mapRef.current.flyTo({
+        center: [target.lon, target.lat],
+        zoom: 11.5,
+        speed: 1.2,
+      });
+    } else {
+      mapRef.current.flyTo({
+        center: [85.8828, 20.4631], // Cuttack area fallback
+        zoom: 11.5,
+        speed: 1.2,
+      });
+    }
   };
 
   const handleZoomIn = () => mapRef.current?.zoomIn();
@@ -409,7 +420,7 @@ export const CorridorMap: React.FC = () => {
       <div className="absolute top-4 right-4 z-20 flex flex-col gap-1.5 bg-white/95 backdrop-blur-md p-1.5 rounded-xl border border-[#E2E8F0] shadow-md pointer-events-auto">
         <button
           onClick={handleLocateTarget}
-          title="Center on Target Train 12821"
+          title={`Center on Target Train (${selectedTrain})`}
           className="p-2 text-[#475569] hover:text-[#0F172A] hover:bg-[#F1F5F9] rounded-lg transition-colors cursor-pointer"
         >
           <LocateFixed className="w-4 h-4 text-emerald-600" />

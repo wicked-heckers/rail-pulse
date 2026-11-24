@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import type { TrainKinematicState } from '../../types/corridor';
 import { wsClient } from '../../services/wsClient';
+import { useRailStore } from '../../stores/useRailStore';
 
 interface AnimatedTrainState {
   fromLat: number;
@@ -90,7 +91,7 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
                 train_name: state.trainName,
                 speed_kmph: Math.round(state.speedKmph),
                 delay_mins: Math.round(state.delayMins),
-                is_target: state.trainNo === '12821',
+                is_target: state.trainNo === useRailStore.getState().selectedTrain,
               },
               geometry: {
                 type: 'Point' as const,

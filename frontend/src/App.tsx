@@ -10,9 +10,11 @@ import { ConnectionGuard } from './components/rescue/ConnectionGuard';
 import { EtaRangeBar } from './components/timeline/EtaRangeBar';
 import { VerticalTimeline } from './components/timeline/VerticalTimeline';
 import { CorridorMap } from './components/map/CorridorMap';
+import { LandingPage } from './components/landing/LandingPage';
 
 export const App: React.FC = () => {
   const {
+    currentView,
     selectedTrain,
     passengerStatus,
     mobileTab,
@@ -20,7 +22,7 @@ export const App: React.FC = () => {
     setRescue,
   } = useRailStore();
 
-  // Initialize WebSocket stream and load initial corridor state
+  // Initialize WebSocket stream and load initial corridor state in background
   useEffect(() => {
     wsClient.connect();
     fetchCorridorConfig().catch((err) => console.warn('Config fetch error:', err));
@@ -59,9 +61,15 @@ export const App: React.FC = () => {
     };
   }, [selectedTrain, passengerStatus, setForecast, setRescue]);
 
+  // Screen 1: User first sees clean modern landing page
+  if (currentView === 'landing') {
+    return <LandingPage />;
+  }
+
+  // Screen 2: Real-Time Corridor Analytics & Digital Twin Dashboard
   return (
-    <div className="min-h-screen bg-[#FAF9F6] text-[#0F172A] flex flex-col font-sans">
-      {/* Top Application Header */}
+    <div className="min-h-screen bg-[#FAF9F6] text-[#0F172A] flex flex-col font-sans animate-in fade-in duration-300">
+      {/* Top Application Header with Navigation back to Landing */}
       <TopHeader />
 
       {/* Main Content Area */}

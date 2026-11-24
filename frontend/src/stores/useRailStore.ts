@@ -13,7 +13,9 @@ interface ConnectionTargetState {
 }
 
 interface RailStore {
-  // Navigation & State
+  // Navigation & View Flow
+  currentView: 'landing' | 'dashboard';
+  language: 'EN' | 'HI' | 'OR';
   selectedTrain: string;
   passengerStatus: 'PRE_BOARDING' | 'ON_BOARD';
   mobileTab: 'timeline' | 'radar';
@@ -31,6 +33,9 @@ interface RailStore {
   wsStatusText: string;
 
   // Actions
+  setCurrentView: (view: 'landing' | 'dashboard') => void;
+  setLanguage: (lang: 'EN' | 'HI' | 'OR') => void;
+  navigateToDashboardWithTrain: (trainNo?: string) => void;
   setSelectedTrain: (trainNo: string) => void;
   setPassengerStatus: (status: 'PRE_BOARDING' | 'ON_BOARD') => void;
   setMobileTab: (tab: 'timeline' | 'radar') => void;
@@ -44,6 +49,8 @@ interface RailStore {
 }
 
 export const useRailStore = create<RailStore>((set) => ({
+  currentView: 'landing',
+  language: 'EN',
   selectedTrain: '12821',
   passengerStatus: 'ON_BOARD',
   mobileTab: 'timeline',
@@ -62,6 +69,13 @@ export const useRailStore = create<RailStore>((set) => ({
   wsConnected: false,
   wsStatusText: 'Connecting...',
 
+  setCurrentView: (view) => set({ currentView: view }),
+  setLanguage: (lang) => set({ language: lang }),
+  navigateToDashboardWithTrain: (trainNo) =>
+    set((state) => ({
+      currentView: 'dashboard',
+      selectedTrain: trainNo || state.selectedTrain,
+    })),
   setSelectedTrain: (trainNo) => set({ selectedTrain: trainNo }),
   setPassengerStatus: (status) => set({ passengerStatus: status }),
   setMobileTab: (tab) => set({ mobileTab: tab }),

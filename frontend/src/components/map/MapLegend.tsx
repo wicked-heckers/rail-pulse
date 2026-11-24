@@ -12,7 +12,7 @@ export const MapLegend: React.FC = () => {
       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] font-medium">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-emerald-300" />
-          <span>12821 Dhauli (Target)</span>
+          <span>Target Train (Selected)</span>
         </div>
 
         <div className="flex items-center gap-2">

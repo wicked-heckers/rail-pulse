@@ -1,12 +1,11 @@
 import React, { useEffect } from 'react';
 import { useRailStore } from '../../stores/useRailStore';
-import { Train, Sliders, Shield, Navigation } from 'lucide-react';
+import { Train, Sliders, Shield, Navigation, ArrowLeft } from 'lucide-react';
 
 const TRAIN_CHOICES = [
   { no: '12821', name: 'Dhauli Exp', badge: '+28m delay', priority: 'Target' },
-  { no: '12841', name: 'Coromandel Exp', badge: 'On Time', priority: 'Superfast' },
-  { no: '12839', name: 'Howrah Mail', badge: '+6m delay', priority: 'Express' },
-  { no: '18409', name: 'Sri Jagannath', badge: '+12m delay', priority: 'Passenger' },
+  { no: '22895', name: 'Vande Bharat', badge: 'On Time', priority: 'Superfast' },
+  { no: '18410', name: 'Sri Jagannath', badge: '+5m delay', priority: 'Express' },
 ];
 
 export const TopHeader: React.FC = () => {
@@ -21,6 +20,7 @@ export const TopHeader: React.FC = () => {
     wsStatusText,
     mobileTab,
     setMobileTab,
+    setCurrentView,
   } = useRailStore();
 
   // Listen for Shift + D hotkey for Presenter drawer
@@ -39,20 +39,36 @@ export const TopHeader: React.FC = () => {
     <header className="sticky top-0 z-30 bg-[#FAF9F6]/95 backdrop-blur-md border-b border-[#E5E7EB] px-4 py-2.5 transition-all">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Brand & Connection Radar */}
-        <div className="flex items-center justify-between w-full md:w-auto gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#0F172A] flex items-center justify-center text-white shadow-sm">
-              <Train className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-mono font-bold text-sm tracking-wider text-[#0F172A]">RAIL-PULSE</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
-                  ECoR TWIN
-                </span>
+        <div className="flex items-center justify-between w-full md:w-auto gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentView('landing')}
+              className="p-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-600 hover:text-indigo-600 border border-slate-200 transition-colors shadow-2xs"
+              title="Return to Home / Search"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => setCurrentView('landing')}
+              className="flex items-center gap-2.5 text-left group hover:opacity-90 transition-opacity"
+              title="Return to Home / Search"
+            >
+              <div className="w-8 h-8 rounded-lg bg-[#0F172A] group-hover:bg-indigo-900 flex items-center justify-center text-white shadow-sm transition-colors">
+                <Train className="w-4 h-4 text-emerald-400" />
               </div>
-              <p className="text-[11px] text-[#64748B]">Bhadrak — Cuttack — Bhubaneswar — Puri</p>
-            </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-bold text-sm tracking-wider text-[#0F172A] group-hover:text-indigo-600 transition-colors">
+                    RAIL-PULSE
+                  </span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                    ECoR TWIN
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#64748B]">Bhadrak — Cuttack — Bhubaneswar — Puri</p>
+              </div>
+            </button>
           </div>
 
           {/* Mobile view segmented switch: Timeline vs Live Radar */}

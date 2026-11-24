@@ -3,7 +3,7 @@ import { useRailStore } from '../../stores/useRailStore';
 import { ShieldCheck, Car, AlertTriangle, ArrowRight, Info, CheckCircle2 } from 'lucide-react';
 
 export const RescueBanner: React.FC = () => {
-  const { passengerStatus, rescue, setCabModalOpen } = useRailStore();
+  const { passengerStatus, rescue, setCabModalOpen, selectedTrain } = useRailStore();
 
   const isPreBoarding = passengerStatus === 'PRE_BOARDING';
   const survivalPct = rescue?.survival_probability_pct ?? 18.0;
@@ -27,8 +27,8 @@ export const RescueBanner: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-emerald-800 leading-relaxed">
-              <strong>Official IR Advisory:</strong> Report to your originating station on scheduled time. Even if 12821
-              is currently delayed +28 mins upstream, section controllers can prioritize runs and recover 15–20 minutes
+              <strong>Official IR Advisory:</strong> Report to your originating station on scheduled time. Even if {selectedTrain}
+              is currently delayed upstream, section controllers can prioritize runs and recover 15–20 minutes
               of schedule slack.
             </p>
             <p className="text-[11px] text-emerald-700 italic">
@@ -77,7 +77,7 @@ export const RescueBanner: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-rose-800">
-              Train 12821 is delayed +28m due to freight congestion. Rail arrival at BBS will miss your 12:15 PM deadline.
+              Train {selectedTrain} is delayed due to freight congestion. Rail arrival at BBS will miss your 12:15 PM deadline.
             </p>
           </div>
         </div>
@@ -96,7 +96,7 @@ export const RescueBanner: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-3 text-xs">
         {/* Rail Option */}
         <div className="bg-white/80 p-2.5 rounded-lg border border-rose-200">
-          <span className="text-[10px] uppercase font-bold text-[#64748B] block">Stay On Train 12821</span>
+          <span className="text-[10px] uppercase font-bold text-[#64748B] block">Stay On Train {selectedTrain}</span>
           <span className="font-mono font-bold text-sm text-rose-700 block my-0.5">12:38 PM</span>
           <span className="text-[11px] text-rose-600 block">Misses 12:15 deadline by 23m</span>
         </div>

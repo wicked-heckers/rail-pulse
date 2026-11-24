@@ -2,7 +2,7 @@ import type {
   ForecastResponse,
   RescueEvaluationResponse,
 } from '../types/corridor';
-import { MOCK_FORECAST_12821, MOCK_RESCUE_ONBOARD } from './mockFallback';
+import { MOCK_RESCUE_ONBOARD, getMockForecast } from './mockFallback';
 
 const API_BASE = '/api/v1';
 
@@ -44,7 +44,7 @@ export async function fetchForecast(trainNo: string): Promise<ForecastResponse> 
     return await res.json();
   } catch (err) {
     console.warn(`Forecast fetch for ${trainNo} failed, using mock data`, err);
-    return { ...MOCK_FORECAST_12821, train_no: trainNo };
+    return getMockForecast(trainNo);
   }
 }
 
