@@ -5,13 +5,11 @@ import {
   Info,
   CheckCircle2,
   AlertTriangle,
-  Clock,
   Sparkles,
   Edit2,
   Check,
   X,
   Car,
-  Shield,
   ArrowRight,
 } from 'lucide-react';
 import {
@@ -66,9 +64,8 @@ export const ArrivalConnectionCard: React.FC = () => {
       ? prediction.p90DelayMins
       : prediction.p50DelayMins;
 
-  // 4. Logical Connection Evaluation against selected quantile arrival time
+  // 4. Connection Evaluation against selected quantile arrival time
   const connectionDeadlineFormatted = formatTime12Hour(connectionTarget?.deadline_time);
-  const bufferMins = connectionTarget?.transfer_buffer_mins ?? 15;
 
   const arrivalMin = timeStringToMinutes(selectedArrivalTime);
   const deadlineMin = timeStringToMinutes(connectionDeadlineFormatted);
@@ -82,28 +79,11 @@ export const ArrivalConnectionCard: React.FC = () => {
     marginMins = dMin - arrivalMin;
   }
 
-  // Determine Connection Status for this scenario
-  let connectionStatus: 'safe' | 'tight' | 'at_risk' = 'tight';
-  let connectionLabel: 'On Track' | 'Tight' | 'Likely Missed' = 'Tight';
-  let connectionTitle = '';
-  let connectionSubtitle = '';
-
-  if (marginMins < 0) {
-    connectionStatus = 'at_risk';
-    connectionLabel = 'Likely Missed';
-    connectionTitle = "You'll likely miss your next train";
-    connectionSubtitle = `Reaches ${Math.abs(marginMins)} mins after it leaves (need ~${bufferMins} mins to change platforms)`;
-  } else if (marginMins < bufferMins) {
-    connectionStatus = 'tight';
-    connectionLabel = 'Tight';
-    connectionTitle = 'Very tight time to switch trains';
-    connectionSubtitle = `Only ${marginMins} mins to change platforms (usually takes ~${bufferMins} mins)`;
-  } else {
-    connectionStatus = 'safe';
-    connectionLabel = 'On Track';
-    connectionTitle = 'Plenty of time to catch your next train';
-    connectionSubtitle = `${marginMins} mins to change platforms at Bhubaneswar`;
-  }
+  // Case A (Missed/Tight on P50/P90 of 12821) vs Case B (Enough time on P10 or 22895/18410)
+  const isConnectionTightOrMissed =
+    selectedTrain === '12821'
+      ? quantile !== 'p10'
+      : marginMins < 10;
 
   const handleSaveConnection = () => {
     setConnectionTarget({
@@ -281,11 +261,11 @@ export const ArrivalConnectionCard: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsEditingConnection(true)}
-              className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded text-xs flex items-center gap-1 cursor-pointer shrink-0"
+              className="text-slate-400 hover:text-slate-600 transition-colors py-0.5 px-1.5 rounded text-xs font-medium flex items-center gap-1 cursor-pointer shrink-0"
               title="Edit connection details"
             >
               <Edit2 className="w-3 h-3" />
-              <span className="hidden sm:inline">Change</span>
+              <span>Change</span>
             </button>
           ) : null}
         </div>
@@ -328,108 +308,86 @@ export const ArrivalConnectionCard: React.FC = () => {
           </div>
         )}
 
-        {/* Connection Status Indicator & Short Human Message - Fixed 104px container */}
+        {/* Connection & Action Box - Locked uniform h-[136px] container */}
         <div
-          className={`rounded-xl p-3 border min-h-[104px] flex flex-col justify-between transition-colors ${
-            connectionStatus === 'at_risk'
-              ? 'bg-rose-50/80 border-rose-200 text-rose-900'
-              : connectionStatus === 'tight'
-              ? 'bg-amber-50/80 border-amber-200 text-amber-900'
-              : 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+          className={`rounded-xl p-3 sm:p-3.5 border h-[136px] flex flex-col justify-between transition-colors ${
+            isConnectionTightOrMissed
+              ? passengerStatus === 'ON_BOARD'
+                ? 'bg-amber-50/80 border-amber-200'
+                : 'bg-rose-50/80 border-rose-200'
+              : 'bg-emerald-50/80 border-emerald-200'
           }`}
         >
-          {/* Top Row: Icon + Explanation + Margin note & Pill badge */}
-          <div className="flex items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              {connectionStatus === 'at_risk' && (
-                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-              )}
-              {connectionStatus === 'tight' && (
-                <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-              )}
-              {connectionStatus === 'safe' && (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              )}
-              <div className="min-w-0">
-                <p className="text-xs sm:text-[13px] font-bold whitespace-nowrap truncate">
-                  {connectionTitle}
-                </p>
-                <p className="text-xs opacity-80 mt-0.5 whitespace-nowrap truncate tabular-nums">
-                  {connectionSubtitle}
-                </p>
+          {/* Top Section: Icon + Direct Command Headline + Badge & Subtext */}
+          <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                {isConnectionTightOrMissed ? (
+                  passengerStatus === 'ON_BOARD' ? (
+                    <Car className="w-4 h-4 text-amber-600 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                )}
+                <h3 className="font-bold text-xs sm:text-[13px] text-slate-900 truncate">
+                  {isConnectionTightOrMissed
+                    ? passengerStatus === 'ON_BOARD'
+                      ? 'Get off at Cuttack & take a cab'
+                      : "Don't board this train for your connection"
+                    : "Stay on the train — you're good to go"}
+                </h3>
               </div>
+
+              <span
+                className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-bold border shadow-2xs whitespace-nowrap ${
+                  isConnectionTightOrMissed
+                    ? passengerStatus === 'ON_BOARD'
+                      ? 'bg-white text-amber-800 border-amber-300'
+                      : 'bg-white text-rose-700 border-rose-300'
+                    : 'bg-white text-emerald-700 border-emerald-300'
+                }`}
+              >
+                {isConnectionTightOrMissed
+                  ? passengerStatus === 'ON_BOARD'
+                    ? 'Best Move'
+                    : 'Skip Train'
+                  : 'On Track'}
+              </span>
             </div>
 
-            <span
-              className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold border shadow-2xs whitespace-nowrap tabular-nums ${
-                connectionStatus === 'at_risk'
-                  ? 'bg-white text-rose-700 border-rose-300'
-                  : connectionStatus === 'tight'
-                  ? 'bg-white text-amber-700 border-amber-300'
-                  : 'bg-white text-emerald-700 border-emerald-300'
-              }`}
-            >
-              {connectionLabel}
-            </span>
+            <p className="text-xs sm:text-[13px] text-slate-600 font-medium leading-snug line-clamp-2">
+              {isConnectionTightOrMissed
+                ? passengerStatus === 'ON_BOARD'
+                  ? `Train reaches at ${selectedArrivalTime}. A cab via NH-16 gets you to Bhubaneswar by 11:54 AM — in time for your ${connectionDeadlineFormatted} train.`
+                  : `It won't reach Bhubaneswar in time for your ${connectionDeadlineFormatted} Rajdhani. Take a cab or earlier train instead.`
+                : `You'll reach Bhubaneswar at ${selectedArrivalTime}, with plenty of time for your ${connectionDeadlineFormatted} train.`}
+            </p>
           </div>
 
-          {/* Actionable or Reassuring Bottom Row - Fixed structure across all states */}
-          {connectionStatus === 'at_risk' && (
-            passengerStatus === 'ON_BOARD' ? (
-              <div className="pt-2 border-t border-rose-200 flex items-center justify-between gap-2 min-w-0">
-                <div className="flex items-center gap-1.5 text-[13px] text-rose-950 font-semibold min-w-0 truncate">
-                  <Car className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  <span className="truncate">Get off at Cuttack & take a cab (saves ~21 mins)</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveMapView('alternative_route');
-                    setCabModalOpen(true);
-                  }}
-                  className="px-2.5 py-1 bg-[#0F294A] hover:bg-[#1a3a60] text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
-                >
-                  <Car className="w-3.5 h-3.5 text-amber-400" />
-                  <span>See Cab Option</span>
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
+          {/* Bottom Area: Full-width primary button or calm footer strip */}
+          <div className="mt-2.5 shrink-0">
+            {isConnectionTightOrMissed ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveMapView('alternative_route');
+                  setCabModalOpen(true);
+                }}
+                className="w-full py-2 bg-[#0F294A] hover:bg-[#1a3a60] text-white text-xs sm:text-[13px] font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+              >
+                <Car className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>See Cab Directions</span>
+                <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+              </button>
             ) : (
-              <div className="pt-2 border-t border-rose-200 flex items-center justify-between gap-2 text-[13px] text-rose-800 font-medium min-w-0">
-                <div className="flex items-center gap-1.5 min-w-0 truncate">
-                  <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span className="truncate">Safe-Boarding Rule: Road bailout activates on board</span>
-                </div>
-                <span className="text-xs font-bold text-rose-700 whitespace-nowrap tabular-nums shrink-0">
-                  {marginMins < 0 ? `-${Math.abs(marginMins)}m` : `+${marginMins}m`}
-                </span>
+              <div className="w-full py-2 bg-emerald-100/70 border border-emerald-200 text-emerald-800 text-xs sm:text-[13px] font-semibold rounded-xl flex items-center justify-center gap-1.5 whitespace-nowrap select-none">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>No backup cab needed</span>
               </div>
-            )
-          )}
-
-          {connectionStatus === 'tight' && (
-            <div className="pt-2 border-t border-amber-200 flex items-center justify-between gap-2 text-[13px] text-amber-900 font-medium min-w-0">
-              <div className="flex items-center gap-1.5 min-w-0 truncate">
-                <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span className="truncate">Short transfer: Move quickly to platform overbridge</span>
-              </div>
-              <span className="text-xs font-bold text-amber-700 whitespace-nowrap tabular-nums shrink-0">
-                +{marginMins}m margin
-              </span>
-            </div>
-          )}
-
-          {connectionStatus === 'safe' && (
-            <div className="pt-2 border-t border-emerald-200 flex items-center justify-between gap-2 text-[13px] text-emerald-900 font-medium min-w-0">
-              <div className="flex items-center gap-1.5 min-w-0 truncate">
-                <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span className="truncate">Transfer buffer exceeds 15-minute requirement at BBS</span>
-              </div>
-              <span className="text-xs font-bold text-emerald-700 whitespace-nowrap tabular-nums shrink-0">
-                +{marginMins}m margin
-              </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
