@@ -50,6 +50,14 @@ class CorridorStateStore:
         async with self._lock:
             self._weather = weather_data
 
+    async def set_provider_mode(self, mode: str) -> None:
+        async with self._lock:
+            self._provider_mode = mode
+
+    async def get_provider_mode(self) -> str:
+        async with self._lock:
+            return self._provider_mode
+
     async def set_speed_multiplier(self, multiplier: float) -> None:
         async with self._lock:
             self._speed_multiplier = max(0.5, min(60.0, multiplier))
