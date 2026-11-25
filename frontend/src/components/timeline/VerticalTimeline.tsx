@@ -74,7 +74,7 @@ export const VerticalTimeline: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('journey')}
-          className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`py-2 px-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'journey'
               ? 'bg-white text-[#0F294A] shadow-xs'
               : 'text-slate-500 hover:text-slate-800'
@@ -82,7 +82,7 @@ export const VerticalTimeline: React.FC = () => {
         >
           <span>Journey Details</span>
           <span
-            className={`px-1.5 py-0.2 text-xs font-mono font-bold rounded-full ${
+            className={`px-2 py-0.5 text-xs font-mono font-bold rounded-full ${
               activeTab === 'journey'
                 ? 'bg-slate-100 text-slate-700 border border-slate-300'
                 : 'bg-slate-200 text-slate-600'
@@ -95,7 +95,7 @@ export const VerticalTimeline: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('delay')}
-          className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`py-2 px-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'delay'
               ? 'bg-white text-[#0F294A] shadow-xs'
               : 'text-slate-500 hover:text-slate-800'
@@ -104,7 +104,7 @@ export const VerticalTimeline: React.FC = () => {
           <span>Delay Cause</span>
           {activeDelays.length > 0 ? (
             <span
-              className={`px-1.5 py-0.2 text-xs font-bold rounded-full ${
+              className={`px-2 py-0.5 text-xs font-bold rounded-full ${
                 activeTab === 'delay'
                   ? 'bg-amber-100 text-amber-800 border border-amber-300'
                   : 'bg-amber-200/80 text-amber-900'
@@ -114,7 +114,7 @@ export const VerticalTimeline: React.FC = () => {
             </span>
           ) : (
             <span
-              className={`px-1.5 py-0.2 text-xs font-bold rounded-full ${
+              className={`px-2 py-0.5 text-xs font-bold rounded-full ${
                 activeTab === 'delay'
                   ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                   : 'bg-emerald-200/80 text-emerald-900'
@@ -137,7 +137,7 @@ export const VerticalTimeline: React.FC = () => {
               </div>
               <div>
                 <h4 className="font-bold text-sm text-emerald-950">Track is Clear Ahead</h4>
-                <p className="text-xs text-emerald-800 mt-1 max-w-xs leading-relaxed">
+                <p className="text-[13px] text-emerald-800 mt-1 max-w-xs leading-relaxed">
                   No delays reported ahead—track is clear.
                 </p>
               </div>
@@ -183,7 +183,7 @@ export const VerticalTimeline: React.FC = () => {
                         ) : (
                           <Clock className="w-4 h-4 text-slate-600 shrink-0" />
                         )}
-                        <span className={`text-xs font-bold ${isConfirmed ? 'text-amber-800' : 'text-slate-600'}`}>
+                        <span className={`text-[13px] font-bold ${isConfirmed ? 'text-amber-800' : 'text-slate-600'}`}>
                           {isConfirmed ? 'Active Delay' : 'Projected Wait'}
                         </span>
                       </div>
@@ -214,8 +214,8 @@ export const VerticalTimeline: React.FC = () => {
                     </p>
 
                     {/* Clean "View on map →" action row */}
-                    <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-xs sm:text-sm">
-                      <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 font-medium truncate">
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[13px] sm:text-sm">
+                      <div className="flex items-center gap-1.5 text-[13px] sm:text-sm text-slate-500 font-medium truncate">
                         <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span className="truncate">{cause.locationName || 'Trunk corridor'}</span>
                       </div>
@@ -226,7 +226,7 @@ export const VerticalTimeline: React.FC = () => {
                           e.stopPropagation();
                           handleToggleDelay(cause.id);
                         }}
-                        className={`text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ml-2 ${
+                        className={`text-[13px] sm:text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ml-2 ${
                           isSelected
                             ? 'text-orange-700 underline'
                             : 'text-[#0F294A] hover:text-blue-700'

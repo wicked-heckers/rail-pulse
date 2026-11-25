@@ -166,7 +166,7 @@ export const CorridorMap: React.FC = () => {
       <!-- Row 3: Location + Plain Description -->
       <div class="pt-1.5 border-t border-slate-100">
         <div class="text-xs font-semibold text-slate-500 mb-1">Between Cuttack & Barang</div>
-        <p class="text-slate-700 leading-relaxed text-xs sm:text-[13px]">
+        <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">
           A slow goods train is ahead of you toward Bhubaneswar, adding about 14 mins to your journey.
         </p>
       </div>
@@ -440,7 +440,7 @@ export const CorridorMap: React.FC = () => {
             source: 'freight-badge-source',
             layout: {
               'text-field': ['get', 'label'],
-              'text-size': 11,
+              'text-size': 12,
               'text-offset': [0, -1.4],
               'text-anchor': 'bottom',
             },
@@ -495,7 +495,7 @@ export const CorridorMap: React.FC = () => {
             layout: {
               visibility: isRescueAvailable ? 'visible' : 'none',
               'text-field': ['get', 'label'],
-              'text-size': 11,
+              'text-size': 12,
               'text-offset': [1.2, 0],
               'text-anchor': 'left',
             },
@@ -607,7 +607,7 @@ export const CorridorMap: React.FC = () => {
             source: 'station-nodes',
             layout: {
               'text-field': ['get', 'name'],
-              'text-size': 11,
+              'text-size': 12,
               'text-offset': [-1.0, 0],
               'text-anchor': 'right',
             },
@@ -711,12 +711,7 @@ export const CorridorMap: React.FC = () => {
                 ['concat', ['get', 'train_no'], ' • ', ['get', 'train_name']],
                 ['concat', ['get', 'train_no'], ' (+', ['to-string', ['get', 'delay_mins']], 'm)'],
               ],
-              'text-size': [
-                'case',
-                ['get', 'is_target'],
-                11.5,
-                10.5,
-              ],
+              'text-size': 12,
               'text-offset': [1.4, 0],
               'text-anchor': 'left',
             },
@@ -1039,7 +1034,7 @@ export const CorridorMap: React.FC = () => {
           <!-- Row 3: Location + Plain Description -->
           <div class="pt-1.5 border-t border-slate-100">
             <div class="text-xs font-semibold text-slate-500 mb-1">${displayLocation}</div>
-            <p class="text-slate-700 leading-relaxed text-xs sm:text-[13px]">${displayMessage}</p>
+            <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">${displayMessage}</p>
           </div>
         </div>
       `;

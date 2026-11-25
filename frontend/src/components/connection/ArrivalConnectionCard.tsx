@@ -119,7 +119,7 @@ export const ArrivalConnectionCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setQuantile('p10')}
-          className={`py-1.5 px-2 text-xs rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
+          className={`py-1.5 px-2 text-[13px] rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
             quantile === 'p10'
               ? 'bg-white text-slate-900 shadow-sm font-semibold'
               : 'text-slate-500 hover:text-slate-800 font-medium'
@@ -130,7 +130,7 @@ export const ArrivalConnectionCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setQuantile('p50')}
-          className={`py-1.5 px-2 text-xs rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
+          className={`py-1.5 px-2 text-[13px] rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
             quantile === 'p50'
               ? 'bg-white text-slate-900 shadow-sm font-semibold'
               : 'text-slate-500 hover:text-slate-800 font-medium'
@@ -141,7 +141,7 @@ export const ArrivalConnectionCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setQuantile('p90')}
-          className={`py-1.5 px-2 text-xs rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
+          className={`py-1.5 px-2 text-[13px] rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
             quantile === 'p90'
               ? 'bg-white text-slate-900 shadow-sm font-semibold'
               : 'text-slate-500 hover:text-slate-800 font-medium'
@@ -167,7 +167,7 @@ export const ArrivalConnectionCard: React.FC = () => {
                 {trainIdentity.trainName}
               </h2>
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+            <p className="text-[13px] text-slate-500 font-medium mt-0.5 truncate">
               {trainIdentity.locationText}
             </p>
           </div>
@@ -192,7 +192,7 @@ export const ArrivalConnectionCard: React.FC = () => {
       {/* 3. Expected Arrival Headline */}
       <div className="space-y-1">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold tracking-wider uppercase text-slate-400 whitespace-nowrap truncate">
+          <span className="text-xs font-bold tracking-wider uppercase text-slate-400 whitespace-nowrap truncate">
             {quantile === 'p10' && 'BEST-CASE ARRIVAL (P10)'}
             {quantile === 'p50' && 'EXPECTED ARRIVAL (P50)'}
             {quantile === 'p90' && 'WORST-CASE ARRIVAL (P90)'}
@@ -218,21 +218,21 @@ export const ArrivalConnectionCard: React.FC = () => {
                   <span>ML Arrival Model</span>
                 </div>
                 <p className="text-slate-300">LightGBM Monotonic Quantile Regressor</p>
-                <div className="grid grid-cols-3 gap-1 pt-1 text-[11px] font-mono">
+                <div className="grid grid-cols-3 gap-1 pt-1 text-xs font-mono">
                   <div className="bg-slate-800 p-1 rounded">
-                    <span className="text-slate-400 block text-[9px]">P10 Earliest</span>
+                    <span className="text-slate-400 block text-xs">P10 Earliest</span>
                     <span className="text-emerald-400 font-bold tabular-nums">{prediction.p10Time}</span>
                   </div>
                   <div className="bg-slate-800 p-1 rounded">
-                    <span className="text-slate-400 block text-[9px]">P50 Expected</span>
+                    <span className="text-slate-400 block text-xs">P50 Expected</span>
                     <span className="text-white font-bold tabular-nums">{prediction.p50Time}</span>
                   </div>
                   <div className="bg-slate-800 p-1 rounded">
-                    <span className="text-slate-400 block text-[9px]">P90 Latest</span>
+                    <span className="text-slate-400 block text-xs">P90 Latest</span>
                     <span className="text-amber-400 font-bold tabular-nums">{prediction.p90Time}</span>
                   </div>
                 </div>
-                <p className="text-emerald-400 font-medium text-[11px] pt-0.5">
+                <p className="text-emerald-400 font-medium text-xs pt-0.5">
                   92% Empirical Confidence Interval
                 </p>
               </div>
@@ -251,7 +251,7 @@ export const ArrivalConnectionCard: React.FC = () => {
         </div>
 
         {/* Subtext Line Below Clock */}
-        <p className="text-xs sm:text-sm text-slate-500 font-medium whitespace-nowrap truncate min-h-[20px] leading-5">
+        <p className="text-[13px] sm:text-sm text-slate-500 font-medium whitespace-nowrap truncate min-h-[20px] leading-5">
           {quantile === 'p10' && 'If signals stay clear • Earliest realistic arrival'}
           {quantile === 'p50' && (
             <>
@@ -268,7 +268,7 @@ export const ArrivalConnectionCard: React.FC = () => {
       {/* 4. Connection Status */}
       <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium min-w-0 truncate">
+          <div className="flex items-center gap-1.5 text-[13px] text-slate-500 font-medium min-w-0 truncate">
             <span className="shrink-0">Your connection:</span>
             {!isEditingConnection ? (
               <span className="font-semibold text-slate-800 truncate">
@@ -354,7 +354,7 @@ export const ArrivalConnectionCard: React.FC = () => {
                 <p className="text-xs sm:text-[13px] font-bold whitespace-nowrap truncate">
                   {connectionTitle}
                 </p>
-                <p className="text-[11px] opacity-80 mt-0.5 whitespace-nowrap truncate tabular-nums">
+                <p className="text-xs opacity-80 mt-0.5 whitespace-nowrap truncate tabular-nums">
                   {connectionSubtitle}
                 </p>
               </div>
@@ -377,7 +377,7 @@ export const ArrivalConnectionCard: React.FC = () => {
           {connectionStatus === 'at_risk' && (
             passengerStatus === 'ON_BOARD' ? (
               <div className="pt-2 border-t border-rose-200 flex items-center justify-between gap-2 min-w-0">
-                <div className="flex items-center gap-1.5 text-xs text-rose-950 font-semibold min-w-0 truncate">
+                <div className="flex items-center gap-1.5 text-[13px] text-rose-950 font-semibold min-w-0 truncate">
                   <Car className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   <span className="truncate">Hop off at Cuttack → Cab saves ~21m</span>
                 </div>
@@ -395,12 +395,12 @@ export const ArrivalConnectionCard: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="pt-2 border-t border-rose-200 flex items-center justify-between gap-2 text-xs text-rose-800 font-medium min-w-0">
+              <div className="pt-2 border-t border-rose-200 flex items-center justify-between gap-2 text-[13px] text-rose-800 font-medium min-w-0">
                 <div className="flex items-center gap-1.5 min-w-0 truncate">
                   <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                   <span className="truncate">Safe-Boarding Rule: Road bailout activates on board</span>
                 </div>
-                <span className="text-[11px] font-bold text-rose-700 whitespace-nowrap tabular-nums shrink-0">
+                <span className="text-xs font-bold text-rose-700 whitespace-nowrap tabular-nums shrink-0">
                   {marginMins < 0 ? `-${Math.abs(marginMins)}m` : `+${marginMins}m`}
                 </span>
               </div>
@@ -408,24 +408,24 @@ export const ArrivalConnectionCard: React.FC = () => {
           )}
 
           {connectionStatus === 'tight' && (
-            <div className="pt-2 border-t border-amber-200 flex items-center justify-between gap-2 text-xs text-amber-900 font-medium min-w-0">
+            <div className="pt-2 border-t border-amber-200 flex items-center justify-between gap-2 text-[13px] text-amber-900 font-medium min-w-0">
               <div className="flex items-center gap-1.5 min-w-0 truncate">
                 <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                 <span className="truncate">Short transfer: Move quickly to platform overbridge</span>
               </div>
-              <span className="text-[11px] font-bold text-amber-700 whitespace-nowrap tabular-nums shrink-0">
+              <span className="text-xs font-bold text-amber-700 whitespace-nowrap tabular-nums shrink-0">
                 +{marginMins}m margin
               </span>
             </div>
           )}
 
           {connectionStatus === 'safe' && (
-            <div className="pt-2 border-t border-emerald-200 flex items-center justify-between gap-2 text-xs text-emerald-900 font-medium min-w-0">
+            <div className="pt-2 border-t border-emerald-200 flex items-center justify-between gap-2 text-[13px] text-emerald-900 font-medium min-w-0">
               <div className="flex items-center gap-1.5 min-w-0 truncate">
                 <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span className="truncate">Transfer buffer exceeds 15-minute requirement at BBS</span>
               </div>
-              <span className="text-[11px] font-bold text-emerald-700 whitespace-nowrap tabular-nums shrink-0">
+              <span className="text-xs font-bold text-emerald-700 whitespace-nowrap tabular-nums shrink-0">
                 +{marginMins}m margin
               </span>
             </div>
