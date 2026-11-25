@@ -15,7 +15,7 @@ export interface ManagerTrain {
   addedAt?: number;
 }
 
-export const INITIAL_TRAINS: ManagerTrain[] = [
+const INITIAL_TRAINS: ManagerTrain[] = [
   {
     no: '12821',
     name: 'Dhauli Exp',

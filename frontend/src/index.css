@@ -99,13 +99,3 @@
   background-color: #F1F5F9 !important;
   color: #0F172A !important;
 }
-
-/* Pulsing freight glow */
-@keyframes freightPulse {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 0.35; }
-}
-
-.pulsing-freight {
-  animation: freightPulse 2s ease-in-out infinite;
-}

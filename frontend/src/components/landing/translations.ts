@@ -6,8 +6,6 @@ export type Lang = 'EN' | 'HI' | 'OR';
 export interface T {
   nav: {
     brand: string;
-    myJourney: string;
-    allTrains: string;
   };
   hero: {
     headline: string;
@@ -49,8 +47,6 @@ export const TRANSLATIONS: Record<Lang, T> = {
   EN: {
     nav: {
       brand: 'RAIL-PULSE',
-      myJourney: 'My journey',
-      allTrains: 'All trains',
     },
     hero: {
       headline: 'Will your train really reach on time?',
@@ -93,8 +89,6 @@ export const TRANSLATIONS: Record<Lang, T> = {
   HI: {
     nav: {
       brand: 'RAIL-PULSE',
-      myJourney: 'मेरी यात्रा',
-      allTrains: 'सभी ट्रेनें',
     },
     hero: {
       headline: 'क्या आपकी ट्रेन सच में समय पर पहुंचेगी?',
@@ -137,8 +131,6 @@ export const TRANSLATIONS: Record<Lang, T> = {
   OR: {
     nav: {
       brand: 'RAIL-PULSE',
-      myJourney: 'ମୋ ଯାତ୍ରା',
-      allTrains: 'ସମସ୍ତ ଟ୍ରେନ୍',
     },
     hero: {
       headline: 'ଆପଣଙ୍କ ଟ୍ରେନ୍ ଆଦୌ ସମୟରେ ପହଞ୍ଚିବ କି?',

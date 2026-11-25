@@ -6,17 +6,6 @@ import { MOCK_RESCUE_ONBOARD, getMockForecast } from './mockFallback';
 
 const API_BASE = '/api/v1';
 
-export async function fetchTopology(): Promise<any> {
-  try {
-    const res = await fetch(`${API_BASE}/corridor/topology`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    console.warn('Topology fetch failed, using cached topology', err);
-    throw err;
-  }
-}
-
 export async function fetchCorridorConfig(): Promise<{
   mapbox_access_token?: string | null;
   corridor_name: string;
@@ -94,15 +83,6 @@ export async function startDemoScenario(name = 'DHAULI_CASCADE', speed = 1): Pro
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ scenario_name: name, speed_multiplier: speed }),
-  });
-  return await res.json();
-}
-
-export async function setSpeedMultiplier(multiplier: number): Promise<any> {
-  const res = await fetch(`${API_BASE}/demo/speed`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ speed_multiplier: multiplier }),
   });
   return await res.json();
 }

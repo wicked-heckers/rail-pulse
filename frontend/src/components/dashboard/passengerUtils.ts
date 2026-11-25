@@ -1,4 +1,4 @@
-import type { CorridorSnapshot, ForecastResponse, RescueEvaluationResponse } from '../../types/corridor';
+import type { CorridorSnapshot, ForecastResponse } from '../../types/corridor';
 import type { StationData } from '../timeline/StationRow';
 
 export interface TrainIdentity {
@@ -45,14 +45,6 @@ export interface DelayCause {
   highlightType?: 'freight_zone' | 'cuttack_loop' | 'station' | null;
 }
 
-export interface ActionGuidance {
-  headline: string;
-  subtext: string;
-  status: 'safe' | 'at_risk' | 'uncertain';
-  showBailoutAction: boolean;
-  bailoutSummary?: string;
-  safeBoardingNote?: string;
-}
 
 /**
  * Formats 24-hour "HH:MM" or existing 12-hour strings to clean standard "hh:mm AM/PM".
@@ -509,52 +501,6 @@ export function getStationRelevance(
   };
 }
 
-/**
- * 5. Passenger Action Guidance based strictly on connection status and Safe-Boarding rule.
- */
-export function getActionGuidance(
-  status: 'safe' | 'at_risk' | 'uncertain',
-  passengerStatus: 'PRE_BOARDING' | 'ON_BOARD',
-  _rescue: RescueEvaluationResponse | null
-): ActionGuidance {
-  if (status === 'safe') {
-    return {
-      status: 'safe',
-      headline: "You're on track. No changes needed right now.",
-      subtext: 'Sit back and enjoy your journey. We will notify you if track conditions change.',
-      showBailoutAction: false,
-    };
-  }
-
-  if (status === 'uncertain') {
-    return {
-      status: 'uncertain',
-      headline: 'Your connection may be tight. Keep checking for updates.',
-      subtext: 'Keep your luggage ready and check the platform board when approaching Bhubaneswar.',
-      showBailoutAction: false,
-    };
-  }
-
-  // Status is at_risk
-  if (passengerStatus === 'ON_BOARD') {
-    return {
-      status: 'at_risk',
-      headline: 'Your connection is at risk. Review your options before reaching the next major station.',
-      subtext: 'A road transfer from Cuttack can get you to Bhubaneswar in time for your connection.',
-      showBailoutAction: true,
-      bailoutSummary: 'Hop off at Cuttack (CTC) → NH-16 highway cab saves ~21 mins to Bhubaneswar.',
-    };
-  }
-
-  // Passenger is PRE_BOARDING ("At Home")
-  return {
-    status: 'at_risk',
-    headline: 'Your connection is at risk. Keep checking for updates.',
-    subtext: 'Report to your boarding station as per official schedule. Trains may recover delay en route.',
-    showBailoutAction: false,
-    safeBoardingNote: 'Safe-Boarding Rule: Alternative road rescue options activate once you are confirmed on board.',
-  };
-}
 
 /**
  * 6. Returns complete 9-station timetable for Section 4 (Journey details).
