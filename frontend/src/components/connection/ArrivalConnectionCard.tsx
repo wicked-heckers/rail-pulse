@@ -84,25 +84,25 @@ export const ArrivalConnectionCard: React.FC = () => {
 
   // Determine Connection Status for this scenario
   let connectionStatus: 'safe' | 'tight' | 'at_risk' = 'tight';
-  let connectionLabel: 'Safe' | 'Tight' | 'At Risk' = 'Tight';
+  let connectionLabel: 'On Track' | 'Tight' | 'Likely Missed' = 'Tight';
   let connectionTitle = '';
   let connectionSubtitle = '';
 
   if (marginMins < 0) {
     connectionStatus = 'at_risk';
-    connectionLabel = 'At Risk';
-    connectionTitle = 'Your train may arrive too late for your connection';
-    connectionSubtitle = `Arrives ${Math.abs(marginMins)}m after connection departs • ${bufferMins}m buffer needed`;
+    connectionLabel = 'Likely Missed';
+    connectionTitle = "You'll likely miss your next train";
+    connectionSubtitle = `Reaches ${Math.abs(marginMins)} mins after it leaves (need ~${bufferMins} mins to change platforms)`;
   } else if (marginMins < bufferMins) {
     connectionStatus = 'tight';
     connectionLabel = 'Tight';
-    connectionTitle = `Tight connection: ${marginMins}m transfer window`;
-    connectionSubtitle = `Required transfer buffer at BBS: ${bufferMins} mins`;
+    connectionTitle = 'Very tight time to switch trains';
+    connectionSubtitle = `Only ${marginMins} mins to change platforms (usually takes ~${bufferMins} mins)`;
   } else {
     connectionStatus = 'safe';
-    connectionLabel = 'Safe';
-    connectionTitle = "You're likely to reach BBS in time for your next train";
-    connectionSubtitle = `Safe transfer window: ${marginMins}m buffer exceeds ${bufferMins}m requirement`;
+    connectionLabel = 'On Track';
+    connectionTitle = 'Plenty of time to catch your next train';
+    connectionSubtitle = `${marginMins} mins to change platforms at Bhubaneswar`;
   }
 
   const handleSaveConnection = () => {
@@ -252,16 +252,16 @@ export const ArrivalConnectionCard: React.FC = () => {
 
         {/* Subtext Line Below Clock */}
         <p className="text-[13px] sm:text-sm text-slate-500 font-medium whitespace-nowrap truncate min-h-[20px] leading-5">
-          {quantile === 'p10' && 'If signals stay clear • Earliest realistic arrival'}
+          {quantile === 'p10' && 'Earliest arrival if the track stays clear'}
           {quantile === 'p50' && (
             <>
-              Likely arrival window:{' '}
+              Expected window:{' '}
               <span className="font-mono font-semibold text-slate-700 tabular-nums">
                 {prediction.p10Time} – {prediction.p90Time}
               </span>
             </>
           )}
-          {quantile === 'p90' && 'If traffic holds ahead • Plan backup around this time'}
+          {quantile === 'p90' && 'Latest expected time if delays continue'}
         </p>
       </div>
 
@@ -269,10 +269,10 @@ export const ArrivalConnectionCard: React.FC = () => {
       <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-[13px] text-slate-500 font-medium min-w-0 truncate">
-            <span className="shrink-0">Your connection:</span>
+            <span className="shrink-0">Next train:</span>
             {!isEditingConnection ? (
               <span className="font-semibold text-slate-800 truncate">
-                {editTrainName} — {connectionDeadlineFormatted}
+                {editTrainName} • {connectionDeadlineFormatted}
               </span>
             ) : null}
           </div>
@@ -379,7 +379,7 @@ export const ArrivalConnectionCard: React.FC = () => {
               <div className="pt-2 border-t border-rose-200 flex items-center justify-between gap-2 min-w-0">
                 <div className="flex items-center gap-1.5 text-[13px] text-rose-950 font-semibold min-w-0 truncate">
                   <Car className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  <span className="truncate">Hop off at Cuttack → Cab saves ~21m</span>
+                  <span className="truncate">Get off at Cuttack & take a cab (saves ~21 mins)</span>
                 </div>
                 <button
                   type="button"
@@ -390,7 +390,7 @@ export const ArrivalConnectionCard: React.FC = () => {
                   className="px-2.5 py-1 bg-[#0F294A] hover:bg-[#1a3a60] text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
                 >
                   <Car className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Cab Plan</span>
+                  <span>See Cab Option</span>
                   <ArrowRight className="w-3 h-3" />
                 </button>
               </div>
