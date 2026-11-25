@@ -49,6 +49,8 @@
 | **045** | Codebase Deep-Dive Audit | Task 17.1: Full Alignment Audit with Backend & Project Plans | Completed | Audited 5-stage pipeline, verified 14 edge cases, implemented missing `POST /demo/inject-freight` and `POST /demo/reset`, enforced enterprise ULIP header authentication, synchronized freight shadows to state snapshots, and verified with 40 passing tests & 53.7% MAE backtest |
 | **046** | Dead Code & Edge Cases | Task 17.2: Codebase-wide Dead Code Elimination & Routing Tier Parity | Completed | Connected dead OSRM routing sync helper in rescue engine, wired ULIP & freight injection in presenter drawer, cleaned up test formatting, rebuilt frontend assets, and verified 41 passing tests |
 | **047** | Documentation & Handover | Task 18.1: Comprehensive Project Documentation & Production README.md | Completed | Authored 450+ line comprehensive production README covering architecture, 5-stage pipeline, calibrated Dhauli Express 12821 case study, React 19 MapLibre frontend, 14 edge cases, backtest scorecard, setup guide, and full API reference |
+| **048** | Branch Integration & Frontend Audit | Task 19.1: Pull, Review & Audit 'arpita/frontend' Branch | Completed | Merged 'arpita/frontend' (utility landing page, TrainDropdown, AddTrainModal, ArrivalConnectionCard, MapLibre 60 FPS enhancements), audited backend contracts (no backend breaking changes), mounted /fonts & root static assets in app/main.py, rebuilt dist assets, and verified with 41 passing pytest tests & TestClient checks |
+
 
 
 

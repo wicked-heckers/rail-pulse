@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -103,6 +103,10 @@ assets_dir = dist_dir / "assets"
 if assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
+fonts_dir = dist_dir / "fonts"
+if fonts_dir.exists():
+    app.mount("/fonts", StaticFiles(directory=str(fonts_dir)), name="fonts")
+
 static_dir = BASE_DIR / "frontend" / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -153,4 +157,17 @@ async def dashboard():
     if index_file.exists():
         return FileResponse(index_file)
     return {"error": "Dashboard template not found"}
+
+
+@app.get("/{filename}.{ext}", include_in_schema=False)
+async def serve_static_root_file(filename: str, ext: str):
+    """
+    Serves root-level static assets (e.g. logo.png, favicon.png, SVGs)
+    from the production built frontend directory.
+    """
+    candidate = dist_dir / f"{filename}.{ext}"
+    if candidate.is_file():
+        return FileResponse(candidate)
+    raise HTTPException(status_code=404, detail="File not found")
+
 
