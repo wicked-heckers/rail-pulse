@@ -69,7 +69,7 @@ export const MOCK_SNAPSHOT: CorridorSnapshot = {
   },
 };
 
-export const MOCK_FORECAST_12821: ForecastResponse = {
+const MOCK_FORECAST_12821: ForecastResponse = {
   train_no: '12821',
   train_name: 'Dhauli Express',
   direction: 'DN',
@@ -200,7 +200,7 @@ export const MOCK_FORECAST_12821: ForecastResponse = {
   overtakes_count: 1,
 };
 
-export const MOCK_FORECAST_22895: ForecastResponse = {
+const MOCK_FORECAST_22895: ForecastResponse = {
   train_no: '22895',
   train_name: 'Howrah-Puri Vande Bharat Express',
   direction: 'DN',
@@ -329,7 +329,7 @@ export const MOCK_FORECAST_22895: ForecastResponse = {
   overtakes_count: 1,
 };
 
-export const MOCK_FORECAST_18410: ForecastResponse = {
+const MOCK_FORECAST_18410: ForecastResponse = {
   train_no: '18410',
   train_name: 'Sri Jagannath Express',
   direction: 'UP',
