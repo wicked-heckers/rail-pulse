@@ -1,29 +1,24 @@
 import React, { useEffect } from 'react';
 import { useRailStore } from '../../stores/useRailStore';
-import { Train, Sliders, Shield, Navigation, ArrowLeft } from 'lucide-react';
-
-const TRAIN_CHOICES = [
-  { no: '12821', name: 'Dhauli Exp', badge: '+28m delay', priority: 'Target' },
-  { no: '22895', name: 'Vande Bharat', badge: 'On Time', priority: 'Superfast' },
-  { no: '18410', name: 'Sri Jagannath', badge: '+5m delay', priority: 'Express' },
-];
+import { Shield, Navigation, ArrowLeft, Settings } from 'lucide-react';
+import { TrainDropdown } from './TrainDropdown';
 
 export const TopHeader: React.FC = () => {
   const {
     selectedTrain,
-    setSelectedTrain,
+    activeSnapshot,
     passengerStatus,
     setPassengerStatus,
     drawerOpen,
     setDrawerOpen,
-    wsConnected,
-    wsStatusText,
     mobileTab,
     setMobileTab,
     setCurrentView,
   } = useRailStore();
 
-  // Listen for Shift + D hotkey for Presenter drawer
+  const activeTrain = activeSnapshot.trains?.find((t) => t.train_no === selectedTrain);
+
+  // Listen for Shift + D hotkey for Demo drawer
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.shiftKey && (e.key === 'D' || e.key === 'd')) {
@@ -36,147 +31,106 @@ export const TopHeader: React.FC = () => {
   }, [drawerOpen, setDrawerOpen]);
 
   return (
-    <header className="sticky top-0 z-30 bg-[#FAF9F6]/95 backdrop-blur-md border-b border-[#E5E7EB] px-4 py-2.5 transition-all">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-        {/* Brand & Connection Radar */}
-        <div className="flex items-center justify-between w-full md:w-auto gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentView('landing')}
-              className="p-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-600 hover:text-indigo-600 border border-slate-200 transition-colors shadow-2xs"
-              title="Return to Home / Search"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
+    <header className="h-[52px] shrink-0 sticky top-0 z-40 bg-[#FAF9F6] border-b border-[#E5E7EB] px-4 sm:px-5 flex items-center justify-between">
+      {/* Brand & Return */}
+      <div className="flex items-center gap-2.5 shrink-0">
+        <button
+          onClick={() => setCurrentView('landing')}
+          className="p-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors shadow-2xs cursor-pointer"
+          title="Return to Landing Page"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
 
-            <button
-              onClick={() => setCurrentView('landing')}
-              className="flex items-center gap-2.5 text-left group hover:opacity-90 transition-opacity"
-              title="Return to Home / Search"
-            >
-              <div className="w-8 h-8 rounded-lg bg-[#0F172A] group-hover:bg-indigo-900 flex items-center justify-center text-white shadow-sm transition-colors">
-                <Train className="w-4 h-4 text-emerald-400" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-mono font-bold text-sm tracking-wider text-[#0F172A] group-hover:text-indigo-600 transition-colors">
-                    RAIL-PULSE
-                  </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
-                    ECoR TWIN
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#64748B]">Bhadrak — Cuttack — Bhubaneswar — Puri</p>
-              </div>
-            </button>
-          </div>
+        <button
+          onClick={() => setCurrentView('landing')}
+          className="flex items-center gap-2.5 group transition-opacity cursor-pointer"
+          title="Return to Landing Page"
+        >
+          <img src="/logo.png" alt="Rail-Pulse logo" className="w-7 h-7 object-contain" />
+          <span className="font-mono font-bold text-base sm:text-lg tracking-wider text-[#0F294A]">
+            RAIL-PULSE
+          </span>
+        </button>
 
-          {/* Mobile view segmented switch: Timeline vs Live Radar */}
-          <div className="flex md:hidden items-center bg-[#F1F5F9] p-0.5 rounded-lg border border-[#E2E8F0]">
-            <button
-              onClick={() => setMobileTab('timeline')}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                mobileTab === 'timeline'
-                  ? 'bg-white text-[#0F172A] shadow-xs'
-                  : 'text-[#64748B] hover:text-[#0F172A]'
-              }`}
-            >
-              Timeline
-            </button>
-            <button
-              onClick={() => setMobileTab('radar')}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                mobileTab === 'radar'
-                  ? 'bg-white text-[#0F172A] shadow-xs'
-                  : 'text-[#64748B] hover:text-[#0F172A]'
-              }`}
-            >
-              Radar
-            </button>
-          </div>
-        </div>
+        <span
+          className="hidden sm:inline-flex text-xs font-mono px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-bold select-none cursor-default"
+          title="East Coast Railway Trunk Corridor"
+        >
+          {activeTrain?.direction === 'UP' || selectedTrain === '18410'
+            ? 'PURI → BHC'
+            : 'BHC → PURI'}
+        </span>
+      </div>
 
-        {/* Train Selector Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto py-1 md:py-0 scrollbar-none">
-          {TRAIN_CHOICES.map((t) => {
-            const isSelected = selectedTrain === t.no;
-            return (
-              <button
-                key={t.no}
-                onClick={() => setSelectedTrain(t.no)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono transition-all whitespace-nowrap ${
-                  isSelected
-                    ? 'bg-[#0F172A] text-white shadow-sm ring-2 ring-emerald-500/20 font-semibold'
-                    : 'bg-white text-[#475569] hover:bg-[#F8FAFC] border border-[#E2E8F0]'
-                }`}
-              >
-                <span>{t.no}</span>
-                <span className={`text-[10px] ${isSelected ? 'text-gray-300' : 'text-[#64748B]'}`}>{t.name}</span>
-                {t.priority === 'Target' && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" title="Target Active Run" />
-                )}
-              </button>
-            );
-          })}
-        </div>
+      {/* Active Monitored Train Selector */}
+      <div className="flex items-center justify-center px-1 sm:px-2">
+        <TrainDropdown />
+      </div>
 
-        {/* Right Controls: Safe-Boarding Toggle + Presenter Trigger */}
-        <div className="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-end">
-          {/* Safe-Boarding Guardrail Toggle */}
-          <div className="flex items-center bg-[#F1F5F9] p-0.5 rounded-lg border border-[#E2E8F0]">
-            <button
-              onClick={() => setPassengerStatus('PRE_BOARDING')}
-              className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${
-                passengerStatus === 'PRE_BOARDING'
-                  ? 'bg-white text-emerald-800 shadow-xs font-semibold'
-                  : 'text-[#64748B] hover:text-[#0F172A]'
-              }`}
-              title="At Home: Safe-Boarding Guardrail locks false deboarding/bailout advice before passenger boards"
-            >
-              <Shield className="w-3.5 h-3.5 text-emerald-600" />
-              <span>At Home</span>
-            </button>
-            <button
-              onClick={() => setPassengerStatus('ON_BOARD')}
-              className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${
-                passengerStatus === 'ON_BOARD'
-                  ? 'bg-white text-[#0F172A] shadow-xs font-semibold'
-                  : 'text-[#64748B] hover:text-[#0F172A]'
-              }`}
-              title="On Board: Enables Early-Junction NH-16 Rescue evaluation at Cuttack / Bhubaneswar"
-            >
-              <Navigation className="w-3.5 h-3.5 text-blue-600" />
-              <span>On Board</span>
-            </button>
-          </div>
-
-          {/* Live WS Pill */}
-          <div
-            className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono border ${
-              wsConnected
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-amber-50 text-amber-700 border-amber-200'
+      {/* Right Controls: Safe-Boarding Toggle + Demo Button */}
+      <div className="flex items-center gap-2.5 shrink-0">
+        {/* Mobile View Toggle (Timeline vs Radar) */}
+        <div className="flex lg:hidden items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+          <button
+            onClick={() => setMobileTab('timeline')}
+            className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${
+              mobileTab === 'timeline'
+                ? 'bg-white text-[#0F294A] shadow-2xs font-bold'
+                : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}
-            />
-            <span>{wsStatusText}</span>
-          </div>
-
-          {/* Presenter Drawer button */}
+            Timeline
+          </button>
           <button
-            onClick={() => setDrawerOpen(!drawerOpen)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white hover:bg-[#F8FAFC] text-[#1E293B] border border-[#CBD5E1] shadow-xs transition-colors"
-            title="Presenter Controls (Press Shift+D)"
+            onClick={() => setMobileTab('radar')}
+            className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${
+              mobileTab === 'radar'
+                ? 'bg-white text-[#0F294A] shadow-2xs font-bold'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
           >
-            <Sliders className="w-3.5 h-3.5 text-indigo-600" />
-            <span className="hidden sm:inline">Presenter</span>
-            <kbd className="hidden md:inline text-[9px] bg-[#F1F5F9] px-1 py-0.5 rounded text-[#64748B] font-mono border border-[#E2E8F0]">
-              Shift+D
-            </kbd>
+            Radar
           </button>
         </div>
+
+        {/* At Home | On Board Toggle */}
+        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+          <button
+            onClick={() => setPassengerStatus('PRE_BOARDING')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-md transition-all cursor-pointer ${
+              passengerStatus === 'PRE_BOARDING'
+                ? 'bg-white text-emerald-800 shadow-2xs font-bold'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="Safe-Boarding: At home protection against premature bailout advice"
+          >
+            <Shield className="w-4 h-4 text-emerald-600" />
+            <span className="hidden sm:inline">At Home</span>
+          </button>
+          <button
+            onClick={() => setPassengerStatus('ON_BOARD')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-md transition-all cursor-pointer ${
+              passengerStatus === 'ON_BOARD'
+                ? 'bg-white text-[#0F294A] shadow-2xs font-bold'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="On Board: Enables early-junction road rescue evaluation"
+          >
+            <Navigation className="w-4 h-4 text-blue-600" />
+            <span className="hidden sm:inline">On Board</span>
+          </button>
+        </div>
+
+        {/* Compact Demo Button */}
+        <button
+          onClick={() => setDrawerOpen(!drawerOpen)}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 shadow-2xs transition-colors cursor-pointer"
+          title="Demo Controls (Shift+D)"
+        >
+          <Settings className="w-4 h-4 text-[#0F294A]" />
+          <span>Demo</span>
+        </button>
       </div>
     </header>
   );

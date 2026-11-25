@@ -50,7 +50,7 @@ export const ConnectionGuard: React.FC = () => {
               style={{ width: `${Math.max(5, survivalPct)}%` }}
             />
           </div>
-          <div className="flex justify-between text-[10px] text-[#94A3B8] font-mono mt-1">
+          <div className="flex justify-between text-xs text-[#94A3B8] font-mono mt-1">
             <span>0% High Risk</span>
             <span>40% Moderate</span>
             <span>100% Guaranteed</span>
@@ -84,9 +84,9 @@ export const ConnectionGuard: React.FC = () => {
         </div>
       </div>
 
-      <div className="text-[11px] text-[#64748B] flex items-center justify-between pt-2 border-t border-[#F1F5F9]">
+      <div className="text-xs text-[#64748B] flex items-center justify-between pt-2 border-t border-[#F1F5F9]">
         <span>Risk Assessment: <strong className="text-[#0F172A]">{riskLevel.replace(/_/g, ' ')}</strong></span>
-        <span className="text-[10px] text-[#94A3B8]">Evaluated via Two-Piece Normal CDF</span>
+        <span className="text-xs text-[#94A3B8]">Evaluated via Two-Piece Normal CDF</span>
       </div>
     </div>
   );

@@ -3,8 +3,7 @@ import { useRailStore } from '../../stores/useRailStore';
 import { TRANSLATIONS, type Lang } from './translations';
 
 export const LandingNav: React.FC = () => {
-  const { language, setLanguage, navigateToDashboardWithTrain, selectedTrain } =
-    useRailStore();
+  const { language, setLanguage } = useRailStore();
   const t = TRANSLATIONS[language].nav;
 
   const langs: { code: Lang; label: string }[] = [
@@ -14,47 +13,31 @@ export const LandingNav: React.FC = () => {
   ];
 
   return (
-    <nav className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 sm:px-8">
-      <div className="max-w-4xl mx-auto flex items-center justify-between h-14">
+    <nav className="sticky top-0 z-40 backdrop-blur-md bg-white/95 border-b border-slate-200 px-4 sm:px-8 shadow-2xs">
+      <div className="max-w-5xl mx-auto flex items-center justify-between h-16 sm:h-[68px]">
         {/* Brand */}
-        <span className="font-bold text-base tracking-widest text-[#0F294A] select-none">
-          {t.brand}
-        </span>
+        <div className="flex items-center gap-3 select-none">
+          <img src="/logo.png" alt="Rail-Pulse logo" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
+          <span className="font-bold text-lg sm:text-xl tracking-wider text-[#0F294A]">
+            {t.brand}
+          </span>
+        </div>
 
-        {/* Right controls */}
-        <div className="flex items-center gap-1 sm:gap-3">
-          {/* Nav links */}
-          <button
-            onClick={() => {
-              if (selectedTrain) navigateToDashboardWithTrain(selectedTrain);
-            }}
-            className="hidden sm:inline-flex px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap"
-          >
-            {t.myJourney}
-          </button>
-          <button
-            onClick={() => navigateToDashboardWithTrain()}
-            className="hidden sm:inline-flex px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap"
-          >
-            {t.allTrains}
-          </button>
-
-          {/* Language segmented control */}
-          <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
-            {langs.map((l) => (
-              <button
-                key={l.code}
-                onClick={() => setLanguage(l.code)}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
-                  language === l.code
-                    ? 'bg-white text-[#0F294A] shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                {l.label}
-              </button>
-            ))}
-          </div>
+        {/* Language segmented control */}
+        <div className="flex items-center bg-slate-100/90 rounded-xl p-1 border border-slate-200">
+          {langs.map((l) => (
+            <button
+              key={l.code}
+              onClick={() => setLanguage(l.code)}
+              className={`px-3 py-1.5 text-xs sm:text-sm font-bold rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                language === l.code
+                  ? 'bg-white text-[#0F294A] shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {l.label}
+            </button>
+          ))}
         </div>
       </div>
     </nav>

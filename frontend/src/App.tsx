@@ -4,13 +4,13 @@ import { wsClient } from './services/wsClient';
 import { fetchForecast, evaluateRescue, fetchCorridorConfig } from './services/api';
 import { TopHeader } from './components/layout/TopHeader';
 import { DemoDrawer } from './components/layout/DemoDrawer';
-import { RescueBanner } from './components/rescue/RescueBanner';
 import { CabModal } from './components/rescue/CabModal';
-import { ConnectionGuard } from './components/rescue/ConnectionGuard';
-import { EtaRangeBar } from './components/timeline/EtaRangeBar';
+import { AddTrainModal } from './components/layout/AddTrainModal';
+import { ArrivalConnectionCard } from './components/connection/ArrivalConnectionCard';
 import { VerticalTimeline } from './components/timeline/VerticalTimeline';
 import { CorridorMap } from './components/map/CorridorMap';
 import { LandingPage } from './components/landing/LandingPage';
+import { timeStringToMinutes } from './components/dashboard/passengerUtils';
 
 export const App: React.FC = () => {
   const {
@@ -18,6 +18,7 @@ export const App: React.FC = () => {
     selectedTrain,
     passengerStatus,
     mobileTab,
+    connectionTarget,
     setForecast,
     setRescue,
   } = useRailStore();
@@ -32,7 +33,7 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Fetch forecast and rescue whenever selected train or boarding status changes
+  // Fetch forecast and rescue whenever selected train, boarding status, or connection target changes
   useEffect(() => {
     let isMounted = true;
 
@@ -43,12 +44,18 @@ export const App: React.FC = () => {
       })
       .catch((err) => console.warn('Forecast error:', err));
 
+    // Calculate deadline epoch aligned with simulation day timeline
+    const targetMinutes =
+      timeStringToMinutes(connectionTarget?.deadline_time || '12:15') ?? 735;
+    const SIMULATION_BASE_MIDNIGHT = 1795034100;
+    const deadlineEpoch = SIMULATION_BASE_MIDNIGHT + targetMinutes * 60;
+
     // Load rescue evaluation
     evaluateRescue({
       train_no: selectedTrain,
-      destination_code: 'BBS',
-      connection_deadline_utc: Math.floor(Date.now() / 1000) + 3600,
-      transfer_buffer_mins: 15,
+      destination_code: connectionTarget?.station_code || 'BBS',
+      connection_deadline_utc: deadlineEpoch,
+      transfer_buffer_mins: connectionTarget?.transfer_buffer_mins ?? 15,
       passenger_status: passengerStatus,
     })
       .then((res) => {
@@ -59,43 +66,37 @@ export const App: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [selectedTrain, passengerStatus, setForecast, setRescue]);
+  }, [selectedTrain, passengerStatus, connectionTarget, setForecast, setRescue]);
 
   // Screen 1: User first sees clean modern landing page
   if (currentView === 'landing') {
     return <LandingPage />;
   }
 
-  // Screen 2: Real-Time Corridor Analytics & Digital Twin Dashboard
+  // Screen 2: Real-Time Corridor Analytics & Digital Twin Dashboard (Auto-Expanding Sidebar + Sticky Map)
   return (
-    <div className="min-h-screen bg-[#FAF9F6] text-[#0F172A] flex flex-col font-sans animate-in fade-in duration-300">
-      {/* Top Application Header with Navigation back to Landing */}
+    <div className="min-h-screen bg-[#FAF9F6] text-[#0F172A] flex flex-col font-sans">
+      {/* Top Application Header (Sticky 52px Bar) */}
       <TopHeader />
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden max-w-[1600px] w-full mx-auto">
-        {/* Left Story Pane: Where Is My Train Vertical Timeline & Predictive Cards */}
+      {/* Main Two-Column Layout */}
+      <main className="flex flex-1 items-start w-full max-w-[1600px] mx-auto flex-col lg:flex-row">
+        {/* Left Sidebar Container (40% width, auto-expanding) */}
         <div
-          className={`w-full lg:w-[480px] xl:w-[540px] shrink-0 p-4 space-y-4 overflow-y-auto lg:h-[calc(100vh-61px)] ${
-            mobileTab === 'radar' ? 'hidden lg:block' : 'block'
+          className={`w-full lg:w-[40%] shrink-0 p-3 flex flex-col gap-3 ${
+            mobileTab === 'radar' ? 'hidden lg:flex' : 'flex'
           }`}
         >
-          {/* Rescue Advisory / Safe-Boarding Lock */}
-          <RescueBanner />
+          {/* Section 1: Train Identity + Arrival & Connection Summary */}
+          <ArrivalConnectionCard />
 
-          {/* Probabilistic ETA Range Bar with Connection Cutoff Pin */}
-          <EtaRangeBar />
-
-          {/* Connection Survival Probability Gauge */}
-          <ConnectionGuard />
-
-          {/* Vertical Stop-by-Stop Timeline */}
+          {/* Sections 2, 3: Journey Details & Delay Causes */}
           <VerticalTimeline />
         </div>
 
-        {/* Right Digital Twin Pane: MapLibre GL 60 FPS WebGL Radar */}
+        {/* Right Map Container (60% width, sticky full-height viewport) */}
         <div
-          className={`flex-1 p-4 lg:pl-0 h-[calc(100vh-61px)] min-h-[500px] ${
+          className={`w-full lg:w-[60%] sticky top-[52px] h-[calc(100vh-52px)] p-3 lg:pl-0 overflow-hidden ${
             mobileTab === 'timeline' ? 'hidden lg:block' : 'block'
           }`}
         >
@@ -105,6 +106,7 @@ export const App: React.FC = () => {
 
       {/* Floating Modals and Presenter Drawers */}
       <CabModal />
+      <AddTrainModal />
       <DemoDrawer />
     </div>
   );

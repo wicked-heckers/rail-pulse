@@ -3,6 +3,7 @@ import type { Map as MapLibreMap } from 'maplibre-gl';
 import type { TrainKinematicState } from '../../types/corridor';
 import { wsClient } from '../../services/wsClient';
 import { useRailStore } from '../../stores/useRailStore';
+import { snapPointToTrack } from '../../services/corridorData';
 
 interface AnimatedTrainState {
   fromLat: number;
@@ -23,34 +24,72 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
   const trainStateMap = useRef<Map<string, AnimatedTrainState>>(new Map());
   const animFrameId = useRef<number | null>(null);
 
-  // Subscribe to live WebSocket train coordinates
+  // 1. Pre-populate and synchronize from activeSnapshot (for demo / fallback mode)
+  useEffect(() => {
+    const snapshot = useRailStore.getState().activeSnapshot;
+    const now = performance.now();
+
+    if (snapshot?.trains) {
+      for (const t of snapshot.trains) {
+        if (t.lat == null || t.lon == null) continue;
+        const [snappedLon, snappedLat] = snapPointToTrack(t.lon, t.lat);
+        if (!trainStateMap.current.has(t.train_no)) {
+          trainStateMap.current.set(t.train_no, {
+            fromLat: snappedLat,
+            fromLon: snappedLon,
+            toLat: snappedLat,
+            toLon: snappedLon,
+            startEpoch: now,
+            durationMs: 1500,
+            currentLat: snappedLat,
+            currentLon: snappedLon,
+            speedKmph: t.speed_kmph ?? 0,
+            trainNo: t.train_no,
+            trainName: t.train_name,
+            delayMins: t.current_delay_mins ?? 0,
+          });
+        }
+      }
+    }
+  }, []);
+
+  // 2. Subscribe to live WebSocket train coordinates
   useEffect(() => {
     const unsubscribe = wsClient.subscribeCoords((trains: TrainKinematicState[]) => {
       const now = performance.now();
 
+      // Prune departed trains from animated map
+      const activeNos = new Set(trains.map((t) => t.train_no));
+      for (const key of trainStateMap.current.keys()) {
+        if (!activeNos.has(key)) {
+          trainStateMap.current.delete(key);
+        }
+      }
+
       for (const t of trains) {
         if (t.lat == null || t.lon == null) continue;
+        const [snappedLon, snappedLat] = snapPointToTrack(t.lon, t.lat);
 
         const existing = trainStateMap.current.get(t.train_no);
         if (existing) {
           existing.fromLat = existing.currentLat;
           existing.fromLon = existing.currentLon;
-          existing.toLat = t.lat;
-          existing.toLon = t.lon;
+          existing.toLat = snappedLat;
+          existing.toLon = snappedLon;
           existing.startEpoch = now;
-          existing.durationMs = 1500; // 1.5s WS broadcast interval
+          existing.durationMs = 1500; // 1.5s broadcast window
           existing.speedKmph = t.speed_kmph;
           existing.delayMins = t.current_delay_mins;
         } else {
           trainStateMap.current.set(t.train_no, {
-            fromLat: t.lat,
-            fromLon: t.lon,
-            toLat: t.lat,
-            toLon: t.lon,
+            fromLat: snappedLat,
+            fromLon: snappedLon,
+            toLat: snappedLat,
+            toLon: snappedLon,
             startEpoch: now,
             durationMs: 1500,
-            currentLat: t.lat,
-            currentLon: t.lon,
+            currentLat: snappedLat,
+            currentLon: snappedLon,
             speedKmph: t.speed_kmph,
             trainNo: t.train_no,
             trainName: t.train_name,
@@ -65,45 +104,81 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
     };
   }, []);
 
-  // 60 FPS requestAnimationFrame render loop
+  // 3. 60 FPS requestAnimationFrame render loop with reduced-motion support and idle throttling
   useEffect(() => {
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let lastRenderedSelectedTrain: string | null = null;
+    let isSettled = false;
+
     const loop = (now: number) => {
       const map = mapRef.current;
       if (map && map.isStyleLoaded()) {
         const source = map.getSource('trains-source') as any;
         if (source && typeof source.setData === 'function') {
-          const features = [];
+          const selectedTrain = useRailStore.getState().selectedTrain;
+          const selectedTrainChanged = selectedTrain !== lastRenderedSelectedTrain;
 
+          // Check if any train has ongoing easing progress
+          let hasActiveMotion = false;
           for (const [_, state] of trainStateMap.current) {
             const elapsed = now - state.startEpoch;
-            const progress = Math.min(1, Math.max(0, elapsed / state.durationMs));
-
-            // Smooth cosine easing
-            const ease = 0.5 - 0.5 * Math.cos(progress * Math.PI);
-
-            state.currentLat = state.fromLat + (state.toLat - state.fromLat) * ease;
-            state.currentLon = state.fromLon + (state.toLon - state.fromLon) * ease;
-
-            features.push({
-              type: 'Feature' as const,
-              properties: {
-                train_no: state.trainNo,
-                train_name: state.trainName,
-                speed_kmph: Math.round(state.speedKmph),
-                delay_mins: Math.round(state.delayMins),
-                is_target: state.trainNo === useRailStore.getState().selectedTrain,
-              },
-              geometry: {
-                type: 'Point' as const,
-                coordinates: [state.currentLon, state.currentLat],
-              },
-            });
+            if (
+              elapsed < state.durationMs &&
+              (state.fromLat !== state.toLat || state.fromLon !== state.toLon)
+            ) {
+              hasActiveMotion = true;
+              break;
+            }
           }
 
-          source.setData({
-            type: 'FeatureCollection',
-            features,
-          });
+          // Only re-serialize GeoJSON and upload to WebGL when positions move or train selection changes
+          if (hasActiveMotion || selectedTrainChanged || !isSettled) {
+            const features = [];
+
+            for (const [_, state] of trainStateMap.current) {
+              if (prefersReducedMotion) {
+                state.currentLat = state.toLat;
+                state.currentLon = state.toLon;
+              } else {
+                const elapsed = now - state.startEpoch;
+                const progress = Math.min(1, Math.max(0, elapsed / state.durationMs));
+
+                // Smooth cosine easing
+                const ease = 0.5 - 0.5 * Math.cos(progress * Math.PI);
+
+                state.currentLat = state.fromLat + (state.toLat - state.fromLat) * ease;
+                state.currentLon = state.fromLon + (state.toLon - state.fromLon) * ease;
+              }
+
+              const [renderLon, renderLat] = snapPointToTrack(state.currentLon, state.currentLat);
+
+              features.push({
+                type: 'Feature' as const,
+                properties: {
+                  train_no: state.trainNo,
+                  train_name: state.trainName,
+                  speed_kmph: Math.round(state.speedKmph),
+                  delay_mins: Math.round(state.delayMins),
+                  is_target: state.trainNo === selectedTrain,
+                },
+                geometry: {
+                  type: 'Point' as const,
+                  coordinates: [renderLon, renderLat],
+                },
+              });
+            }
+
+            source.setData({
+              type: 'FeatureCollection',
+              features,
+            });
+
+            lastRenderedSelectedTrain = selectedTrain;
+            isSettled = !hasActiveMotion;
+          }
         }
       }
 

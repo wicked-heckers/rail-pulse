@@ -33,7 +33,7 @@ export const CabModal: React.FC = () => {
             </div>
             <div>
               <h3 className="font-bold text-sm">NH-16 Highway Road Transfer</h3>
-              <p className="text-[11px] text-gray-300">Cuttack Junction ➔ Bhubaneswar Station</p>
+              <p className="text-xs text-gray-300">Cuttack Junction ➔ Bhubaneswar Station</p>
             </div>
           </div>
           <button
@@ -59,7 +59,7 @@ export const CabModal: React.FC = () => {
                 </div>
 
                 <div className="border-l-2 border-dashed border-[#CBD5E1] ml-2 pl-4 py-1">
-                  <span className="text-[11px] font-mono text-[#64748B]">27.4 km via NH-16 Expressway (38 mins)</span>
+                  <span className="text-xs font-mono text-[#64748B]">27.4 km via NH-16 Expressway (38 mins)</span>
                 </div>
 
                 <div className="flex items-start gap-2.5">
@@ -75,12 +75,12 @@ export const CabModal: React.FC = () => {
               <div className="border border-[#E2E8F0] rounded-xl p-3 flex items-center justify-between">
                 <div>
                   <div className="text-xs font-bold text-[#0F172A]">Prime Sedan (Toyota Etios)</div>
-                  <div className="text-[11px] text-[#64748B]">Driver: Rajesh Sahu • OD 02 AB 4591</div>
-                  <div className="text-[10px] text-emerald-600 font-medium mt-0.5">★ 4.9 (420+ trips) • 3 mins away</div>
+                  <div className="text-xs text-[#64748B]">Driver: Rajesh Sahu • OD 02 AB 4591</div>
+                  <div className="text-xs text-emerald-600 font-medium mt-0.5">★ 4.9 (420+ trips) • 3 mins away</div>
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-bold font-mono text-[#0F172A]">₹480</div>
-                  <div className="text-[10px] text-[#64748B]">Fixed Fare</div>
+                  <div className="text-xs text-[#64748B]">Fixed Fare</div>
                 </div>
               </div>
 

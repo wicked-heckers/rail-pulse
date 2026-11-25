@@ -98,7 +98,7 @@ export const DemoDrawer: React.FC = () => {
             </div>
             <div>
               <h3 className="font-bold text-sm">Judge & Presenter Control Drawer</h3>
-              <p className="text-[11px] text-gray-400">ECoR Corridor Real-Time Disruption Lab</p>
+              <p className="text-xs text-gray-400">ECoR Corridor Real-Time Disruption Lab</p>
             </div>
           </div>
           <button
@@ -169,7 +169,7 @@ export const DemoDrawer: React.FC = () => {
               className="w-full accent-amber-600 cursor-pointer"
             />
 
-            <div className="flex justify-between text-[10px] text-[#94A3B8] font-mono">
+            <div className="flex justify-between text-xs text-[#94A3B8] font-mono">
               <span>0m (On Time)</span>
               <span>+28m (Cascade)</span>
               <span>+60m (Major)</span>
@@ -198,7 +198,7 @@ export const DemoDrawer: React.FC = () => {
                 </div>
                 <div>
                   <div className="font-bold text-[#0F172A]">Dhauli Phantom Freight Cascade (+28m)</div>
-                  <div className="text-[11px] text-[#64748B]">
+                  <div className="text-xs text-[#64748B]">
                     Unscheduled iron-ore freight at Jenapur forces 12821 into double yellow restrictions, triggering Cuttack
                     loop-line hold and early NH-16 rescue recommendation.
                   </div>
@@ -214,7 +214,7 @@ export const DemoDrawer: React.FC = () => {
                 </div>
                 <div>
                   <div className="font-bold text-[#0F172A]">Enterprise ULIP FOIS Override Webhook</div>
-                  <div className="text-[11px] text-[#64748B]">
+                  <div className="text-xs text-[#64748B]">
                     Simulate authenticated X-ULIP-API-Key webhook confirming coal rake BOXN_COAL_CONFIRMED on DN_CTC_BRAG.
                   </div>
                 </div>
@@ -231,7 +231,7 @@ export const DemoDrawer: React.FC = () => {
                 </div>
                 <div>
                   <div className="font-bold text-[#0F172A]">Vande Bharat Priority Overtake Hold</div>
-                  <div className="text-[11px] text-[#64748B]">
+                  <div className="text-xs text-[#64748B]">
                     22895 Howrah-Puri Vande Bharat overtakes on Main Line. Demonstrates multi-train dynamic loop hold
                     calculation.
                   </div>
@@ -247,7 +247,7 @@ export const DemoDrawer: React.FC = () => {
                 </div>
                 <div>
                   <div className="font-bold text-[#0F172A]">Reset Nominal Dispatch</div>
-                  <div className="text-[11px] text-[#64748B]">
+                  <div className="text-xs text-[#64748B]">
                     Clears all injected freight shadows and delays, returning all corridor runs to scheduled green-block
                     timelines.
                   </div>
@@ -263,7 +263,7 @@ export const DemoDrawer: React.FC = () => {
               <span>Full-Stack Architecture Diagnostics</span>
             </span>
 
-            <div className="space-y-1 text-[11px] font-mono">
+            <div className="space-y-1 text-xs font-mono">
               <div className="flex justify-between py-1 border-b border-gray-100">
                 <span className="text-[#64748B]">Backend REST API:</span>
                 <span className="text-emerald-700 font-bold">FastAPI 0.115 (Port 8000)</span>

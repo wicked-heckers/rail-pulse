@@ -48,7 +48,7 @@ export const HazardTrackPill: React.FC<{ hazard: HazardItem }> = ({ hazard }) =>
           <div className="flex items-center gap-2">
             {icon}
             <span className="font-semibold text-xs">{hazard.title}</span>
-            <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-white/70 border border-current">
+            <span className="font-mono text-xs px-1.5 py-0.2 rounded bg-white/70 border border-current">
               km {hazard.chainage_km.toFixed(1)}
             </span>
           </div>
@@ -67,7 +67,7 @@ export const HazardTrackPill: React.FC<{ hazard: HazardItem }> = ({ hazard }) =>
 
         {/* Collapsible Details */}
         {expanded && (
-          <div className="mt-2 pt-2 border-t border-current/20 text-[11px] space-y-1.5 leading-relaxed">
+          <div className="mt-2 pt-2 border-t border-current/20 text-xs space-y-1.5 leading-relaxed">
             <p>
               <strong>Congestion Cause:</strong> {hazard.description}
             </p>

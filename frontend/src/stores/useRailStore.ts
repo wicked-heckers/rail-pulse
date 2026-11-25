@@ -28,6 +28,10 @@ interface RailStore {
   rescue: RescueEvaluationResponse | null;
   connectionTarget: ConnectionTargetState;
 
+  // Map Interactive State (Stage 2)
+  activeMapView: 'my_train' | 'delays_ahead' | 'alternative_route' | 'full_journey';
+  selectedDelayId: string | null;
+
   // Connection & Health
   wsConnected: boolean;
   wsStatusText: string;
@@ -42,13 +46,15 @@ interface RailStore {
   setDrawerOpen: (open: boolean) => void;
   setCabModalOpen: (open: boolean) => void;
   setConnectionTarget: (target: Partial<ConnectionTargetState>) => void;
+  setActiveMapView: (view: 'my_train' | 'delays_ahead' | 'alternative_route' | 'full_journey') => void;
+  setSelectedDelayId: (id: string | null) => void;
   updateSnapshot: (snapshot: CorridorSnapshot) => void;
   setForecast: (forecast: ForecastResponse) => void;
   setRescue: (rescue: RescueEvaluationResponse) => void;
   setWsStatus: (connected: boolean, text: string) => void;
 }
 
-export const useRailStore = create<RailStore>((set) => ({
+export const useRailStore = create<RailStore>((set, get) => ({
   currentView: 'landing',
   language: 'EN',
   selectedTrain: '12821',
@@ -56,6 +62,9 @@ export const useRailStore = create<RailStore>((set) => ({
   mobileTab: 'timeline',
   drawerOpen: false,
   cabModalOpen: false,
+
+  activeMapView: 'my_train',
+  selectedDelayId: null,
 
   activeSnapshot: MOCK_SNAPSHOT,
   forecast: null,
@@ -85,7 +94,24 @@ export const useRailStore = create<RailStore>((set) => ({
     set((state) => ({
       connectionTarget: { ...state.connectionTarget, ...target },
     })),
-  updateSnapshot: (snapshot) => set({ activeSnapshot: snapshot }),
+  setActiveMapView: (view) => set({ activeMapView: view }),
+  setSelectedDelayId: (id) => set({ selectedDelayId: id }),
+  updateSnapshot: (snapshot) => {
+    // Preserve custom trains that were injected into the client-side snapshot
+    const currentCustom = get().activeSnapshot?.trains?.filter(
+      (t) => !snapshot.trains?.some((st) => st.train_no === t.train_no)
+    );
+    if (currentCustom && currentCustom.length > 0) {
+      set({
+        activeSnapshot: {
+          ...snapshot,
+          trains: [...snapshot.trains, ...currentCustom],
+        },
+      });
+    } else {
+      set({ activeSnapshot: snapshot });
+    }
+  },
   setForecast: (forecast) => set({ forecast }),
   setRescue: (rescue) => set({ rescue }),
   setWsStatus: (connected, text) =>

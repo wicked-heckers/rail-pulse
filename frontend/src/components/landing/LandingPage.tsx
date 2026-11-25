@@ -5,20 +5,27 @@ import { SearchCard } from './SearchCard';
 import { ValueComparison } from './ValueComparison';
 import { HowItWorks } from './HowItWorks';
 import { LandingFooter } from './LandingFooter';
+import { LandingBackground } from './LandingBackground';
 
 export const LandingPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#F4F7FA] text-slate-800 flex flex-col font-sans">
-      <LandingNav />
+    <div className="relative min-h-screen bg-[#F4F7FA] text-slate-800 flex flex-col font-sans overflow-x-hidden">
+      {/* SVG Railway Transit Background Layer */}
+      <LandingBackground />
 
-      <main className="flex-1 flex flex-col gap-6 py-6">
-        <HeroSection />
-        <SearchCard />
-        <ValueComparison />
-        <HowItWorks />
-      </main>
+      {/* Content Container */}
+      <div className="relative z-10 flex flex-col min-h-screen justify-between">
+        <LandingNav />
 
-      <LandingFooter />
+        <main className="flex-1 flex flex-col justify-center gap-3 sm:gap-4 py-2 sm:py-3">
+          <HeroSection />
+          <SearchCard />
+          <ValueComparison />
+          <HowItWorks />
+        </main>
+
+        <LandingFooter />
+      </div>
     </div>
   );
 };

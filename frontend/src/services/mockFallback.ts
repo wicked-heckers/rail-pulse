@@ -26,8 +26,8 @@ export const MOCK_SNAPSHOT: CorridorSnapshot = {
       direction: 'DN',
       priority_rank: 1,
       chainage_km: 60.0,
-      lat: 20.8412,
-      lon: 86.1384,
+      lat: 20.8500,
+      lon: 86.0100,
       speed_kmph: 130.0,
       current_delay_mins: 2.0,
       current_station: null,
@@ -80,9 +80,9 @@ export const MOCK_FORECAST_12821: ForecastResponse = {
   p10_eta_epoch: 1795077420,
   p50_eta_epoch: 1795077840,
   p90_eta_epoch: 1795078500,
-  p10_delay_mins: 49.0,
-  p50_delay_mins: 56.0,
-  p90_delay_mins: 67.0,
+  p10_delay_mins: 0.0,
+  p50_delay_mins: 4.0,
+  p90_delay_mins: 19.0,
   usable_slack_mins: 14.0,
   station_timeline: [
     {
@@ -431,7 +431,7 @@ export function getMockForecast(trainNo: string): ForecastResponse {
 
 export const MOCK_RESCUE_ONBOARD: RescueEvaluationResponse = {
   passenger_status: 'ON_BOARD',
-  survival_probability_pct: 18.0,
+  survival_probability_pct: 34.0,
   risk_level: 'HIGH_RISK_MISS',
   safe_boarding_lock: false,
   train_p10_eta_epoch: 1795077420,

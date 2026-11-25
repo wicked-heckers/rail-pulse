@@ -51,7 +51,7 @@ export const EtaRangeBar: React.FC = () => {
             Probabilistic ETA Forecast (Bhubaneswar BBS)
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#64748B]">
+        <div className="flex items-center gap-1.5 text-xs font-mono text-[#64748B]">
           <Sparkles className="w-3.5 h-3.5 text-amber-500" />
           <span>LightGBM CQR Monotonic</span>
           <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
@@ -74,7 +74,7 @@ export const EtaRangeBar: React.FC = () => {
 
         {/* Connection Deadline Tag */}
         <div className="mt-2 sm:mt-0 text-left sm:text-right">
-          <div className="text-[11px] text-[#64748B]">Connecting Train Deadline:</div>
+          <div className="text-xs text-[#64748B]">Connecting Train Deadline:</div>
           <div className="font-mono text-xs font-bold text-rose-700 flex items-center sm:justify-end gap-1">
             <ShieldAlert className="w-3.5 h-3.5" />
             <span>{connectionTarget.deadline_time} PM (20817 Rajdhani)</span>
@@ -84,8 +84,8 @@ export const EtaRangeBar: React.FC = () => {
 
       {/* Horizontal Range Visualization */}
       <div className="pt-2 pb-1">
-        {/* Track Bar Background */}
-        <div className="relative h-4 bg-[#F1F5F9] rounded-full overflow-visible my-3 border border-[#E2E8F0]">
+        {/* Track Bar Background with clear spacing for deadline badge */}
+        <div className="relative h-4 bg-[#F1F5F9] rounded-full overflow-visible mt-6 mb-3 border border-[#E2E8F0]">
           {/* Shaded Uncertainty Spread P10 -> P90 */}
           <div
             className="absolute top-0 bottom-0 rounded-full bg-gradient-to-r from-emerald-100 via-amber-200 to-rose-200 border-y border-amber-300"
@@ -104,12 +104,12 @@ export const EtaRangeBar: React.FC = () => {
 
           {/* Connection Deadline Marker Pin */}
           <div
-            className="absolute -top-2 w-0.5 h-8 bg-rose-600 -translate-x-1/2 z-20"
+            className="absolute -top-3 w-0.5 h-8 bg-rose-600 -translate-x-1/2 z-20"
             style={{ left: `${deadlinePct}%` }}
             title={`Connection Deadline: ${connectionTarget.deadline_time}`}
           >
-            <div className="absolute -top-4 -translate-x-1/2 whitespace-nowrap bg-rose-600 text-white font-mono text-[9px] px-1 py-0.2 rounded shadow-xs">
-              DEADLINE
+            <div className="absolute -top-5 -translate-x-1/2 whitespace-nowrap bg-rose-600 text-white font-mono text-xs font-bold px-1.5 py-0.5 rounded shadow-xs">
+              12:15 PM DEADLINE
             </div>
           </div>
         </div>
@@ -117,21 +117,21 @@ export const EtaRangeBar: React.FC = () => {
         {/* Three Quantile Labels */}
         <div className="flex justify-between items-start text-xs font-mono pt-1 text-[#475569]">
           <div className="text-left">
-            <span className="text-[10px] text-[#94A3B8] block uppercase">P10 Earliest</span>
+            <span className="text-xs text-[#94A3B8] block uppercase">P10 Earliest</span>
             <span className="font-semibold text-emerald-700">{p10Time}</span>
-            <span className="text-[10px] text-[#64748B] block">+{p10}m delay</span>
+            <span className="text-xs text-[#64748B] block">+{p10}m delay</span>
           </div>
 
           <div className="text-center font-bold text-[#0F172A]">
-            <span className="text-[10px] text-[#64748B] block uppercase">P50 Median</span>
+            <span className="text-xs text-[#64748B] block uppercase">P50 Median</span>
             <span className="text-sm">{p50Time}</span>
-            <span className="text-[10px] text-amber-700 block">+{p50}m delay</span>
+            <span className="text-xs text-amber-700 block">+{p50}m delay</span>
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] text-[#94A3B8] block uppercase">P90 Worst Case</span>
+            <span className="text-xs text-[#94A3B8] block uppercase">P90 Worst Case</span>
             <span className="font-semibold text-rose-700">{p90Time}</span>
-            <span className="text-[10px] text-[#64748B] block">+{p90}m delay</span>
+            <span className="text-xs text-[#64748B] block">+{p90}m delay</span>
           </div>
         </div>
       </div>

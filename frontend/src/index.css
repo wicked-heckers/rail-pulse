@@ -1,15 +1,59 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/Archivo.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/Archivo-Italic.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Mulish';
+  src: url('/fonts/Mulish.ttf') format('truetype');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Mulish';
+  src: url('/fonts/Mulish-Italic.ttf') format('truetype');
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: 'Archivo', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Mulish', ui-monospace, monospace;
+}
+
 @layer base {
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Archivo', system-ui, -apple-system, sans-serif;
     background-color: #FAF9F6;
     color: #1E293B;
     overflow-x: hidden;
   }
 
   .font-mono {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: 'Mulish', ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
   }
 }
@@ -31,6 +75,10 @@
 }
 
 /* MapLibre popup refinement */
+.maplibregl-popup {
+  max-width: 320px !important;
+}
+
 .maplibregl-popup-content {
   padding: 0 !important;
   border-radius: 12px !important;
@@ -40,9 +88,16 @@
 }
 
 .maplibregl-popup-close-button {
-  padding: 4px 8px !important;
+  padding: 6px 10px !important;
   color: #64748B !important;
   font-size: 16px !important;
+  top: 4px !important;
+  right: 6px !important;
+  border-radius: 6px !important;
+}
+.maplibregl-popup-close-button:hover {
+  background-color: #F1F5F9 !important;
+  color: #0F172A !important;
 }
 
 /* Pulsing freight glow */
