@@ -1,51 +1,61 @@
 {
-  "timestamp_utc": 1795071600,
-  "mode": "FALLBACK_SNAPSHOT",
-  "active_trains": [
+  "tick_utc": 1795071600,
+  "mode": "REPLAY",
+  "speed_multiplier": 1.0,
+  "trains": [
     {
       "train_no": "12821",
       "train_name": "Dhauli Express",
       "direction": "DN",
+      "priority_rank": 2,
       "chainage_km": 115.0,
+      "lat": 20.4625,
+      "lon": 85.8829,
       "speed_kmph": 0.0,
-      "current_delay_mins": 28,
+      "current_delay_mins": 28.0,
       "current_station": "CTC",
       "next_station": "BRAG",
-      "last_updated_utc": 1795071590,
+      "last_updated_epoch": 1795071590,
       "status": "AT_STATION_HALT"
     },
     {
       "train_no": "22895",
       "train_name": "Howrah-Puri Vande Bharat Express",
       "direction": "DN",
+      "priority_rank": 1,
       "chainage_km": 88.5,
+      "lat": 20.6808,
+      "lon": 85.9667,
       "speed_kmph": 128.0,
-      "current_delay_mins": 3,
+      "current_delay_mins": 3.0,
       "current_station": null,
       "next_station": "NRG",
-      "last_updated_utc": 1795071595,
+      "last_updated_epoch": 1795071595,
       "status": "RUNNING_HIGH_SPEED"
     },
     {
       "train_no": "18410",
       "train_name": "Sri Jagannath Express",
       "direction": "UP",
+      "priority_rank": 3,
       "chainage_km": 152.0,
+      "lat": 20.2272,
+      "lon": 85.786,
       "speed_kmph": 82.0,
-      "current_delay_mins": 7,
+      "current_delay_mins": 7.0,
       "current_station": null,
       "next_station": "BBS",
-      "last_updated_utc": 1795071592,
+      "last_updated_epoch": 1795071592,
       "status": "RUNNING_NORMAL"
     }
   ],
-  "inferred_freight_shadows": [
+  "phantom_freights": [
     {
       "block_id": "DN_CTC_BRAG",
       "direction": "DN",
-      "chainage_km": 121.5,
-      "confidence": 0.88,
-      "source": "KINEMATIC_INFERENCE",
+      "str_value": 1.85,
+      "freight_probability": 0.88,
+      "status": "PHANTOM_FREIGHT_SHADOW",
       "clearance_station": "BRAG",
       "clearance_eta_mins": 14.0
     }

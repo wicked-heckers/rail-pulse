@@ -32,15 +32,16 @@ async def health_check(
     redis_ok = await redis_client.is_healthy()
     redis_status = "CONNECTED" if redis_ok else "CIRCUIT_BREAKER_ACTIVE_IN_MEMORY"
 
-    # Get active train count
+    # Get active train count and current provider mode
     active_trains = await state_store.get_active_trains()
+    active_provider = await state_store.get_provider_mode()
 
     return HealthResponse(
         status="HEALTHY",
         environment=settings.ENVIRONMENT,
         database="POSTGIS_ACTIVE_OR_FALLBACK_READY",
         redis=redis_status,
-        active_provider=settings.DEFAULT_PROVIDER_MODE,
+        active_provider=active_provider,
         ml_models_loaded=ml_loaded,
         active_trains_count=len(active_trains),
         timestamp_epoch=int(time.time()),
