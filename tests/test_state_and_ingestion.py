@@ -87,3 +87,69 @@ async def test_redis_circuit_breaker_resilience():
 
     set_ok = await bad_redis.set_snapshot({"status": "ok"})
     assert set_ok is False
+
+
+@pytest.mark.asyncio
+async def test_replay_provider_loads_and_advances():
+    """Verify ReplayProvider loads fallback_snapshots.json and advances trains in REPLAY mode."""
+    from app.ingestion.replay_provider import ReplayProvider
+
+    provider = ReplayProvider(speed_multiplier=10.0)
+    snap = await provider.get_corridor_snapshot()
+
+    assert snap["mode"] == "REPLAY"
+    assert len(snap["trains"]) == 3
+    assert len(snap["phantom_freights"]) == 1
+
+    vb_before = next(t for t in snap["trains"] if t.train_no == "22895")
+    await provider.advance_simulation(elapsed_wall_seconds=30.0)
+    snap_after = await provider.get_corridor_snapshot()
+    vb_after = next(t for t in snap_after["trains"] if t.train_no == "22895")
+
+    assert vb_after.chainage_km > vb_before.chainage_km
+
+
+@pytest.mark.asyncio
+async def test_live_poller_120s_cache_and_failover(monkeypatch):
+    """
+    Verify LiveFeedProvider respects the 120s poll cache and _poll_initial_state
+    automatically falls back to REPLAY when LIVE_POLLER upstream is unreachable.
+    """
+    from app.config import settings
+    from app.ingestion.live_poller import LiveFeedProvider
+    from app.main import _poll_initial_state
+
+    poller = LiveFeedProvider(poll_interval_secs=120)
+    calls = 0
+
+    async def fake_trains():
+        nonlocal calls
+        calls += 1
+        return [
+            TrainKinematicState(
+                train_no="22895",
+                train_name="Vande Bharat",
+                direction="DN",
+                chainage_km=80.0,
+                speed_kmph=130.0,
+            )
+        ]
+
+    async def fake_weather():
+        return {"rain_mm_hr": 0.0, "wind_speed_kmph": 10.0, "condition": "CLEAR"}
+
+    monkeypatch.setattr(poller, "fetch_live_trains", fake_trains)
+    monkeypatch.setattr(poller, "fetch_weather_update", fake_weather)
+
+    snap1 = await poller.get_corridor_snapshot()
+    snap2 = await poller.get_corridor_snapshot()
+    assert calls == 1
+    assert snap1["mode"] == "LIVE_POLLER"
+    assert snap2 is snap1
+
+    # Now verify automatic failover to REPLAY when LIVE_POLLER has no upstream URL
+    monkeypatch.setattr(settings, "DEFAULT_PROVIDER_MODE", "LIVE_POLLER")
+    monkeypatch.setattr(settings, "LIVE_TRAIN_API_URL", None)
+    active_mode = await _poll_initial_state()
+    assert active_mode == "REPLAY"
+
