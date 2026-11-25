@@ -136,7 +136,7 @@ class QuantileFeatureVector(BaseModel):
     remaining_commercial_halts: int = 0
     train_priority_rank: int = 3
     rain_mm_hr: float = 0.0
-    is_peak_hour: int = 0
+    is_peak_hour: int | None = None
     downstream_junction_load: float = 0.0
 
     # Backwards-compatible aliases
@@ -199,6 +199,11 @@ class DemoFreightInjectRequest(BaseModel):
 
 class DemoSpeedRequest(BaseModel):
     speed_multiplier: int = 1
+
+
+class DemoApplyCausesRequest(BaseModel):
+    train_no: str
+    causes: list[str] = Field(default_factory=list)
 
 
 class ForecastResponse(BaseModel):

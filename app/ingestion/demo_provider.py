@@ -3,6 +3,7 @@ from typing import Any
 
 from app.core.database import LocalTopologyFallback
 from app.engine.chainage_mapper import chainage_to_lat_lon
+from app.engine.disruption_causes import DISRUPTION_CAUSE_CATALOG
 from app.ingestion.base import CorridorDataProvider
 from app.models.schemas import FreightInferenceResult, TrainKinematicState
 
@@ -12,91 +13,536 @@ logger = logging.getLogger("railpulse.demo_provider")
 class DemoSimulationProvider(CorridorDataProvider):
     """
     Deterministic ECoR corridor time-warped simulation engine.
-    Produces the exact SIH26028 calibrated demonstration scenario on demand:
-    - 12821 Dhauli Express: delayed 28 mins on DN line, approaching Cuttack/Barang.
-    - 22895 Vande Bharat Express: closing at 130 km/h from behind.
-    - 18410 Sri Jagannath Express: running normal on UP line.
-    - Active coal freight shadow at Barang Junction (DN_CTC_BRAG).
+    Starts at 11:25:00 AM IST (1795067700) to align cleanly with published
+    ECoR corridor halts and schedules.
     """
 
-    def __init__(self, speed_multiplier: float = 1.0) -> None:
+    CAUSE_PHYSICS: dict[str, dict[str, Any]] = {
+        "TSR_MAINTENANCE": {"speed_kmph": 30.0, "status": "TSR_CAUTION"},
+        "SIGNAL_CONGESTION": {"speed_kmph": 45.0, "status": "SIGNAL_CONGESTION"},
+        "MONSOON_RAIN": {"speed_factor": 0.65, "status": "WEATHER_CAUTION"},
+        "PLATFORM_HOLD": {"speed_kmph": 0.0, "status": "PLATFORM_HOLD"},
+        "OHE_BRAKE_FAULT": {"speed_kmph": 0.0, "status": "OHE_BRAKE_HOLD"},
+    }
+
+    def __init__(
+        self,
+        speed_multiplier: float = 1.0,
+        scenario_mode: bool = False,
+        scenario_name: str = "DHAULI_CASCADE",
+    ) -> None:
         self.speed_multiplier = speed_multiplier
-        self.sim_clock_secs = 1795071480  # 10:58 AM IST
+        self.sim_clock_secs = 1795067700  # 11:25:00 AM IST (2026-11-19)
+        self._sim_clock_exact: float = float(self.sim_clock_secs)
         self.topology = LocalTopologyFallback.load_topology()
         self.stations = self.topology["stations"]
 
-        # Initial deterministic state
-        self._trains: dict[str, dict[str, Any]] = {
-            "12821": {
-                "name": "Dhauli Express",
-                "direction": "DN",
-                "priority_rank": 2,
-                "chainage_km": 115.0,  # At Cuttack Station
-                "speed_kmph": 0.0,
-                "delay_mins": 28.0,
-                "status": "AT_STATION_HALT",
-                "current_station": "CTC",
-                "next_station": "BRAG",
-            },
-            "22895": {
-                "name": "Howrah-Puri Vande Bharat Express",
-                "direction": "DN",
-                "priority_rank": 1,
-                "chainage_km": 60.0,  # 55 km behind Dhauli, closing fast
-                "speed_kmph": 130.0,
-                "delay_mins": 2.0,
-                "status": "RUNNING_HIGH_SPEED",
-                "current_station": None,
-                "next_station": "NRG",
-            },
-            "18410": {
-                "name": "Sri Jagannath Express",
-                "direction": "UP",
-                "priority_rank": 3,
-                "chainage_km": 155.0,  # Approaching Bhubaneswar from Khurda Rd
-                "speed_kmph": 85.0,
-                "delay_mins": 5.0,
-                "status": "RUNNING_NORMAL",
-                "current_station": None,
-                "next_station": "BBS",
-            },
+        if scenario_mode and scenario_name == "OVERTAKE_ONLY":
+            # Smooth Bhubaneswar Loop-Line Overtake: 12821 slows into BBS (143 km) and waits for fast 22895
+            self._trains = {
+                "12821": {
+                    "name": "Dhauli Express",
+                    "direction": "DN",
+                    "priority_rank": 2,
+                    "chainage_km": 136.0,  # Approaching Bhubaneswar (143 km) to enter loop hold
+                    "speed_kmph": 60.0,
+                    "delay_mins": 16.0,
+                    "status": "RUNNING_NORMAL",
+                    "current_station": None,
+                    "next_station": "BBS",
+                },
+                "22895": {
+                    "name": "Howrah-Puri Vande Bharat Express",
+                    "direction": "DN",
+                    "priority_rank": 1,
+                    "chainage_km": 115.0,  # At Cuttack, closing fast at 160 km/h
+                    "speed_kmph": 160.0,
+                    "delay_mins": 0.0,
+                    "status": "RUNNING_HIGH_SPEED",
+                    "current_station": None,
+                    "next_station": "BBS",
+                },
+                "18410": {
+                    "name": "Sri Jagannath Express",
+                    "direction": "UP",
+                    "priority_rank": 3,
+                    "chainage_km": 155.0,
+                    "speed_kmph": 110.0,
+                    "delay_mins": 0.0,
+                    "status": "RUNNING_NORMAL",
+                    "current_station": None,
+                    "next_station": "BBS",
+                },
+            }
+            self._injected_freights = {}
+            self.rain_mm_hr = 0.0
+            self.weather_condition = "CLEAR"
+        elif scenario_mode:
+            # Disrupted SIH26028 cascade preset
+            self._trains = {
+                "12821": {
+                    "name": "Dhauli Express",
+                    "direction": "DN",
+                    "priority_rank": 2,
+                    "chainage_km": 115.0,  # Departing Cuttack into DN_CTC_BRAG freight block
+                    "speed_kmph": 29.0,
+                    "delay_mins": 28.0,
+                    "status": "CRAWLING_FREIGHT_DRAG",
+                    "current_station": None,
+                    "next_station": "BRAG",
+                },
+                "22895": {
+                    "name": "Howrah-Puri Vande Bharat Express",
+                    "direction": "DN",
+                    "priority_rank": 1,
+                    "chainage_km": 60.0,
+                    "speed_kmph": 130.0,
+                    "delay_mins": 2.0,
+                    "status": "RUNNING_HIGH_SPEED",
+                    "current_station": None,
+                    "next_station": "NRG",
+                },
+                "18410": {
+                    "name": "Sri Jagannath Express",
+                    "direction": "UP",
+                    "priority_rank": 3,
+                    "chainage_km": 155.0,
+                    "speed_kmph": 110.0,
+                    "delay_mins": 5.0,
+                    "status": "RUNNING_NORMAL",
+                    "current_station": None,
+                    "next_station": "BBS",
+                },
+            }
+            self._injected_freights = {"DN_CTC_BRAG": 20.0}
+            self.rain_mm_hr = 2.0
+            self.weather_condition = "OVERCAST"
+        else:
+            # Clean "Where Is My Train" baseline: all trains running on time, clear tracks
+            self._trains = {
+                "12821": {
+                    "name": "Dhauli Express",
+                    "direction": "DN",
+                    "priority_rank": 2,
+                    "chainage_km": 115.0,  # Departing Cuttack on time
+                    "speed_kmph": 110.0,
+                    "delay_mins": 0.0,
+                    "status": "RUNNING_NORMAL",
+                    "current_station": None,
+                    "next_station": "BRAG",
+                },
+                "22895": {
+                    "name": "Howrah-Puri Vande Bharat Express",
+                    "direction": "DN",
+                    "priority_rank": 1,
+                    "chainage_km": 60.0,
+                    "speed_kmph": 130.0,
+                    "delay_mins": 0.0,
+                    "status": "RUNNING_HIGH_SPEED",
+                    "current_station": None,
+                    "next_station": "NRG",
+                },
+                "18410": {
+                    "name": "Sri Jagannath Express",
+                    "direction": "UP",
+                    "priority_rank": 3,
+                    "chainage_km": 155.0,
+                    "speed_kmph": 110.0,
+                    "delay_mins": 0.0,
+                    "status": "RUNNING_NORMAL",
+                    "current_station": None,
+                    "next_station": "BBS",
+                },
+            }
+            self._injected_freights = {}
+            self.rain_mm_hr = 0.0
+            self.weather_condition = "CLEAR"
+
+        self._baseline_delays: dict[str, float] = {
+            t_no: float(t["delay_mins"]) for t_no, t in self._trains.items()
+        }
+        self._manual_delays: dict[str, float] = {}
+        self._active_causes: dict[str, list[str]] = {}
+        self._active_cause_effects: dict[str, list[dict[str, Any]]] = {}
+        self._accrued_cause_delays: dict[str, float] = {}
+        self._accrued_freight_delays: dict[str, float] = {}
+        self._accrued_loop_delays: dict[str, float] = {}
+        self._freight_cause_blocks: dict[str, str] = {}
+        is_dhauli_cascade = bool(scenario_mode and scenario_name != "OVERTAKE_ONLY")
+        self._hold_until_overtaken: bool = bool(scenario_mode)
+        self._overtake_target_km: float = 128.0 if is_dhauli_cascade else 143.0
+        self._overtake_target_code: str = "BRAG" if is_dhauli_cascade else "BBS"
+        self._overtake_min_hold_secs: float = 960.0 if is_dhauli_cascade else 0.0
+
+        self._trains_master = {
+            t["train_no"]: t for t in self.topology.get("trains", [])
         }
 
-        self._injected_freights: dict[str, float] = {"DN_CTC_BRAG": 20.0}
+    def _commercial_dwell_secs(self, train_no: str, stn: dict[str, Any]) -> float:
+        master = self._trains_master.get(train_no)
+        if master and master.get("halts"):
+            halt = next(
+                (h for h in master["halts"] if h["station_code"] == stn["station_code"]),
+                None,
+            )
+            if not halt:
+                return 0.0
+            return float(halt.get("scheduled_dwell_m", 2)) * 60.0
+        if stn.get("is_major_junction", False) and float(stn["chainage_km"]) not in (0.0, 206.0):
+            return 120.0
+        return 0.0
+
+    def get_remaining_cause_delay(self, train_no: str) -> float:
+        """Total remaining unexpired delay minutes for active timed causes on train_no."""
+        return round(
+            sum(
+                float(e.get("remaining_delay_mins", 0.0))
+                for e in self._active_cause_effects.get(train_no, [])
+            ),
+            2,
+        )
+
+    def get_all_remaining_cause_delays(self) -> dict[str, float]:
+        return {t_no: self.get_remaining_cause_delay(t_no) for t_no in self._trains}
+
+    def get_all_remaining_loop_holds(self) -> dict[str, float | None]:
+        """Returns remaining loop-line overtake hold minutes while 12821 is physically waiting in loop."""
+        result: dict[str, float | None] = {t_no: None for t_no in self._trains}
+        if self._hold_until_overtaken and "12821" in self._trains:
+            d = self._trains["12821"]
+            if (
+                d.get("status") == "AT_STATION_HALT"
+                and d.get("current_station") == self._overtake_target_code
+            ):
+                if self._overtake_min_hold_secs > 0.0:
+                    rem_secs = max(
+                        0.0, self._overtake_min_hold_secs - float(d.get("_overtake_hold_secs", 0.0))
+                    )
+                    result["12821"] = round(rem_secs / 60.0, 2)
+                else:
+                    vande = self._trains.get("22895", {})
+                    v_km = float(vande.get("chainage_km", 0.0))
+                    v_spd = max(60.0, float(vande.get("speed_kmph", 130.0)))
+                    rem_mins = max(0.5, ((self._overtake_target_km + 3.0 - v_km) / v_spd) * 60.0)
+                    result["12821"] = round(rem_mins, 2)
+        return result
 
     async def advance_simulation(self, elapsed_wall_seconds: float) -> None:
         """Advances physical train positions by (elapsed_wall_seconds * speed_multiplier)."""
         sim_delta_secs = elapsed_wall_seconds * self.speed_multiplier
-        self.sim_clock_secs += int(sim_delta_secs)
+        self._sim_clock_exact += sim_delta_secs
+        self.sim_clock_secs = int(self._sim_clock_exact)
         delta_hours = sim_delta_secs / 3600.0
 
-        for t in self._trains.values():
-            # If train is halted at station, transition to moving after 2 minutes
-            if t["status"] == "AT_STATION_HALT":
-                if sim_delta_secs > 10:
-                    t["status"] = "RUNNING_NORMAL"
-                    t["speed_kmph"] = 75.0 if t["direction"] == "DN" else 80.0
+        vande_km = self._trains.get("22895", {}).get("chainage_km", 0.0)
+        stations_asc = sorted(self.stations, key=lambda s: float(s["chainage_km"]))
+        stn_km_by_code = {s["station_code"]: float(s["chainage_km"]) for s in stations_asc}
+
+        block_lookup = {
+            b["block_id"]: (
+                b["direction"],
+                min(float(b["start_km"]), float(b["end_km"])),
+                max(float(b["start_km"]), float(b["end_km"])),
+            )
+            for b in self.topology.get("track_blocks", [])
+        }
+        fallback_bounds = {
+            "DN_CTC_BRAG": ("DN", 115.0, 128.0),
+            "UP_KUR_BBS": ("UP", 143.0, 162.0),
+        }
+        active_freight_zones: list[tuple[str, float, float]] = []
+        if isinstance(self._injected_freights, dict):
+            freight_iter = [
+                (val.get("block_id", key) if isinstance(val, dict) else key, val)
+                for key, val in self._injected_freights.items()
+            ]
+        else:
+            freight_iter = [
+                (item.get("block_id", "") if isinstance(item, dict) else str(item), item)
+                for item in (self._injected_freights or [])
+            ]
+        for blk_id, val in freight_iter:
+            bounds = block_lookup.get(blk_id) or fallback_bounds.get(blk_id)
+            if bounds is not None:
+                active_freight_zones.append(bounds)
+            elif isinstance(val, dict) and "start_km" in val and "end_km" in val:
+                active_freight_zones.append((
+                    val.get("direction", "DN"),
+                    min(float(val["start_km"]), float(val["end_km"])),
+                    max(float(val["start_km"]), float(val["end_km"])),
+                ))
+
+        def _next_stn(direction: str, km: float) -> str | None:
+            if not stations_asc:
+                return None
+            if direction == "DN":
+                for s in stations_asc:
+                    if float(s["chainage_km"]) > km + 0.1:
+                        return s["station_code"]
+                return stations_asc[-1]["station_code"]
+            for s in reversed(stations_asc):
+                if float(s["chainage_km"]) < km - 0.1:
+                    return s["station_code"]
+            return stations_asc[0]["station_code"]
+
+        for t_no, t in self._trains.items():
+            in_freight_zone = any(
+                d == t["direction"] and lo <= t["chainage_km"] <= hi
+                for d, lo, hi in active_freight_zones
+            )
+            # During active overtake at Barang, Vande Bharat overtakes on the clear mainline
+            if (
+                self._hold_until_overtaken
+                and self._overtake_target_code == "BRAG"
+                and t_no == "22895"
+            ):
+                in_freight_zone = False
+            base_speed = float(
+                t.get("_cruise_override_speed") or (130.0 if t["priority_rank"] == 1 else 110.0)
+            )
+            base_status = "RUNNING_HIGH_SPEED" if t["priority_rank"] == 1 else "RUNNING_NORMAL"
+
+            # Apply active timed disruption cause physics (stop or speed drop, then auto-resume)
+            effects = self._active_cause_effects.get(t_no, [])
+            cause_active = False
+            if effects:
+                cause_active = True
+                eff = effects[0]
+                eff_speed = float(eff["speed_kmph"])
+                actual_speed = (
+                    0.0
+                    if eff_speed == 0.0
+                    else (min(eff_speed, 29.0) if in_freight_zone else eff_speed)
+                )
+                loss_rate = max(0.05, 1.0 - (actual_speed / base_speed)) if base_speed > 0 else 1.0
+                budget_used = min(
+                    float(eff["remaining_delay_mins"]),
+                    (sim_delta_secs / 60.0) * loss_rate,
+                )
+                eff["remaining_delay_mins"] = round(
+                    float(eff["remaining_delay_mins"]) - budget_used, 4
+                )
+                self._accrued_cause_delays[t_no] = (
+                    self._accrued_cause_delays.get(t_no, 0.0) + budget_used
+                )
+
+                t["delay_mins"] = round(
+                    self._baseline_delays.get(t_no, 0.0)
+                    + self._manual_delays.get(t_no, 0.0)
+                    + self._accrued_cause_delays.get(t_no, 0.0)
+                    + self._accrued_freight_delays.get(t_no, 0.0)
+                    + self.get_remaining_cause_delay(t_no),
+                    1,
+                )
+
+                if eff["remaining_delay_mins"] <= 0.01:
+                    effects.pop(0)
+                    if effects:
+                        nxt = effects[0]
+                        nxt_spd = float(nxt["speed_kmph"])
+                        t["speed_kmph"] = (
+                            0.0
+                            if nxt_spd == 0.0
+                            else (min(nxt_spd, 29.0) if in_freight_zone else nxt_spd)
+                        )
+                        t["status"] = (
+                            "CRAWLING_FREIGHT_DRAG"
+                            if (in_freight_zone and nxt_spd > 29.0)
+                            else str(nxt["status"])
+                        )
+                        if t["speed_kmph"] == 0.0:
+                            continue
+                    else:
+                        cause_active = False
+                        t["speed_kmph"] = 29.0 if in_freight_zone else base_speed
+                        t["status"] = "CRAWLING_FREIGHT_DRAG" if in_freight_zone else base_status
+                        if eff["status"] in ("PLATFORM_HOLD", "OHE_BRAKE_HOLD"):
+                            t["current_station"] = None
+                else:
+                    t["speed_kmph"] = actual_speed
+                    t["status"] = (
+                        "CRAWLING_FREIGHT_DRAG"
+                        if (in_freight_zone and actual_speed == 29.0 and eff_speed > 29.0)
+                        else str(eff["status"])
+                    )
+                    if actual_speed == 0.0:
+                        continue
+
+            # Enforce physical speed drop inside any active goods train block area
+            if not cause_active:
+                if in_freight_zone and t["status"] != "AT_STATION_HALT":
+                    t["status"] = "CRAWLING_FREIGHT_DRAG"
+                    t["speed_kmph"] = 29.0
+                    freight_lost = (sim_delta_secs / 60.0) * max(0.0, 1.0 - (29.0 / base_speed))
+                    self._accrued_freight_delays[t_no] = (
+                        self._accrued_freight_delays.get(t_no, 0.0) + freight_lost
+                    )
+                    t["delay_mins"] = round(
+                        self._baseline_delays.get(t_no, 0.0)
+                        + self._manual_delays.get(t_no, 0.0)
+                        + self._accrued_cause_delays.get(t_no, 0.0)
+                        + self._accrued_freight_delays.get(t_no, 0.0)
+                        + self.get_remaining_cause_delay(t_no),
+                        1,
+                    )
+                elif not in_freight_zone and t["status"] in (
+                    "CRAWLING_FREIGHT_DRAG",
+                    "TSR_CAUTION",
+                    "SIGNAL_CONGESTION",
+                    "WEATHER_CAUTION",
+                    "PLATFORM_HOLD",
+                    "OHE_BRAKE_HOLD",
+                ):
+                    t["status"] = base_status
+                    t["speed_kmph"] = base_speed
+
+            # Gap-gated overtake: 12821 only slows/stops at loop when 22895 is within 18 km
+            if self._hold_until_overtaken and t_no == "12821":
+                target_km = self._overtake_target_km
+                target_code = self._overtake_target_code
+                hold_elapsed = float(t.get("_overtake_hold_secs", 0.0))
+                can_release = (vande_km >= target_km + 3.0) and (
+                    hold_elapsed >= self._overtake_min_hold_secs
+                    or self._overtake_min_hold_secs <= 0.0
+                )
+                if can_release:
+                    self._hold_until_overtaken = False
+                    t.pop("_overtake_hold_secs", None)
+                    if not cause_active:
+                        t["status"] = "CRAWLING_FREIGHT_DRAG" if in_freight_zone else "RUNNING_NORMAL"
+                        t["speed_kmph"] = 29.0 if in_freight_zone else 110.0
                     t["current_station"] = None
+                    t["next_station"] = _next_stn("DN", t["chainage_km"])
+                    if "22895" in self._trains:
+                        self._trains["22895"].pop("_cruise_override_speed", None)
+                        if (
+                            not self._active_cause_effects.get("22895")
+                            and self._trains["22895"]["status"] != "CRAWLING_FREIGHT_DRAG"
+                        ):
+                            self._trains["22895"]["speed_kmph"] = 130.0
+                elif (
+                    t["status"] == "AT_STATION_HALT"
+                    and t.get("current_station") == target_code
+                    and t["chainage_km"] >= target_km
+                ) or ((target_km - vande_km) <= 18.0):
+                    if t["chainage_km"] >= target_km:
+                        t["chainage_km"] = target_km
+                        t["status"] = "AT_STATION_HALT"
+                        t["current_station"] = target_code
+                        t["speed_kmph"] = 0.0
+                        t["_overtake_hold_secs"] = hold_elapsed + sim_delta_secs
+                        self._accrued_loop_delays[t_no] = (
+                            self._accrued_loop_delays.get(t_no, 0.0) + (sim_delta_secs / 60.0)
+                        )
+                        t["delay_mins"] = round(
+                            self._baseline_delays.get(t_no, 0.0)
+                            + self._manual_delays.get(t_no, 0.0)
+                            + self._accrued_cause_delays.get(t_no, 0.0)
+                            + self._accrued_freight_delays.get(t_no, 0.0)
+                            + self._accrued_loop_delays.get(t_no, 0.0)
+                            + self.get_remaining_cause_delay(t_no),
+                            1,
+                        )
+                        continue
+                    if not in_freight_zone and not cause_active:
+                        t["speed_kmph"] = 45.0 if (target_km - t["chainage_km"]) < 3.0 else 55.0
+                        t["status"] = "RUNNING_NORMAL"
+                    t["current_station"] = None
+                    t["next_station"] = target_code
+                    new_km = min(target_km, t["chainage_km"] + t["speed_kmph"] * delta_hours)
+                    t["chainage_km"] = round(new_km, 2)
+                    if t["chainage_km"] >= target_km:
+                        t["status"] = "AT_STATION_HALT"
+                        t["current_station"] = target_code
+                        t["speed_kmph"] = 0.0
+                        t["_overtake_hold_secs"] = 0.0
+                    continue
+                elif t["status"] != "AT_STATION_HALT":
+                    # 22895 is still > 18 km away: keep 12821 at its normal speed and advance loop target if passed
+                    if t["chainage_km"] >= target_km:
+                        next_loop = next(
+                            (s for s in stations_asc if float(s["chainage_km"]) > t["chainage_km"] + 0.8),
+                            None,
+                        )
+                        if next_loop is not None:
+                            self._overtake_target_km = float(next_loop["chainage_km"])
+                            self._overtake_target_code = next_loop["station_code"]
+                        else:
+                            self._hold_until_overtaken = False
+                    if not in_freight_zone and not cause_active:
+                        t["status"] = "RUNNING_NORMAL"
+                        t["speed_kmph"] = 110.0
+                        t["current_station"] = None
+
+            # If train is halted at a commercial station, dwell for its scheduled duration
+            if t["status"] == "AT_STATION_HALT":
+                t["_halt_elapsed_secs"] = t.get("_halt_elapsed_secs", 0.0) + sim_delta_secs
+                halt_target = float(t.get("_halt_target_secs", 120.0))
+                if t["_halt_elapsed_secs"] >= halt_target:
+                    t.pop("_halt_elapsed_secs", None)
+                    t.pop("_halt_target_secs", None)
+                    t["status"] = "CRAWLING_FREIGHT_DRAG" if in_freight_zone else base_status
+                    t["speed_kmph"] = 29.0 if in_freight_zone else base_speed
+                    t["current_station"] = None
+                    t["next_station"] = _next_stn(t["direction"], t["chainage_km"])
                 continue
 
             dist_moved = t["speed_kmph"] * delta_hours
             if t["direction"] == "DN":
                 new_km = min(206.0, t["chainage_km"] + dist_moved)
                 t["chainage_km"] = round(new_km, 2)
-                # Check for station arrival
                 for stn in self.stations:
                     if (
                         abs(new_km - stn["chainage_km"]) < 0.8
                         and t["status"] != "AT_STATION_HALT"
                         and stn["station_code"] == t.get("next_station")
                     ):
-                        t["status"] = "AT_STATION_HALT"
-                        t["current_station"] = stn["station_code"]
-                        t["speed_kmph"] = 0.0
+                        dwell_secs = self._commercial_dwell_secs(t_no, stn)
+                        if dwell_secs > 0:
+                            t["chainage_km"] = round(float(stn["chainage_km"]), 2)
+                            t["status"] = "AT_STATION_HALT"
+                            t["current_station"] = stn["station_code"]
+                            t["speed_kmph"] = 0.0
+                            t["_halt_target_secs"] = dwell_secs
+                            t["_halt_elapsed_secs"] = 0.0
                         break
+                next_code = t.get("next_station")
+                if t["status"] != "AT_STATION_HALT" and (
+                    not next_code or new_km >= stn_km_by_code.get(next_code, -1.0)
+                ):
+                    t["next_station"] = _next_stn("DN", new_km)
             else:
                 new_km = max(0.0, t["chainage_km"] - dist_moved)
                 t["chainage_km"] = round(new_km, 2)
+                for stn in self.stations:
+                    if (
+                        abs(new_km - stn["chainage_km"]) < 0.8
+                        and t["status"] != "AT_STATION_HALT"
+                        and stn["station_code"] == t.get("next_station")
+                    ):
+                        dwell_secs = self._commercial_dwell_secs(t_no, stn)
+                        if dwell_secs > 0:
+                            t["chainage_km"] = round(float(stn["chainage_km"]), 2)
+                            t["status"] = "AT_STATION_HALT"
+                            t["current_station"] = stn["station_code"]
+                            t["speed_kmph"] = 0.0
+                            t["_halt_target_secs"] = dwell_secs
+                            t["_halt_elapsed_secs"] = 0.0
+                        break
+                next_code = t.get("next_station")
+                if t["status"] != "AT_STATION_HALT" and (
+                    not next_code or new_km <= stn_km_by_code.get(next_code, 999.0)
+                ):
+                    t["next_station"] = _next_stn("UP", new_km)
+
+            # Immediately exit freight crawl status/speed once train crosses clear of the block
+            still_in_freight = any(
+                d == t["direction"] and lo <= t["chainage_km"] <= hi
+                for d, lo, hi in active_freight_zones
+            )
+            if not cause_active and not still_in_freight and t["status"] == "CRAWLING_FREIGHT_DRAG":
+                t["status"] = base_status
+                t["speed_kmph"] = base_speed
 
     async def get_corridor_snapshot(self) -> dict[str, Any]:
         """Returns the live snapshot of trains and freight shadows."""
@@ -121,25 +567,33 @@ class DemoSimulationProvider(CorridorDataProvider):
                 )
             )
 
-        freight_shadows = [
-            FreightInferenceResult(
-                block_id="DN_CTC_BRAG",
-                direction="DN",
-                str_value=1.85,
-                freight_probability=0.88,
-                status="PHANTOM_FREIGHT_SHADOW",
-                clearance_station="BRAG",
-                clearance_eta_mins=20.0,
+        freight_shadows = []
+        for block_id, penalty_mins in self._injected_freights.items():
+            direction = "UP" if block_id.startswith("UP_") else "DN"
+            clearance_stn = block_id.split("_")[-1] if "_" in block_id else "BRAG"
+            freight_shadows.append(
+                FreightInferenceResult(
+                    block_id=block_id,
+                    direction=direction,
+                    str_value=1.85,
+                    freight_probability=0.88,
+                    status="PHANTOM_FREIGHT_SHADOW",
+                    clearance_station=clearance_stn,
+                    clearance_eta_mins=float(penalty_mins),
+                )
             )
-        ]
-
 
         return {
             "tick_utc": self.sim_clock_secs,
             "mode": f"DEMO_{int(self.speed_multiplier)}X",
+            "speed_multiplier": self.speed_multiplier,
             "trains": train_states,
             "phantom_freights": freight_shadows,
-            "weather": {"rain_mm_hr": 2.0, "wind_speed_kmph": 14.0, "condition": "OVERCAST"},
+            "weather": {
+                "rain_mm_hr": self.rain_mm_hr,
+                "wind_speed_kmph": 24.0 if self.rain_mm_hr > 10.0 else 14.0,
+                "condition": self.weather_condition,
+            },
         }
 
     async def set_speed_multiplier(self, multiplier: float) -> None:
@@ -147,10 +601,177 @@ class DemoSimulationProvider(CorridorDataProvider):
 
     async def inject_delay(self, train_no: str, additional_mins: float) -> None:
         if train_no in self._trains:
+            self._manual_delays[train_no] = self._manual_delays.get(train_no, 0.0) + additional_mins
             self._trains[train_no]["delay_mins"] += additional_mins
+
+    async def apply_causes(
+        self,
+        train_no: str,
+        causes: list[str],
+        direct_delay_mins: float,
+        freight_penalty_mins: float,
+        rain_mm_hr: float,
+    ) -> float:
+        unique_causes = list(dict.fromkeys(causes))
+        self._active_causes[train_no] = unique_causes
+        if train_no in self._trains:
+            t = self._trains[train_no]
+            base_speed = float(
+                t.get("_cruise_override_speed") or (130.0 if t["priority_rank"] == 1 else 110.0)
+            )
+            base_status = "RUNNING_HIGH_SPEED" if t["priority_rank"] == 1 else "RUNNING_NORMAL"
+
+            # Preserve remaining time for causes still active; enqueue newly added timed causes
+            existing_map = {
+                e["cause_id"]: e for e in self._active_cause_effects.get(train_no, [])
+            }
+            next_effects: list[dict[str, Any]] = []
+            for cid in unique_causes:
+                if cid in existing_map:
+                    next_effects.append(existing_map[cid])
+                elif cid in self.CAUSE_PHYSICS:
+                    spec = DISRUPTION_CAUSE_CATALOG.get(cid, {})
+                    phys = self.CAUSE_PHYSICS[cid]
+                    spd = (
+                        float(phys["speed_kmph"])
+                        if "speed_kmph" in phys
+                        else round(base_speed * float(phys["speed_factor"]), 1)
+                    )
+                    next_effects.append({
+                        "cause_id": cid,
+                        "remaining_delay_mins": float(spec.get("added_delay_mins", 10.0)),
+                        "speed_kmph": spd,
+                        "status": str(phys["status"]),
+                    })
+
+            if not unique_causes:
+                self._accrued_cause_delays[train_no] = 0.0
+            self._active_cause_effects[train_no] = next_effects
+
+            base = self._baseline_delays.get(train_no, 0.0)
+            manual = self._manual_delays.get(train_no, 0.0)
+            accrued = self._accrued_cause_delays.get(train_no, 0.0)
+            rem = self.get_remaining_cause_delay(train_no)
+            t["delay_mins"] = round(base + manual + (accrued + rem if next_effects else direct_delay_mins), 1)
+
+            direction = t["direction"]
+            km = float(t["chainage_km"])
+            if freight_penalty_mins > 0:
+                if direction == "DN":
+                    block_id = "DN_CTC_BRAG"
+                    if km > 128.0:
+                        ahead = [
+                            b for b in self.topology.get("track_blocks", [])
+                            if b["direction"] == "DN" and max(float(b["start_km"]), float(b["end_km"])) > km
+                        ]
+                        if ahead:
+                            block_id = ahead[0]["block_id"]
+                else:
+                    block_id = "UP_KUR_BBS"
+                    if km < 143.0:
+                        ahead = [
+                            b for b in self.topology.get("track_blocks", [])
+                            if b["direction"] == "UP" and min(float(b["start_km"]), float(b["end_km"])) < km
+                        ]
+                        if ahead:
+                            block_id = ahead[0]["block_id"]
+                prev_blk = self._freight_cause_blocks.get(train_no)
+                if prev_blk and prev_blk != block_id and prev_blk not in (
+                    v for k, v in self._freight_cause_blocks.items() if k != train_no
+                ):
+                    self._injected_freights.pop(prev_blk, None)
+                self._freight_cause_blocks[train_no] = block_id
+                self._injected_freights[block_id] = freight_penalty_mins
+            else:
+                prev_blk = self._freight_cause_blocks.pop(train_no, None)
+                if prev_blk and prev_blk not in self._freight_cause_blocks.values():
+                    self._injected_freights.pop(prev_blk, None)
+
+            # Immediately reflect active cause's physical slow/stop state on the train
+            if next_effects:
+                head = next_effects[0]
+                t["speed_kmph"] = float(head["speed_kmph"])
+                t["status"] = str(head["status"])
+            elif t["status"] in (
+                "TSR_CAUTION",
+                "SIGNAL_CONGESTION",
+                "WEATHER_CAUTION",
+                "PLATFORM_HOLD",
+                "OHE_BRAKE_HOLD",
+            ):
+                t["speed_kmph"] = base_speed
+                t["status"] = base_status
+
+        # Update weather dynamically based on active monsoon rain causes across all trains
+        active_rain = max(
+            [rain_mm_hr]
+            + [28.0 for c_list in self._active_causes.values() if "MONSOON_RAIN" in c_list],
+            default=0.0,
+        )
+        self.rain_mm_hr = active_rain
+        self.weather_condition = (
+            "HEAVY_MONSOON"
+            if self.rain_mm_hr > 10.0
+            else ("OVERCAST" if self.rain_mm_hr > 0.0 else "CLEAR")
+        )
+        return self._trains[train_no]["delay_mins"] if train_no in self._trains else direct_delay_mins
 
     async def inject_freight(self, block_id: str, confidence: float, duration_mins: float) -> None:
         self._injected_freights[block_id] = duration_mins
+
+    async def trigger_live_overtake(self) -> dict[str, Any]:
+        """
+        Triggers a priority overtake in-place WITHOUT resetting/teleporting train positions:
+        slows 12821 into the next upcoming loop station and boosts 22895 Vande Bharat.
+        """
+        dhauli = self._trains.get("12821")
+        vande = self._trains.get("22895")
+        if not dhauli or not vande:
+            return {"status": "UNAVAILABLE"}
+
+        d_km = float(dhauli["chainage_km"])
+        v_km = float(vande["chainage_km"])
+
+        dn_loops = sorted(
+            (s for s in self.stations if s["chainage_km"] >= d_km and s.get("passenger_loops_dn", 0) > 0),
+            key=lambda s: s["chainage_km"],
+        )
+        target_stn = dn_loops[0] if dn_loops else self.stations[-1]
+        self._overtake_target_km = float(target_stn["chainage_km"])
+        self._overtake_target_code = str(target_stn["station_code"])
+        self._hold_until_overtaken = True
+
+        # Slow Dhauli smoothly only if Vande Bharat is within 18 km of target loop
+        dhauli["next_station"] = self._overtake_target_code
+        if (self._overtake_target_km - v_km) <= 18.0:
+            if d_km >= self._overtake_target_km:
+                dhauli["speed_kmph"] = 0.0
+                dhauli["status"] = "AT_STATION_HALT"
+                dhauli["current_station"] = self._overtake_target_code
+            else:
+                dhauli["speed_kmph"] = 50.0
+                dhauli["status"] = "RUNNING_NORMAL"
+                dhauli["current_station"] = None
+        else:
+            dhauli["speed_kmph"] = 110.0
+            dhauli["status"] = "RUNNING_NORMAL"
+            dhauli["current_station"] = None
+        dhauli["delay_mins"] = max(float(dhauli["delay_mins"]), 16.0)
+
+        # Boost trailing Vande Bharat from its current live position (zero coordinate jump)
+        vande["_cruise_override_speed"] = 180.0
+        if not self._active_cause_effects.get("22895") and vande["status"] != "CRAWLING_FREIGHT_DRAG":
+            vande["speed_kmph"] = 180.0
+            vande["status"] = "RUNNING_HIGH_SPEED"
+
+        return {
+            "status": "OVERTAKE_TRIGGERED",
+            "hold_station_code": self._overtake_target_code,
+            "hold_station_name": target_stn["station_name"],
+            "hold_km": self._overtake_target_km,
+            "dhauli_km": d_km,
+            "vande_km": v_km,
+        }
 
     async def tick(self) -> dict[str, Any]:
         """Convenience alias for get_corridor_snapshot."""

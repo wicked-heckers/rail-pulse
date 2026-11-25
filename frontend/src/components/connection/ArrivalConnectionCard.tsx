@@ -43,7 +43,12 @@ export const ArrivalConnectionCard: React.FC = () => {
   const trainIdentity = getTrainIdentity(selectedTrain, activeSnapshot);
 
   // 2. Expected Arrival & Window (Section 1)
-  const prediction = getArrivalPrediction(selectedTrain, forecast);
+  const prediction = getArrivalPrediction(
+    selectedTrain,
+    forecast,
+    rescue,
+    connectionTarget?.station_code || 'BBS'
+  );
 
   // 3. Logical Connection Evaluation (Section 1)
   const connectionDeadlineFormatted = formatTime12Hour(connectionTarget?.deadline_time);
@@ -60,6 +65,7 @@ export const ArrivalConnectionCard: React.FC = () => {
   const handleSaveConnection = () => {
     setConnectionTarget({
       deadline_time: editDeadline,
+      isCustom: true,
     });
     setIsEditingConnection(false);
   };
@@ -242,13 +248,12 @@ export const ArrivalConnectionCard: React.FC = () => {
 
         {/* Connection Status Indicator & Short Human Message */}
         <div
-          className={`rounded-xl p-3 border transition-all ${
-            connectionEval.status === 'at_risk'
+          className={`rounded-xl p-3 border transition-all ${connectionEval.status === 'at_risk'
               ? 'bg-rose-50/80 border-rose-200 text-rose-900'
               : connectionEval.status === 'uncertain'
-              ? 'bg-amber-50/80 border-amber-200 text-amber-900'
-              : 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
-          }`}
+                ? 'bg-amber-50/80 border-amber-200 text-amber-900'
+                : 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+            }`}
         >
           <div className="flex items-start sm:items-center justify-between gap-3">
             <div className="flex items-start gap-2.5">
@@ -266,45 +271,50 @@ export const ArrivalConnectionCard: React.FC = () => {
                   {connectionEval.explanation}
                 </p>
                 <p className="text-[11px] opacity-80 mt-0.5">
-                  Required transfer window at BBS: {connectionEval.bufferMins} mins
+                  Required transfer window at {prediction.destinationCode}: {connectionEval.bufferMins} mins
                 </p>
               </div>
             </div>
 
             <span
-              className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold border shadow-2xs ${
-                connectionEval.status === 'at_risk'
+              className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold border shadow-2xs ${connectionEval.status === 'at_risk'
                   ? 'bg-white text-rose-700 border-rose-300'
                   : connectionEval.status === 'uncertain'
-                  ? 'bg-white text-amber-700 border-amber-300'
-                  : 'bg-white text-emerald-700 border-emerald-300'
-              }`}
+                    ? 'bg-white text-amber-700 border-amber-300'
+                    : 'bg-white text-emerald-700 border-emerald-300'
+                }`}
             >
               {connectionEval.label}
             </span>
           </div>
 
-          {/* Actionable NH-16 Cab Rescue Button (When On Board & At Risk) */}
-          {passengerStatus === 'ON_BOARD' && connectionEval.status === 'at_risk' && (
-            <div className="mt-2.5 pt-2 border-t border-rose-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-rose-950 font-semibold">
-                <Car className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span>Hop off at Cuttack → Cab via NH-16 saves ~21 mins</span>
+          {/* Actionable NH-16 Cab Rescue Button (Only when On Board, At Risk, and backend found a viable cab bailout) */}
+          {passengerStatus === 'ON_BOARD' &&
+            connectionEval.status === 'at_risk' &&
+            rescue?.bailout_recommended &&
+            rescue?.bailout_plan && (
+              <div className="mt-2.5 pt-2 border-t border-rose-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs text-rose-950 font-semibold">
+                  <Car className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>
+                    Hop off at {rescue.bailout_plan.deboard_station_name} → Cab via NH-16 saves ~
+                    {Math.round(rescue.bailout_plan.minutes_saved)} mins
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveMapView('alternative_route');
+                    setCabModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 bg-[#0F294A] hover:bg-[#1a3a60] text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+                >
+                  <Car className="w-3.5 h-3.5 text-amber-400" />
+                  <span>View Cab Rescue Plan</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveMapView('alternative_route');
-                  setCabModalOpen(true);
-                }}
-                className="px-3 py-1.5 bg-[#0F294A] hover:bg-[#1a3a60] text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap"
-              >
-                <Car className="w-3.5 h-3.5 text-amber-400" />
-                <span>View Cab Rescue Plan</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
+            )}
 
           {/* Safe-Boarding Note (When Pre-Boarding & At Risk) */}
           {passengerStatus === 'PRE_BOARDING' && connectionEval.status === 'at_risk' && (

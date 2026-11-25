@@ -37,6 +37,10 @@ async def lifespan(app: FastAPI):
 
     # 2. Seed initial deterministic state from demo provider
     init_snap = await demo_provider.tick()
+    await state_store.set_remaining_cause_delays(
+        demo_provider.get_all_remaining_cause_delays(),
+        demo_provider.get_all_remaining_loop_holds(),
+    )
     await state_store.update_trains(init_snap["trains"])
     await state_store.update_freight_shadows(init_snap["phantom_freights"])
     await state_store.update_weather(init_snap["weather"])
@@ -49,6 +53,10 @@ async def lifespan(app: FastAPI):
                 await asyncio.sleep(1.5)
                 await demo_provider.advance_simulation(1.5)
                 snap = await demo_provider.tick()
+                await state_store.set_remaining_cause_delays(
+                    demo_provider.get_all_remaining_cause_delays(),
+                    demo_provider.get_all_remaining_loop_holds(),
+                )
                 await state_store.update_trains(snap["trains"])
                 await state_store.update_freight_shadows(snap["phantom_freights"])
                 await state_store.update_weather(snap["weather"])

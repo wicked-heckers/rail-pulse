@@ -1,12 +1,27 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRailStore } from '../../stores/useRailStore';
-import { Shield, Navigation, ArrowLeft, Settings } from 'lucide-react';
+import { setSpeedMultiplier } from '../../services/api';
+import { Shield, Navigation, ArrowLeft, Settings, Clock } from 'lucide-react';
 import { TrainDropdown } from './TrainDropdown';
+
+function formatEpochClockIST(epochSecs: number): string {
+  const istSecs = (Math.floor(epochSecs) + 19800) % 86400;
+  const pos = istSecs < 0 ? istSecs + 86400 : istSecs;
+  const h24 = Math.floor(pos / 3600);
+  const mins = Math.floor((pos % 3600) / 60);
+  const secs = pos % 60;
+  const period = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs
+    .toString()
+    .padStart(2, '0')} ${period}`;
+}
 
 export const TopHeader: React.FC = () => {
   const {
     selectedTrain,
     activeSnapshot,
+    updateSnapshot,
     passengerStatus,
     setPassengerStatus,
     drawerOpen,
@@ -17,6 +32,45 @@ export const TopHeader: React.FC = () => {
   } = useRailStore();
 
   const activeTrain = activeSnapshot.trains?.find((t) => t.train_no === selectedTrain);
+  const simSpeed = activeSnapshot.speed_multiplier || 1;
+  const clockAnchorRef = useRef<{ tickUtc: number; syncedAtMs: number; speed: number }>({
+    tickUtc: activeSnapshot.tick_utc || 1795067700,
+    syncedAtMs: Date.now(),
+    speed: simSpeed,
+  });
+  const [displayEpoch, setDisplayEpoch] = useState<number>(
+    activeSnapshot.tick_utc || 1795067700
+  );
+
+  // Sync clock anchor whenever backend tick or speed multiplier changes
+  useEffect(() => {
+    const tick = activeSnapshot.tick_utc || 1795067700;
+    clockAnchorRef.current = {
+      tickUtc: tick,
+      syncedAtMs: Date.now(),
+      speed: activeSnapshot.speed_multiplier || 1,
+    };
+    setDisplayEpoch(tick);
+  }, [activeSnapshot.tick_utc, activeSnapshot.speed_multiplier]);
+
+  // Smooth sub-second digital clock interpolation scaled by 1x / 10x / 30x
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const { tickUtc, syncedAtMs, speed } = clockAnchorRef.current;
+      const elapsedSec = (Date.now() - syncedAtMs) / 1000;
+      setDisplayEpoch(tickUtc + elapsedSec * speed);
+    }, 200);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const handleQuickSpeed = async (newSpeed: number) => {
+    updateSnapshot({ ...activeSnapshot, speed_multiplier: newSpeed });
+    try {
+      await setSpeedMultiplier(newSpeed);
+    } catch {
+      // Keep optimistic client clock speed if network call fails
+    }
+  };
 
   // Listen for Shift + D hotkey for Demo drawer
   useEffect(() => {
@@ -68,8 +122,37 @@ export const TopHeader: React.FC = () => {
         <TrainDropdown />
       </div>
 
-      {/* Right Controls: Safe-Boarding Toggle + Demo Button */}
-      <div className="flex items-center gap-2.5 shrink-0">
+      {/* Right Controls: Digital Clock + Safe-Boarding Toggle + Demo Button */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Live Digital Simulation Clock + Quick 1x/10x/30x */}
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0F294A] text-white border border-slate-700 shadow-2xs"
+          title="Live Corridor Simulation Clock (IST)"
+        >
+          <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <span className="font-mono font-bold text-xs tracking-tight tabular-nums whitespace-nowrap">
+            {formatEpochClockIST(displayEpoch)}{' '}
+            <span className="hidden sm:inline text-slate-300 text-[10px]">IST</span>
+          </span>
+          <div className="hidden sm:flex items-center gap-0.5 ml-1 pl-1.5 border-l border-slate-600">
+            {[1, 10, 30].map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => handleQuickSpeed(s)}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-colors cursor-pointer ${
+                  simSpeed === s
+                    ? 'bg-emerald-500 text-slate-950'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+                title={`Set simulation clock speed to ${s}x`}
+              >
+                {s}x
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Mobile View Toggle (Timeline vs Radar) */}
         <div className="flex lg:hidden items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
           <button

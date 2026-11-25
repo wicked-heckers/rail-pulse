@@ -1,4 +1,8 @@
-import type { CorridorSnapshot, ForecastResponse } from '../../types/corridor';
+import type {
+  CorridorSnapshot,
+  ForecastResponse,
+  RescueEvaluationResponse,
+} from '../../types/corridor';
 import type { StationData } from '../timeline/StationRow';
 
 export interface TrainIdentity {
@@ -143,20 +147,39 @@ export function getTrainIdentity(
 
   // Single running status pill (strictly avoid multiple badges)
   const delay = Math.round(train.current_delay_mins ?? 0);
-  let statusText = 'Running';
+  const spd = Math.round(train.speed_kmph ?? 0);
+  let statusText = `Running • ${spd} km/h`;
   let statusTone: TrainIdentity['statusTone'] = 'emerald';
 
-  if (train.status === 'AT_STATION_HALT' && delay > 10) {
-    statusText = `Delayed (+${delay}m)`;
+  if (train.status === 'OHE_BRAKE_HOLD') {
+    statusText = `Stopped: OHE/Brake (${spd} km/h)`;
+    statusTone = 'amber';
+  } else if (train.status === 'PLATFORM_HOLD') {
+    statusText = `Held at Signal/Throat (${spd} km/h)`;
+    statusTone = 'amber';
+  } else if (train.status === 'TSR_CAUTION') {
+    statusText = `TSR Caution • ${spd} km/h (+${delay}m)`;
+    statusTone = 'amber';
+  } else if (train.status === 'SIGNAL_CONGESTION') {
+    statusText = `Signal Crawl • ${spd} km/h (+${delay}m)`;
+    statusTone = 'amber';
+  } else if (train.status === 'WEATHER_CAUTION') {
+    statusText = `Monsoon Slow • ${spd} km/h (+${delay}m)`;
+    statusTone = 'amber';
+  } else if (train.status === 'CRAWLING_FREIGHT_DRAG') {
+    statusText = `Goods Ahead • ${spd} km/h`;
+    statusTone = 'amber';
+  } else if (train.status === 'AT_STATION_HALT' && delay > 10) {
+    statusText = `Delayed (+${delay}m) • At station`;
     statusTone = 'amber';
   } else if (train.status === 'AT_STATION_HALT') {
-    statusText = 'At station';
+    statusText = 'At station • 0 km/h';
     statusTone = 'slate';
   } else if (delay > 5) {
-    statusText = `Delayed (+${delay}m)`;
+    statusText = `Delayed (+${delay}m) • ${spd} km/h`;
     statusTone = 'amber';
-  } else if (delay <= 5 && train.speed_kmph && train.speed_kmph > 0) {
-    statusText = 'Running on time';
+  } else if (delay <= 5 && spd > 0) {
+    statusText = `On time • ${spd} km/h`;
     statusTone = 'emerald';
   }
 
@@ -174,21 +197,31 @@ export function getTrainIdentity(
  */
 export function getArrivalPrediction(
   trainNo: string,
-  forecast: ForecastResponse | null
+  forecast: ForecastResponse | null,
+  rescue?: RescueEvaluationResponse | null,
+  destinationCode: string = 'BBS'
 ): ArrivalPrediction {
-  // If dynamic forecast with quantiles is available, use it directly
-  if (forecast && forecast.p50_eta_epoch) {
-    const p10 = formatEpochTo12Hour(forecast.p10_eta_epoch);
-    const p50 = formatEpochTo12Hour(forecast.p50_eta_epoch);
-    const p90 = formatEpochTo12Hour(forecast.p90_eta_epoch);
+  const targetStop =
+    forecast?.station_timeline?.find((s) => s.station_code === destinationCode) ??
+    forecast?.station_timeline?.[forecast.station_timeline.length - 1];
+
+  const p10Epoch = rescue?.train_p10_eta_epoch ?? forecast?.p10_eta_epoch;
+  const p50Epoch = rescue?.train_p50_eta_epoch ?? forecast?.p50_eta_epoch;
+  const p90Epoch = rescue?.train_p90_eta_epoch ?? forecast?.p90_eta_epoch;
+
+  // If dynamic forecast/rescue with quantiles is available, use station-matched ETAs
+  if (p50Epoch && p10Epoch && p90Epoch) {
+    const p10 = formatEpochTo12Hour(p10Epoch);
+    const p50 = formatEpochTo12Hour(p50Epoch);
+    const p90 = formatEpochTo12Hour(p90Epoch);
     return {
-      destinationCode: 'BBS',
-      destinationName: 'Bhubaneswar',
+      destinationCode: targetStop?.station_code ?? destinationCode,
+      destinationName: targetStop?.station_name ?? 'Bhubaneswar',
       expectedTime: p50,
       likelyWindow: `${p10} – ${p90}`,
       earliestTime: p10,
       worstCaseTime: p90,
-      slackMins: Math.round(forecast.usable_slack_mins ?? 14),
+      slackMins: Math.round(forecast?.usable_slack_mins ?? 14),
       p10Time: p10,
       p50Time: p50,
       p90Time: p90,
@@ -351,6 +384,53 @@ export function getDelayCauses(
   forecast: ForecastResponse | null,
   _currentStation?: string | null
 ): DelayCause[] {
+  const activeCards = (forecast?.causal_cards ?? []).filter((c) => c.added_delay_mins > 0);
+  if (activeCards.length > 0) {
+    const titleMap: Record<string, string> = {
+      FREIGHT_SHADOW_DRAG: 'Goods Train Ahead',
+      PRIORITY_OVERTAKE_HOLD: 'Loop-Line Overtake Hold',
+      CASCADE_DOUBLE_OVERTAKE: 'Extended Double Overtake Hold',
+      MONSOON_WEATHER_DRAG: 'Heavy Monsoon Weather Drag',
+      STATIC_TSR_CAUTION: 'Track Maintenance Caution (30 km/h TSR)',
+      COACHING_CONGESTION: 'Preceding Train Signal Congestion',
+      JUNCTION_THROAT_HOLD: 'Junction Platform / Throat Hold',
+      OHE_OR_BRAKE_FAULT: 'OHE Trip / Brake-Binding Clearance',
+    };
+    return activeCards.map((c, idx) => ({
+      id: `live-cause-${idx}-${c.event}`,
+      title: titleMap[c.event] || c.event.replace(/_/g, ' '),
+      tag: `+${Math.round(c.added_delay_mins)}m delay`,
+      tagType: c.event.includes('OVERTAKE') ? 'projected' : 'confirmed',
+      explanation: c.human_message,
+      locationName: `${c.station_name} (${c.station_code})`,
+      coordinates: c.station_code === 'CTC' ? [85.8829, 20.4625] : [85.856, 20.431],
+      popupTitle: titleMap[c.event] || c.event,
+      popupMessage: c.human_message,
+      highlightType: c.event.includes('FREIGHT')
+        ? 'freight_zone'
+        : c.event.includes('OVERTAKE')
+        ? 'cuttack_loop'
+        : 'station',
+    }));
+  }
+
+  if (forecast) {
+    return [
+      {
+        id: `cause-clear-${trainNo}`,
+        title: 'Clear route ahead',
+        tag: 'Clear route',
+        tagType: 'clear',
+        explanation: 'No delays reported ahead—track is clear.',
+        locationName: forecast.direction === 'UP' ? 'Bhubaneswar – Bhadrak UP Line' : 'Bhadrak – Puri DN Line',
+        coordinates: [85.92, 20.55],
+        popupTitle: 'Clear Priority Path',
+        popupMessage: 'Running on clear signal aspects.',
+        highlightType: 'station',
+      },
+    ];
+  }
+
   if (trainNo === '12821') {
     return [
       {
@@ -414,8 +494,8 @@ export function getDelayCauses(
     ];
   }
 
-  // Generic fallback if user enters custom train
-  if (forecast && forecast.current_delay_mins <= 5) {
+  // Generic fallback before initial forecast loads
+  if (trainNo !== '12821' && trainNo !== '22895' && trainNo !== '18410') {
     return [
       {
         id: 'cause-clean',
@@ -747,7 +827,7 @@ export const FULL_CORRIDOR_STATIONS_UP: StationData[] = [
 
 export function getStationTimeline(
   trainNo: string,
-  _forecast: ForecastResponse | null,
+  forecast: ForecastResponse | null,
   activeSnapshot: CorridorSnapshot
 ): StationData[] {
   const train = activeSnapshot.trains.find((t) => t.train_no === trainNo);
@@ -755,33 +835,50 @@ export function getStationTimeline(
   const isUp = train?.direction === 'UP' || trainNo === '18410';
 
   const baseStations = isUp ? FULL_CORRIDOR_STATIONS_UP : FULL_CORRIDOR_STATIONS;
+  const forecastMap = new Map(
+    (forecast?.train_no === trainNo ? forecast.station_timeline : []).map((s) => [
+      s.station_code,
+      s,
+    ])
+  );
+  const lastIdx = baseStations.length - 1;
 
-  // Adapt statuses based on train's actual chainage
-  return baseStations.map((stn) => {
+  // Merge live forecast arrival/departure epochs so Journey Details matches the digital clock & Expected Arrival
+  let currentAssigned = false;
+  return baseStations.map((stn, idx) => {
+    const fcStop = forecastMap.get(stn.station_code);
+    const isPassed = isUp ? stn.chainage_km > trainKm + 0.8 : stn.chainage_km < trainKm - 0.8;
+
     let status: 'passed' | 'current' | 'upcoming' = 'upcoming';
-
-    if (isUp) {
-      // UP direction trains travel PURI (km 206) -> BHC (km 0)
-      if (trainKm < stn.chainage_km - 4) {
-        status = 'passed';
-      } else if (Math.abs(stn.chainage_km - trainKm) <= 6) {
-        status = 'current';
-      } else {
-        status = 'upcoming';
-      }
-    } else {
-      // DN direction trains travel BHC (km 0) -> PURI (km 206)
-      if (stn.chainage_km < trainKm - 4) {
-        status = 'passed';
-      } else if (Math.abs(stn.chainage_km - trainKm) <= 6) {
-        status = 'current';
-      } else {
-        status = 'upcoming';
-      }
+    if (train?.current_station === stn.station_code) {
+      status = 'current';
+      currentAssigned = true;
+    } else if (isPassed) {
+      status = 'passed';
+    } else if (!currentAssigned && (train?.next_station === stn.station_code || idx === lastIdx)) {
+      status = 'current';
+      currentAssigned = true;
     }
+
+    if (!fcStop) {
+      return {
+        ...stn,
+        status,
+      };
+    }
+
+    const schedArr = formatEpochTo12Hour(fcStop.sched_arr_epoch);
+    const schedDep = idx === lastIdx ? '—' : formatEpochTo12Hour(fcStop.sched_dep_epoch);
+    const projArr = formatEpochTo12Hour(fcStop.projected_arr_epoch);
+    const projDep = idx === lastIdx ? '—' : formatEpochTo12Hour(fcStop.projected_dep_epoch);
 
     return {
       ...stn,
+      scheduled_arr: schedArr,
+      scheduled_dep: schedDep,
+      projected_arr: projArr,
+      projected_dep: projDep,
+      delay_mins: Math.max(0, Math.round(fcStop.net_delay_mins)),
       status,
     };
   });
