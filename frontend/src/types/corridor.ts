@@ -3,7 +3,7 @@ export type Direction = 'DN' | 'UP';
 export interface Station {
   station_code: string;
   station_name: string;
-  chainage_km: float;
+  chainage_km: number;
   lat: number;
   lon: number;
   has_750m_goods_loop: boolean;
@@ -11,23 +11,6 @@ export interface Station {
   passenger_loops_up: number;
   is_major_junction: boolean;
   road_exit_penalty_m: number;
-}
-
-export type float = number;
-
-export interface TrackBlock {
-  block_id: string;
-  direction: Direction;
-  from_station: string;
-  to_station: string;
-  start_km: number;
-  end_km: number;
-  length_km: number;
-  mps_kmph: number;
-  free_flow_mins: number;
-  freight_injection_weight: number;
-  terminal_slack_mins: number;
-  is_single_line_throat?: boolean;
 }
 
 export interface CausalCard {

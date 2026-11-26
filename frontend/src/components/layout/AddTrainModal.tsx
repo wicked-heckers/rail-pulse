@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useManagerTrainStore, type ManagerTrain } from '../../stores/useManagerTrainStore';
 import { X, Train, Plus, Sparkles, AlertCircle } from 'lucide-react';
 
@@ -59,7 +59,10 @@ const PRESETS: PresetTrain[] = [
 const STATIONS = [
   { code: 'BHC', name: 'Bhadrak (0 km)' },
   { code: 'JJKR', name: 'Jajpur Keonjhar Rd (44 km)' },
+  { code: 'JKPR', name: 'Jakhapura Junction (51 km)' },
+  { code: 'NRG', name: 'Nergundi Junction (106 km)' },
   { code: 'CTC', name: 'Cuttack Junction (115 km)' },
+  { code: 'BRAG', name: 'Barang Junction (128 km)' },
   { code: 'BBS', name: 'Bhubaneswar (143 km)' },
   { code: 'KUR', name: 'Khurda Road (162 km)' },
   { code: 'PURI', name: 'Puri Terminal (206 km)' },
@@ -77,6 +80,16 @@ export const AddTrainModal: React.FC = () => {
   const [currentStation, setCurrentStation] = useState('JJKR');
   const [currentDelayMins, setCurrentDelayMins] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // Close modal on Escape
+  useEffect(() => {
+    if (!isAddModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAddModalOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAddModalOpen, setAddModalOpen]);
 
   if (!isAddModalOpen) return null;
 
@@ -99,6 +112,10 @@ export const AddTrainModal: React.FC = () => {
 
     if (!cleanNo) {
       setError('Please provide a valid train number (e.g. 12073).');
+      return;
+    }
+    if (['12821', '22895', '18410'].includes(cleanNo)) {
+      setError(`Train ${cleanNo} is a protected core corridor service and cannot be overwritten.`);
       return;
     }
     if (!cleanName) {

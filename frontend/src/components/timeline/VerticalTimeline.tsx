@@ -68,43 +68,44 @@ export const VerticalTimeline: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs flex flex-col transition-all">
+    <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-5 shadow-xs flex flex-col transition-all">
       {/* ── Top Side-by-Side Segmented Toggle (Journey details on left, Delay cause on right) ── */}
       <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl gap-1 shrink-0 mb-3.5 sticky top-0 z-10">
         <button
           type="button"
           onClick={() => setActiveTab('journey')}
-          className={`py-2 px-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`w-full min-w-0 py-2 px-1.5 sm:px-3 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
             activeTab === 'journey'
               ? 'bg-white text-[#0F294A] shadow-xs'
               : 'text-slate-500 hover:text-slate-800'
           }`}
         >
-          <span>Journey Details</span>
+          <span className="truncate whitespace-nowrap">Journey Details</span>
           <span
-            className={`px-2 py-0.5 text-xs font-mono font-bold rounded-full ${
+            className={`px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs font-mono font-bold rounded-full whitespace-nowrap shrink-0 ${
               activeTab === 'journey'
                 ? 'bg-slate-100 text-slate-700 border border-slate-300'
                 : 'bg-slate-200 text-slate-600'
             }`}
           >
-            {stationTimeline.length} stops
+            <span className="sm:hidden">{stationTimeline.length}</span>
+            <span className="hidden sm:inline">{stationTimeline.length} stops</span>
           </span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('delay')}
-          className={`py-2 px-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`w-full min-w-0 py-2 px-1.5 sm:px-3 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
             activeTab === 'delay'
               ? 'bg-white text-[#0F294A] shadow-xs'
               : 'text-slate-500 hover:text-slate-800'
           }`}
         >
-          <span>Delay Cause</span>
+          <span className="truncate whitespace-nowrap">Delay Cause</span>
           {activeDelays.length > 0 ? (
             <span
-              className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+              className={`px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs font-bold rounded-full whitespace-nowrap shrink-0 ${
                 activeTab === 'delay'
                   ? 'bg-amber-100 text-amber-800 border border-amber-300'
                   : 'bg-amber-200/80 text-amber-900'
@@ -114,7 +115,7 @@ export const VerticalTimeline: React.FC = () => {
             </span>
           ) : (
             <span
-              className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+              className={`px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs font-bold rounded-full whitespace-nowrap shrink-0 ${
                 activeTab === 'delay'
                   ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                   : 'bg-emerald-200/80 text-emerald-900'
@@ -247,9 +248,9 @@ export const VerticalTimeline: React.FC = () => {
       {/* ── View 2: Journey Details (Station-by-Station Timetable) ── */}
       {activeTab === 'journey' && (
         <div className="flex flex-col animate-in fade-in duration-150">
-          <div className="flex items-center justify-between px-1 text-xs text-slate-400 font-semibold mb-1.5 shrink-0">
-            <span>STATION & PLATFORM</span>
-            <span>EXPECTED ARRIVAL</span>
+          <div className="flex items-center justify-between gap-4 px-1 text-xs text-slate-400 font-semibold mb-1.5 shrink-0">
+            <span className="shrink-0">STATION & PLATFORM</span>
+            <span className="shrink-0">EXPECTED ARRIVAL</span>
           </div>
 
           <div className="relative rounded-xl border border-slate-200/90 bg-white p-1">

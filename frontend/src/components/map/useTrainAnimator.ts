@@ -24,42 +24,55 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
   const trainStateMap = useRef<Map<string, AnimatedTrainState>>(new Map());
   const animFrameId = useRef<number | null>(null);
 
-  // 1. Pre-populate and synchronize from activeSnapshot (for demo / fallback mode)
-  useEffect(() => {
-    const snapshot = useRailStore.getState().activeSnapshot;
-    const now = performance.now();
+  const snapshotTrains = useRailStore((state) => state.activeSnapshot?.trains);
+  const customTrains = useRailStore((state) => state.customTrains);
 
-    if (snapshot?.trains) {
-      for (const t of snapshot.trains) {
-        if (t.lat == null || t.lon == null) continue;
-        const [snappedLon, snappedLat] = snapPointToTrack(t.lon, t.lat);
-        if (!trainStateMap.current.has(t.train_no)) {
-          trainStateMap.current.set(t.train_no, {
-            fromLat: snappedLat,
-            fromLon: snappedLon,
-            toLat: snappedLat,
-            toLon: snappedLon,
-            startEpoch: now,
-            durationMs: 1500,
-            currentLat: snappedLat,
-            currentLon: snappedLon,
-            speedKmph: t.speed_kmph ?? 0,
-            trainNo: t.train_no,
-            trainName: t.train_name,
-            delayMins: t.current_delay_mins ?? 0,
-          });
-        }
+  // 1. Pre-populate and synchronize from activeSnapshot & custom trains
+  useEffect(() => {
+    const now = performance.now();
+    const allTrains = [...(snapshotTrains || []), ...(customTrains || [])];
+
+    // Remove any pruned custom trains
+    const validTrainNos = new Set(allTrains.map((t) => t.train_no));
+    for (const key of trainStateMap.current.keys()) {
+      if (!validTrainNos.has(key) && customTrains?.some((ct) => ct.train_no === key)) {
+        trainStateMap.current.delete(key);
       }
     }
-  }, []);
+
+    for (const t of allTrains) {
+      if (t.lat == null || t.lon == null) continue;
+      const [snappedLon, snappedLat] = snapPointToTrack(t.lon, t.lat);
+      if (!trainStateMap.current.has(t.train_no)) {
+        trainStateMap.current.set(t.train_no, {
+          fromLat: snappedLat,
+          fromLon: snappedLon,
+          toLat: snappedLat,
+          toLon: snappedLon,
+          startEpoch: now,
+          durationMs: 1500,
+          currentLat: snappedLat,
+          currentLon: snappedLon,
+          speedKmph: t.speed_kmph ?? 0,
+          trainNo: t.train_no,
+          trainName: t.train_name,
+          delayMins: t.current_delay_mins ?? 0,
+        });
+      }
+    }
+  }, [snapshotTrains, customTrains]);
 
   // 2. Subscribe to live WebSocket train coordinates
   useEffect(() => {
     const unsubscribe = wsClient.subscribeCoords((trains: TrainKinematicState[]) => {
       const now = performance.now();
 
-      // Prune departed trains from animated map
-      const activeNos = new Set(trains.map((t) => t.train_no));
+      // Prune departed trains from animated map (protect active custom trains)
+      const currentCustoms = useRailStore.getState().customTrains || [];
+      const activeNos = new Set([
+        ...trains.map((t) => t.train_no),
+        ...currentCustoms.map((t) => t.train_no),
+      ]);
       for (const key of trainStateMap.current.keys()) {
         if (!activeNos.has(key)) {
           trainStateMap.current.delete(key);

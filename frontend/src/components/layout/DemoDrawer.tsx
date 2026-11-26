@@ -66,6 +66,18 @@ export const DemoDrawer: React.FC = () => {
       .catch(() => { });
   }, [drawerOpen, selectedTrain, setTrainCauses]);
 
+  // Close drawer on Escape key
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDrawerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [drawerOpen, setDrawerOpen]);
+
   if (!drawerOpen) return null;
 
   const updateCauses = async (nextCauses: string[]) => {

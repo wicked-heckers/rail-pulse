@@ -76,8 +76,8 @@ export function formatTime12Hour(timeStr?: string): string {
 /**
  * Converts a simulation UTC epoch to 12-hour IST (UTC+05:30) string.
  */
-export function formatEpochTo12Hour(epoch: number): string {
-  if (!epoch || isNaN(epoch)) return '12:09 PM';
+export function formatEpochTo12Hour(epoch?: number | null): string {
+  if (!epoch || isNaN(epoch) || epoch <= 0) return '—';
   // IST offset is +19800 seconds
   const istSeconds = (Math.floor(epoch) + 19800) % 86400;
   const positiveSecs = istSeconds < 0 ? istSeconds + 86400 : istSeconds;
@@ -330,9 +330,12 @@ export function evaluateLogicalConnection(
     };
   }
 
-  // Handle cross-midnight rollover (e.g. expected 23:50, deadline 00:20)
+  // Handle cross-midnight rollover (e.g. expected 23:50, deadline 00:20 or expected 00:20, deadline 23:55)
   if (deadlineMin < expectedMin && expectedMin - deadlineMin > 720) {
     deadlineMin += 1440;
+  } else if (expectedMin < deadlineMin && deadlineMin - expectedMin > 720) {
+    expectedMin += 1440;
+    worstCaseMin += 1440;
   }
   if (worstCaseMin < expectedMin && expectedMin - worstCaseMin > 720) {
     worstCaseMin += 1440;
@@ -600,7 +603,7 @@ export function getStationRelevance(
 /**
  * 6. Returns complete 9-station timetable for Section 4 (Journey details).
  */
-export const FULL_CORRIDOR_STATIONS: StationData[] = [
+const FULL_CORRIDOR_STATIONS: StationData[] = [
   {
     station_code: 'BHC',
     station_name: 'Bhadrak',
@@ -720,7 +723,7 @@ export const FULL_CORRIDOR_STATIONS: StationData[] = [
   },
 ];
 
-export const FULL_CORRIDOR_STATIONS_UP: StationData[] = [
+const FULL_CORRIDOR_STATIONS_UP: StationData[] = [
   {
     station_code: 'PURI',
     station_name: 'Puri Terminal',

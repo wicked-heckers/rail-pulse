@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Clock,
   ArrowLeftRight,
@@ -8,6 +8,7 @@ import {
   X,
 } from 'lucide-react';
 import { useRailStore } from '../../stores/useRailStore';
+import { useManagerTrainStore } from '../../stores/useManagerTrainStore';
 import { TRANSLATIONS } from './translations';
 
 interface PilotStation {
@@ -97,7 +98,27 @@ const DEFAULT_RECENT: RecentItem[] = [
 
 export const SearchCard: React.FC = () => {
   const { language, navigateToDashboardWithTrain, setSelectedTrain } = useRailStore();
+  const managerTrains = useManagerTrainStore((s) => s.trains);
   const t = TRANSLATIONS[language].search;
+
+  // Combine pilot trains with any manager / custom trains dynamically
+  const allCorridorTrains = useMemo<PilotTrain[]>(() => {
+    const custom = managerTrains.filter(
+      (mt) => !PILOT_TRAINS.some((pt) => pt.no === mt.no)
+    );
+    const mappedCustom: PilotTrain[] = custom.map((ct) => ({
+      no: ct.no,
+      name: ct.name,
+      direction: ct.direction,
+      delayStatus: (ct.currentDelayMins ?? 0) > 0 ? `+${ct.currentDelayMins}m late` : 'On time',
+      statusColor: (ct.currentDelayMins ?? 0) <= 5 ? 'emerald' : 'amber',
+      departureTime: '10:00 AM',
+      origin: `${ct.from}`,
+      destination: `${ct.to}`,
+      subtitle: `${ct.from} → ${ct.to} • ${ct.priority} (${ct.direction})`,
+    }));
+    return [...PILOT_TRAINS, ...mappedCustom];
+  }, [managerTrains]);
 
   const [activeTab, setActiveTab] = useState<'find' | 'track'>('find');
   const [fromStation, setFromStation] = useState('BHC');
@@ -115,9 +136,9 @@ export const SearchCard: React.FC = () => {
   const [recent, setRecent] = useState<RecentItem[]>(() => {
     try {
       const saved = localStorage.getItem('rp_recent_routes');
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(0, 2);
+        if (Array.isArray(parsed)) return parsed.slice(0, 2);
       }
       return DEFAULT_RECENT;
     } catch {
@@ -185,9 +206,9 @@ export const SearchCard: React.FC = () => {
 
     let matches: PilotTrain[] = [];
     if (fromKm < toKm) {
-      matches = PILOT_TRAINS.filter((t) => t.direction === 'DN');
+      matches = allCorridorTrains.filter((t) => t.direction === 'DN');
     } else {
-      matches = PILOT_TRAINS.filter((t) => t.direction === 'UP');
+      matches = allCorridorTrains.filter((t) => t.direction === 'UP');
     }
 
     setSearchResults(matches);
@@ -238,13 +259,23 @@ export const SearchCard: React.FC = () => {
     const q = trainQuery.trim();
     if (!q) return;
 
-    // Search against the 3 live corridor trains
-    const match = PILOT_TRAINS.find(
-      (t) =>
-        t.no === q ||
-        t.name.toLowerCase().includes(q.toLowerCase()) ||
-        q.toLowerCase().includes(t.no)
+    // Search against all corridor trains (exact no first, then exact name, then partial match)
+    const qLower = q.toLowerCase();
+    const exactNoMatch = allCorridorTrains.find((t) => t.no === q);
+    const exactNameMatch = allCorridorTrains.find(
+      (t) => t.name.toLowerCase() === qLower
     );
+    const partialMatch =
+      q.length >= 2
+        ? allCorridorTrains.find(
+            (t) =>
+              t.no.includes(q) ||
+              t.name.toLowerCase().includes(qLower) ||
+              qLower.includes(t.name.toLowerCase())
+          )
+        : null;
+
+    const match = exactNoMatch || exactNameMatch || partialMatch;
 
     if (match) {
       setUnmatchedNotice(null);
@@ -266,19 +297,22 @@ export const SearchCard: React.FC = () => {
   const handleClearRecent = () => {
     setRecent([]);
     try {
-      localStorage.removeItem('rp_recent_routes');
+      localStorage.setItem('rp_recent_routes', '[]');
     } catch {
       /* noop */
     }
   };
 
   // Autocomplete suggestions based on query
-  const autocompleteSuggestions = PILOT_TRAINS.filter(
-    (t) =>
-      !trainQuery.trim() ||
-      t.no.includes(trainQuery.trim()) ||
-      t.name.toLowerCase().includes(trainQuery.trim().toLowerCase())
-  );
+  const autocompleteSuggestions = useMemo(() => {
+    const q = trainQuery.trim().toLowerCase();
+    if (!q) return allCorridorTrains;
+    return allCorridorTrains.filter(
+      (t) =>
+        t.no.toLowerCase().includes(q) ||
+        t.name.toLowerCase().includes(q)
+    );
+  }, [allCorridorTrains, trainQuery]);
 
   const searchDisabled = !fromStation || !toStation || fromStation === toStation;
 
@@ -596,7 +630,7 @@ export const SearchCard: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap pt-0.5 pl-6">
-                    {PILOT_TRAINS.map((tr) => (
+                    {allCorridorTrains.map((tr) => (
                       <button
                         type="button"
                         key={tr.no}
@@ -618,27 +652,16 @@ export const SearchCard: React.FC = () => {
               {!unmatchedNotice && !showAutocomplete && (
                 <div className="pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-500 flex-wrap">
                   <span className="text-xs font-semibold text-slate-400 shrink-0">Quick select:</span>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTrainAndNavigate('12821', '12821 Dhauli Express')}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
-                  >
-                    12821 Dhauli Exp
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTrainAndNavigate('22895', '22895 Vande Bharat')}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
-                  >
-                    22895 Vande Bharat
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTrainAndNavigate('18410', '18410 Sri Jagannath Express')}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
-                  >
-                    18410 Sri Jagannath
-                  </button>
+                  {allCorridorTrains.slice(0, 5).map((tr) => (
+                    <button
+                      type="button"
+                      key={tr.no}
+                      onClick={() => handleSelectTrainAndNavigate(tr.no, `${tr.no} ${tr.name}`)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      {tr.no} {tr.name}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

@@ -64,22 +64,22 @@ export const StationRow: React.FC<StationRowProps> = ({
             : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
         }`}
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2.5 sm:gap-3">
           {/* Station Name, Code & Simple Status */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-mono font-bold text-xs px-1.5 py-0.5 rounded bg-[#0F172A] text-white">
+              <span className="font-mono font-bold text-xs px-1.5 py-0.5 rounded bg-[#0F294A] text-white shrink-0">
                 {station.station_code}
               </span>
-              <h4 className="text-sm font-bold text-slate-900 truncate">{station.station_name}</h4>
+              <h4 className="text-sm font-bold text-slate-900 whitespace-normal break-words">{station.station_name}</h4>
               {station.is_junction && (
-                <span className="text-xs font-mono font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="text-xs font-mono font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
                   JN
                 </span>
               )}
               {/* Passenger status pill: Departed / Next Stop / Upcoming */}
               <span
-                className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+                className={`text-xs font-bold px-2 py-0.5 rounded-full border shrink-0 ${
                   isPassed
                     ? 'bg-slate-100 text-slate-600 border-slate-200'
                     : isCurrent
@@ -101,19 +101,21 @@ export const StationRow: React.FC<StationRowProps> = ({
           {/* Timing Column: Expected Arrival & Scheduled */}
           <div className="text-right shrink-0">
             <div className="font-mono text-sm font-bold text-slate-900">
-              {isPassed ? station.scheduled_dep : station.projected_arr}
+              {isPassed
+                ? (station.scheduled_dep !== '—' ? station.scheduled_dep : station.scheduled_arr)
+                : (station.projected_arr !== '—' ? station.projected_arr : station.projected_dep)}
             </div>
 
             <div className="text-xs font-mono text-slate-400 mt-0.5">
-              Sched: {station.scheduled_arr || station.scheduled_dep}
+              Sched: {station.scheduled_arr && station.scheduled_arr !== '—' ? station.scheduled_arr : station.scheduled_dep}
             </div>
 
             {station.delay_mins > 0 ? (
-              <span className="inline-block text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 mt-1">
+              <span className="inline-block text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 mt-1 whitespace-nowrap">
                 +{station.delay_mins}m delay
               </span>
             ) : (
-              <span className="inline-block text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 mt-1">
+              <span className="inline-block text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 mt-1 whitespace-nowrap">
                 On Time
               </span>
             )}

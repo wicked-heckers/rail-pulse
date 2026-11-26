@@ -41,38 +41,70 @@ const STATIONS = [
   { code: 'PURI', name: 'Puri', km: 206.0, coords: [85.8314, 19.8133] as [number, number] },
 ];
 
-function createBaseMapStyle(mapboxToken?: string | null): any {
-  const tileUrl = mapboxToken
-    ? `https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}?access_token=${mapboxToken}`
-    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-  return {
-    version: 8,
-    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-    sources: {
-      'basemap-raster': {
-        type: 'raster',
-        tiles: [tileUrl],
-        tileSize: 256,
-        attribution: mapboxToken ? '© Mapbox © OpenStreetMap' : '© OpenStreetMap contributors',
-      },
-    },
-    layers: [
-      {
-        id: 'basemap-layer',
-        type: 'raster',
-        source: 'basemap-raster',
-        minzoom: 0,
-        maxzoom: 20,
-      },
-    ],
-  };
+// Curated regional places and landmarks in subtle monochrome typography
+interface RegionalPlace {
+  name: string;
+  type: 'town' | 'landmark' | 'water';
+  coords: [number, number];
 }
 
-export const CorridorMap: React.FC = () => {
+const REGIONAL_PLACES: RegionalPlace[] = [
+  { name: 'CHOUDWAR', type: 'town', coords: [85.9100, 20.5350] },
+  { name: 'KENDRAPARA', type: 'town', coords: [86.4200, 20.5000] },
+  { name: 'JAGATSINGHPUR', type: 'town', coords: [86.1700, 20.2650] },
+  { name: 'ATHAGARH', type: 'town', coords: [85.7200, 20.5300] },
+  { name: 'BANKI', type: 'town', coords: [85.5300, 20.3800] },
+  { name: 'DHENKANAL', type: 'town', coords: [85.6000, 20.6700] },
+  { name: 'PHULNAKHARA', type: 'town', coords: [85.8900, 20.3700] },
+  { name: 'PIPLI', type: 'town', coords: [85.8300, 20.1100] },
+  { name: 'NIMAPADA', type: 'town', coords: [86.0200, 20.0700] },
+  { name: 'KONARK', type: 'town', coords: [86.1200, 19.8900] },
+  { name: 'KHURDA TOWN', type: 'town', coords: [85.6200, 20.1800] },
+  { name: 'CHANDAKA RESERVE', type: 'landmark', coords: [85.7100, 20.3500] },
+  { name: 'BIJU PATNAIK AIRPORT', type: 'landmark', coords: [85.8150, 20.2450] },
+  { name: 'MAHANADI RIVER', type: 'water', coords: [85.8150, 20.4650] },
+  { name: 'KATHAJODI RIVER', type: 'water', coords: [85.8550, 20.4450] },
+];
+
+function createBaseMapStyle(mapboxToken?: string | null): string {
+  if (mapboxToken) {
+    return `https://api.mapbox.com/styles/v1/mapbox/light-v11?access_token=${mapboxToken}`;
+  }
+  return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+}
+
+function escapeHtml(str?: string | number | null): string {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+export interface CorridorMapProps {
+  isModal?: boolean;
+}
+
+export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const activePopupRef = useRef<MapLibrePopup | null>(null);
+
+  // Trigger map resize on mount and after render frame for modal transitions
+  useEffect(() => {
+    const t1 = setTimeout(() => {
+      mapRef.current?.resize();
+    }, 60);
+    const t2 = setTimeout(() => {
+      mapRef.current?.resize();
+    }, 300);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, []);
 
   const {
     selectedTrain,
@@ -121,8 +153,10 @@ export const CorridorMap: React.FC = () => {
   // Split route coordinates: Completed (muted) vs Remaining (prominent navy)
   const { completedCoords, remainingCoords } = useMemo(() => {
     const totalKm = 206.0;
-    const progressRatio = Math.min(1, Math.max(0, trainKm / totalKm));
-    const splitIndex = Math.floor(progressRatio * (SMOOTH_TRACK_COORDS.length - 1));
+    const safeKm = Number.isFinite(trainKm) ? trainKm : 115.0;
+    const progressRatio = Math.min(1, Math.max(0, safeKm / totalKm));
+    const maxIdx = Math.max(0, SMOOTH_TRACK_COORDS.length - 1);
+    const splitIndex = Math.min(maxIdx, Math.max(0, Math.floor(progressRatio * maxIdx)));
 
     if (currentTrain?.direction === 'UP') {
       return {
@@ -205,20 +239,20 @@ export const CorridorMap: React.FC = () => {
         setSelectedDelayId(null);
         map.fitBounds(
           [
-            [85.80, 20.24], // SW: Bhubaneswar
-            [85.92, 20.50], // NE: Cuttack
+            [85.76, 20.23],
+            [85.96, 20.52],
           ],
-          { padding: 50, duration: 800 }
+          { padding: { top: 75, bottom: 85, left: 60, right: 60 }, duration: 600 }
         );
       } else if (view === 'delays_ahead') {
         setSelectedDelayId('cause-2');
-        // Smoothly zoom in on the delay zone ahead of the train
-        map.flyTo({
-          center: [85.856, 20.431],
-          zoom: 12.2,
-          speed: 1.2,
-          duration: 800,
-        });
+        map.fitBounds(
+          [
+            [85.80, 20.36],
+            [85.92, 20.49],
+          ],
+          { padding: 85, duration: 600 }
+        );
 
         // Show non-blocking delay explanation popup anchored to the left of the track
         setTimeout(() => {
@@ -226,6 +260,9 @@ export const CorridorMap: React.FC = () => {
           openGoodsTrainPopup(mapRef.current);
         }, 200);
       } else if (view === 'alternative_route') {
+        if (map.getLayer('nh16-highway-casing')) {
+          map.setLayoutProperty('nh16-highway-casing', 'visibility', 'visible');
+        }
         if (map.getLayer('nh16-highway-line')) {
           map.setLayoutProperty('nh16-highway-line', 'visibility', 'visible');
         }
@@ -234,19 +271,19 @@ export const CorridorMap: React.FC = () => {
         }
         map.fitBounds(
           [
-            [85.80, 20.24], // SW: Bhubaneswar
-            [85.92, 20.48], // NE: Cuttack
+            [85.79, 20.24],
+            [85.95, 20.48],
           ],
-          { padding: 50, duration: 800 }
+          { padding: 80, duration: 600 }
         );
       } else if (view === 'full_journey') {
         setSelectedDelayId(null);
         map.fitBounds(
           [
-            [85.55, 19.75], // SW (Puri)
-            [86.60, 21.15], // NE (Bhadrak)
+            [85.75, 19.78],
+            [86.55, 21.08],
           ],
-          { padding: 40, duration: 800 }
+          { padding: { top: 70, bottom: 85, left: 50, right: 50 }, duration: 600 }
         );
       }
     },
@@ -283,31 +320,26 @@ export const CorridorMap: React.FC = () => {
         }
 
         map.on('load', () => {
-          // Hide built-in basemap city/town place label layers to avoid duplicate text
+          // Hide built-in basemap place and label layers to avoid duplicate text behind station labels
           const styleLayers = map.getStyle().layers || [];
           for (const layer of styleLayers) {
-            if (
-              layer.type === 'symbol' &&
-              (layer.id.includes('place') ||
-                layer.id.includes('label') ||
-                layer.id.includes('town') ||
-                layer.id.includes('city') ||
-                layer.id.includes('settlement'))
-            ) {
-              map.setLayoutProperty(layer.id, 'visibility', 'none');
+            if (layer.id.includes('place') || layer.id.includes('label')) {
+              try {
+                map.setLayoutProperty(layer.id, 'visibility', 'none');
+              } catch {}
             }
           }
 
-          // Default initial view: Focus on active rescue action corridor (Cuttack to Bhubaneswar)
+          // Default initial view: Nergundi Jn -> Cuttack Jn -> Barang Jn -> Bhubaneswar
           map.fitBounds(
             [
-              [85.80, 20.24], // SW: South of Bhubaneswar
-              [85.92, 20.50], // NE: North of Cuttack
+              [85.76, 20.23],
+              [85.96, 20.52],
             ],
-            { padding: 50, duration: 600 }
+            { padding: { top: 75, bottom: 85, left: 60, right: 60 }, duration: 600 }
           );
 
-          // 1. Natural Railway Track (Casing)
+          // 1. Natural Railway Track Solid White Casing (Halo)
           map.addSource('railway-track-casing-source', {
             type: 'geojson',
             data: {
@@ -321,14 +353,18 @@ export const CorridorMap: React.FC = () => {
             id: 'railway-track-casing',
             type: 'line',
             source: 'railway-track-casing-source',
+            layout: {
+              'line-cap': 'round',
+              'line-join': 'round',
+            },
             paint: {
-              'line-color': '#94A3B8',
-              'line-width': 5.5,
-              'line-opacity': 0.4,
+              'line-color': '#FFFFFF',
+              'line-opacity': 1,
+              'line-width': 8,
             },
           });
 
-          // 2. Completed Journey Section (Muted neutral line)
+          // 2. Completed Journey Section (Solid slate #475569, line-width: 4.5, line-opacity: 1)
           map.addSource('completed-track-source', {
             type: 'geojson',
             data: {
@@ -342,14 +378,18 @@ export const CorridorMap: React.FC = () => {
             id: 'completed-track-line',
             type: 'line',
             source: 'completed-track-source',
+            layout: {
+              'line-cap': 'round',
+              'line-join': 'round',
+            },
             paint: {
-              'line-color': '#CBD5E1',
-              'line-width': 3,
-              'line-opacity': 0.85,
+              'line-color': '#475569',
+              'line-width': 4.5,
+              'line-opacity': 1,
             },
           });
 
-          // 3. Remaining Journey Section (Prominent navy line)
+          // 3. Upcoming Clear Rail Segment (Solid deep navy #0f172a, line-width: 4.5, line-opacity: 1)
           map.addSource('remaining-track-source', {
             type: 'geojson',
             data: {
@@ -363,9 +403,14 @@ export const CorridorMap: React.FC = () => {
             id: 'remaining-track-line',
             type: 'line',
             source: 'remaining-track-source',
+            layout: {
+              'line-cap': 'round',
+              'line-join': 'round',
+            },
             paint: {
               'line-color': '#0F294A',
-              'line-width': 3.5,
+              'line-width': 4.5,
+              'line-opacity': 1,
             },
           });
 
@@ -382,10 +427,10 @@ export const CorridorMap: React.FC = () => {
               'text-keep-upright': false,
             },
             paint: {
-              'text-color': '#0F294A',
-              'text-opacity': 0.75,
-              'text-halo-color': '#FFFFFF',
-              'text-halo-width': 1,
+              'text-color': '#FFFFFF',
+              'text-opacity': 1,
+              'text-halo-color': '#0F294A',
+              'text-halo-width': 1.5,
             },
           });
 
@@ -399,29 +444,39 @@ export const CorridorMap: React.FC = () => {
             },
           });
 
+          // Dedicated white casing beneath amber delay line
           map.addLayer({
-            id: 'freight-hazard-glow',
+            id: 'freight-hazard-casing',
             type: 'line',
             source: 'freight-hazard-source',
+            layout: {
+              'line-cap': 'round',
+              'line-join': 'round',
+            },
             paint: {
-              'line-color': '#F59E0B',
-              'line-width': 8,
-              'line-opacity': 0.45,
+              'line-color': '#FFFFFF',
+              'line-opacity': 1,
+              'line-width': 9,
             },
           });
 
+          // Slow Traffic Ahead: Solid amber (#f59e0b), line-width: 5.5, line-opacity: 1
           map.addLayer({
             id: 'freight-hazard-core',
             type: 'line',
             source: 'freight-hazard-source',
+            layout: {
+              'line-cap': 'round',
+              'line-join': 'round',
+            },
             paint: {
-              'line-color': '#D97706',
-              'line-width': 3,
-              'line-dasharray': [3, 2],
+              'line-color': '#F59E0B',
+              'line-width': 5.5,
+              'line-opacity': 1,
             },
           });
 
-          // Delay badge: Plain passenger copy "Goods Train Ahead (~14m delay)"
+          // Delay badge: Plain passenger copy "Goods Train Ahead (~14m delay)" with crisp white halo
           map.addSource('freight-badge-source', {
             type: 'geojson',
             data: {
@@ -446,7 +501,7 @@ export const CorridorMap: React.FC = () => {
             },
             paint: {
               'text-color': '#92400E',
-              'text-halo-color': '#FEF3C7',
+              'text-halo-color': '#FFFFFF',
               'text-halo-width': 2.5,
             },
           });
@@ -461,21 +516,42 @@ export const CorridorMap: React.FC = () => {
             },
           });
 
+          // Dedicated white casing beneath NH-16 cab line
+          map.addLayer({
+            id: 'nh16-highway-casing',
+            type: 'line',
+            source: 'nh16-highway',
+            layout: {
+              visibility: isRescueAvailable ? 'visible' : 'none',
+              'line-cap': 'round',
+              'line-join': 'round',
+            },
+            paint: {
+              'line-color': '#FFFFFF',
+              'line-opacity': 1,
+              'line-width': 8,
+            },
+          });
+
+          // NH-16 Cab Bypass: Crisp emerald dashed line (#059669), line-width: 4, line-opacity: 1
           map.addLayer({
             id: 'nh16-highway-line',
             type: 'line',
             source: 'nh16-highway',
             layout: {
               visibility: isRescueAvailable ? 'visible' : 'none',
+              'line-cap': 'round',
+              'line-join': 'round',
             },
             paint: {
-              'line-color': '#10B981',
+              'line-color': '#059669',
               'line-width': 4,
               'line-dasharray': [2, 2],
+              'line-opacity': 1,
             },
           });
 
-          // NH-16 Rescue Pill Badge
+          // NH-16 Rescue Pill Badge with crisp white halo
           map.addSource('nh16-badge-source', {
             type: 'geojson',
             data: {
@@ -501,19 +577,73 @@ export const CorridorMap: React.FC = () => {
             },
             paint: {
               'text-color': '#065F46',
-              'text-halo-color': '#D1FAE5',
+              'text-halo-color': '#FFFFFF',
               'text-halo-width': 2.5,
             },
           });
 
-          // 6. Station Nodes
+          // 6. Curated Regional Places & Landmarks (Monochrome Slate Typography)
+          map.addSource('regional-places-source', {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: REGIONAL_PLACES.map((p) => ({
+                type: 'Feature',
+                properties: {
+                  name: p.name,
+                  type: p.type,
+                },
+                geometry: {
+                  type: 'Point',
+                  coordinates: p.coords,
+                },
+              })),
+            },
+          });
+
+          map.addLayer({
+            id: 'regional-places-labels',
+            type: 'symbol',
+            source: 'regional-places-source',
+            layout: {
+              'text-field': ['get', 'name'],
+              'text-size': [
+                'case',
+                ['==', ['get', 'type'], 'water'],
+                10,
+                10.5,
+              ],
+              'text-letter-spacing': 0.08,
+              'text-anchor': 'center',
+              'text-max-width': 9,
+              'text-allow-overlap': false,
+              'text-ignore-placement': false,
+            },
+            paint: {
+              'text-color': [
+                'case',
+                ['==', ['get', 'type'], 'water'],
+                '#64748B',
+                ['==', ['get', 'type'], 'landmark'],
+                '#475569',
+                '#64748B',
+              ],
+              'text-halo-color': '#FFFFFF',
+              'text-halo-width': 2,
+              'text-opacity': 0.85,
+            },
+          });
+
+          // 7. Station Nodes
           map.addSource('station-nodes', {
             type: 'geojson',
             data: {
               type: 'FeatureCollection',
               features: STATIONS.map((stn) => {
-                const isPassed = trainKm > stn.km + 4;
-                const isCurrent = Math.abs(stn.km - trainKm) <= 6;
+                const isUp = currentTrain?.direction === 'UP' || selectedTrain === '18410';
+                const safeTrainKm = Number.isFinite(trainKm) ? trainKm : 115.0;
+                const isPassed = isUp ? stn.km > safeTrainKm + 4 : safeTrainKm > stn.km + 4;
+                const isCurrent = Math.abs(stn.km - safeTrainKm) <= 6;
                 const relevance = getStationRelevance(
                   stn.code,
                   selectedTrain,
@@ -600,7 +730,7 @@ export const CorridorMap: React.FC = () => {
             },
           });
 
-          // Station labels: Anchored RIGHT with offset
+          // Station labels: Anchored RIGHT with offset and crisp white halo
           map.addLayer({
             id: 'station-labels',
             type: 'symbol',
@@ -614,7 +744,7 @@ export const CorridorMap: React.FC = () => {
             paint: {
               'text-color': '#0F172A',
               'text-halo-color': '#FFFFFF',
-              'text-halo-width': 2,
+              'text-halo-width': 2.5,
             },
           });
 
@@ -735,10 +865,12 @@ export const CorridorMap: React.FC = () => {
             closeActivePopup();
 
             const isTarget = props.is_target;
-            const trainNo = props.train_no;
-            const trainName = props.train_name;
-            const delay = props.delay_mins;
-            const speed = props.speed_kmph;
+            const trainNo = escapeHtml(props.train_no);
+            const trainName = escapeHtml(props.train_name);
+            const delay = Math.round(Number(props.delay_mins) || 0);
+            const speed = Math.round(Number(props.speed_kmph) || 0);
+            const curStation = escapeHtml(props.current_station);
+            const nxtStation = escapeHtml(props.next_station || 'BBS');
 
             const popupHtml = `
               <div class="p-3 max-w-xs text-xs space-y-2">
@@ -760,7 +892,7 @@ export const CorridorMap: React.FC = () => {
                   </div>
                   <div class="flex justify-between">
                     <span>Position:</span>
-                    <span class="text-slate-800 font-bold">${props.current_station ? `Platform ${props.current_station}` : `En route to ${props.next_station || 'BBS'}`}</span>
+                    <span class="text-slate-800 font-bold">${curStation ? `Platform ${curStation}` : `En route to ${nxtStation}`}</span>
                   </div>
                   <div class="flex justify-between">
                     <span>Data Source:</span>
@@ -769,7 +901,7 @@ export const CorridorMap: React.FC = () => {
                 </div>
                 ${
                   !isTarget
-                    ? `<button id="btn-track-${trainNo}" class="w-full mt-1.5 py-1 px-2.5 bg-[#0F294A] hover:bg-slate-800 text-white font-bold rounded-lg text-center transition-colors cursor-pointer text-xs">
+                    ? `<button id="btn-track-${props.train_no}" class="w-full mt-1.5 py-1 px-2.5 bg-[#0F294A] hover:bg-slate-800 text-white font-bold rounded-lg text-center transition-colors cursor-pointer text-xs">
                         Track this train
                       </button>`
                     : ''
@@ -786,10 +918,10 @@ export const CorridorMap: React.FC = () => {
 
             // Wire up "Track this train" button inside popup
             setTimeout(() => {
-              const btn = document.getElementById(`btn-track-${trainNo}`);
+              const btn = document.getElementById(`btn-track-${props.train_no}`);
               if (btn) {
                 btn.onclick = () => {
-                  setSelectedTrain(trainNo);
+                  setSelectedTrain(props.train_no);
                   popup.remove();
                 };
               }
@@ -804,20 +936,26 @@ export const CorridorMap: React.FC = () => {
 
             closeActivePopup();
 
+            const stnName = escapeHtml(props.name);
+            const stnCode = escapeHtml(props.code);
+            const roleBadge = escapeHtml(props.role_badge);
+            const explanation = escapeHtml(props.explanation);
+            const kmFormatted = Number(props.km || 0).toFixed(1);
+
             const popupHtml = `
               <div class="p-3 max-w-xs text-xs space-y-2">
                 <div class="flex items-center justify-between border-b pb-1.5 border-slate-100">
-                  <strong class="font-bold text-sm text-[#0F294A]">${props.name} (${props.code})</strong>
-                  <span class="px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 text-slate-700">km ${Number(props.km).toFixed(1)}</span>
+                  <strong class="font-bold text-sm text-[#0F294A]">${stnName} (${stnCode})</strong>
+                  <span class="px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 text-slate-700">km ${kmFormatted}</span>
                 </div>
                 <div class="space-y-1">
-                  <div class="text-xs font-bold text-[#0F294A]">${props.role_badge}</div>
-                  <p class="text-slate-600 leading-snug">${props.explanation}</p>
+                  <div class="text-xs font-bold text-[#0F294A]">${roleBadge}</div>
+                  <p class="text-slate-600 leading-snug">${explanation}</p>
                 </div>
                 ${
                   props.code === 'BBS'
                     ? `<div class="bg-slate-50 p-1.5 rounded border border-slate-200 text-xs text-slate-700 font-medium">
-                        Expected Arrival: <strong class="text-[#0F294A] font-bold">${prediction.expectedTime}</strong> (Window: ${prediction.likelyWindow})
+                        Expected Arrival: <strong class="text-[#0F294A] font-bold">${escapeHtml(prediction.expectedTime)}</strong> (Window: ${escapeHtml(prediction.likelyWindow)})
                       </div>`
                     : ''
                 }
@@ -833,7 +971,7 @@ export const CorridorMap: React.FC = () => {
           });
 
           // Change cursor to pointer over interactive layers
-          ['trains-point', 'station-circles', 'freight-hazard-core', 'freight-hazard-glow', 'freight-badge-layer'].forEach((layerId) => {
+          ['trains-point', 'station-circles', 'freight-hazard-core', 'freight-hazard-casing', 'freight-badge-layer'].forEach((layerId) => {
             map.on('mouseenter', layerId, () => {
               map.getCanvas().style.cursor = 'pointer';
             });
@@ -843,7 +981,7 @@ export const CorridorMap: React.FC = () => {
           });
 
           // Direct click on delay hazard on map triggers Goods Train Ahead view & popup
-          ['freight-hazard-core', 'freight-hazard-glow', 'freight-badge-layer'].forEach((layerId) => {
+          ['freight-hazard-core', 'freight-hazard-casing', 'freight-badge-layer'].forEach((layerId) => {
             map.on('click', layerId, () => {
               handleCameraView('delays_ahead');
             });
@@ -896,6 +1034,9 @@ export const CorridorMap: React.FC = () => {
     const shouldShowRescue = isRescueAvailable || activeMapView === 'alternative_route';
     const visibility = shouldShowRescue ? 'visible' : 'none';
 
+    if (map.getLayer('nh16-highway-casing')) {
+      map.setLayoutProperty('nh16-highway-casing', 'visibility', visibility);
+    }
     if (map.getLayer('nh16-highway-line')) {
       map.setLayoutProperty('nh16-highway-line', 'visibility', visibility);
     }
@@ -913,7 +1054,7 @@ export const CorridorMap: React.FC = () => {
       (activeSnapshot.phantom_freights?.length ?? 0) > 0 || activeMapView === 'delays_ahead';
     const visibility = hasActiveFreight ? 'visible' : 'none';
 
-    for (const layerId of ['freight-hazard-glow', 'freight-hazard-core', 'freight-badge-layer']) {
+    for (const layerId of ['freight-hazard-casing', 'freight-hazard-core', 'freight-badge-layer']) {
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(layerId, 'visibility', visibility);
       }
@@ -934,13 +1075,13 @@ export const CorridorMap: React.FC = () => {
       closeActivePopup();
       if (trainSnapshot && trainSnapshot.lon && trainSnapshot.lat) {
         if (selectedTrain === '12821') {
-          // Smoothly fit bounds to active rescue action corridor (Cuttack to Bhubaneswar)
+          // Smoothly fit bounds around Nergundi Jn -> Cuttack Jn -> Barang Jn -> Bhubaneswar
           map.fitBounds(
             [
-              [85.80, 20.24], // SW: Bhubaneswar
-              [85.92, 20.50], // NE: Cuttack
+              [85.76, 20.23],
+              [85.96, 20.52],
             ],
-            { padding: 50, duration: 750 }
+            { padding: { top: 75, bottom: 85, left: 60, right: 60 }, duration: 600 }
           );
         } else {
           // For other trains (Vande Bharat 22895 or Sri Jagannath 18410), center camera directly on the train
@@ -948,45 +1089,43 @@ export const CorridorMap: React.FC = () => {
             center: [trainSnapshot.lon, trainSnapshot.lat],
             zoom: 12.2,
             speed: 1.2,
-            duration: 800,
+            duration: 600,
           });
         }
       } else {
         map.fitBounds(
           [
-            [85.80, 20.24],
-            [85.92, 20.50],
+            [85.76, 20.23],
+            [85.96, 20.52],
           ],
-          { padding: 50, duration: 750 }
+          { padding: { top: 75, bottom: 85, left: 60, right: 60 }, duration: 600 }
         );
       }
     } else if (activeMapView === 'delays_ahead') {
-      // Focus on active disruption sector ahead of train (Cuttack to Barang)
-      map.flyTo({
-        center: [85.856, 20.431],
-        zoom: 12.2,
-        speed: 1.2,
-        duration: 900,
-      });
-    } else if (activeMapView === 'alternative_route') {
-      closeActivePopup();
-      // Fit bounds between Cuttack (CTC) and Bhubaneswar (BBS)
       map.fitBounds(
         [
-          [85.80, 20.24], // SW: Bhubaneswar
-          [85.92, 20.48], // NE: Cuttack
+          [85.80, 20.36],
+          [85.92, 20.49],
         ],
-        { padding: 50, duration: 800 }
+        { padding: 85, duration: 600 }
+      );
+    } else if (activeMapView === 'alternative_route') {
+      closeActivePopup();
+      map.fitBounds(
+        [
+          [85.79, 20.24],
+          [85.95, 20.48],
+        ],
+        { padding: 80, duration: 600 }
       );
     } else if (activeMapView === 'full_journey') {
       closeActivePopup();
-      // Fit entire corridor (Bhadrak to Puri)
       map.fitBounds(
         [
-          [85.55, 19.75], // SW (Puri)
-          [86.60, 21.15], // NE (Bhadrak)
+          [85.75, 19.78],
+          [86.55, 21.08],
         ],
-        { padding: 40, duration: 800 }
+        { padding: { top: 70, bottom: 85, left: 50, right: 50 }, duration: 600 }
       );
     }
   }, [activeMapView, selectedTrain, closeActivePopup]);
@@ -1073,7 +1212,13 @@ export const CorridorMap: React.FC = () => {
   }, [selectedDelayId, selectedTrain, forecast, currentTrain?.current_station, closeActivePopup, openGoodsTrainPopup]);
 
   return (
-    <div className="relative w-full h-full min-h-[500px] bg-[#FAF9F6] rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-xs">
+    <div
+      className={`relative w-full h-full bg-[#FAF9F6] overflow-hidden ${
+        isModal
+          ? 'rounded-none border-0'
+          : 'min-h-[500px] rounded-2xl border border-[#E5E7EB] shadow-xs'
+      }`}
+    >
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
       {/* ======================================================== */}
