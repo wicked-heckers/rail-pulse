@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { TrainFront, Globe, ChevronDown, Check, Clock } from 'lucide-react';
+import { Globe, ChevronDown, Check, Clock } from 'lucide-react';
 import { useRailStore } from '../../stores/useRailStore';
 import { TRANSLATIONS, type Lang } from './translations';
 
@@ -63,9 +63,7 @@ export const LandingNav: React.FC = () => {
       <div className="flex items-center justify-between h-14 px-4 sm:px-6 max-w-5xl mx-auto w-full">
         {/* Brand */}
         <div className="flex items-center gap-2.5 select-none shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-[#0F294A] text-white flex items-center justify-center shrink-0 shadow-2xs">
-            <TrainFront className="w-4 h-4 text-emerald-400" />
-          </div>
+          <img src="/logo.png" alt="Rail-Pulse logo" className="w-8 h-8 object-contain shrink-0" />
           <span className="whitespace-nowrap shrink-0 font-bold tracking-tight text-slate-900 text-base sm:text-lg">
             {t.brand}
           </span>
