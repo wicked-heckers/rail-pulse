@@ -6,7 +6,6 @@ from app.ingestion.demo_provider import DemoSimulationProvider
 from app.ingestion.ulip_connector import ULIPFoisEnterpriseConnector
 from app.models.schemas import TrainKinematicState
 
-
 # ---------------------------------------------------------------------------
 # Original 4 tests (shared base — identical in both branches)
 # ---------------------------------------------------------------------------

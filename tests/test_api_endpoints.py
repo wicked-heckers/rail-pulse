@@ -280,26 +280,6 @@ async def test_trigger_live_overtake_does_not_teleport_trains():
 
 
 @pytest.mark.asyncio
-async def test_trigger_live_overtake_does_not_teleport_trains():
-    """Verify trigger-overtake preserves live coordinates while scheduling loop hold and Vande speed boost."""
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        await client.post("/api/v1/demo/reset")
-        before = (await client.get("/api/v1/corridor/state")).json()["trains"]
-        d_before = next(t["chainage_km"] for t in before if t["train_no"] == "12821")
-        v_before = next(t["chainage_km"] for t in before if t["train_no"] == "22895")
-
-        resp = await client.post("/api/v1/demo/trigger-overtake")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["status"] == "OVERTAKE_TRIGGERED"
-        assert data["dhauli_km"] == d_before
-        assert data["vande_km"] == v_before
-        assert data["hold_km"] >= d_before
-
-        await client.post("/api/v1/demo/reset")
-
-
-@pytest.mark.asyncio
 async def test_predict_cascade_unified_endpoint():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         # Start demo scenario first
