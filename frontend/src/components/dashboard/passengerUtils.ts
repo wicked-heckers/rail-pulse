@@ -138,7 +138,15 @@ export function getTrainIdentity(
 
   // Location display
   let locationText = 'En route';
-  if (train.current_station) {
+  if (train.status === 'AT_TERMINUS') {
+    const termName =
+      train.current_station === 'PURI'
+        ? 'Puri Terminal'
+        : train.current_station === 'BHC'
+        ? 'Bhadrak'
+        : train.current_station ?? 'Terminus';
+    locationText = `Arrived at ${termName} (Terminus)`;
+  } else if (train.current_station) {
     locationText = `Stopped at ${train.current_station} station`;
     if (train.current_station === 'CTC') locationText = 'Waiting at Cuttack (CTC)';
   } else if (train.next_station) {
@@ -154,7 +162,10 @@ export function getTrainIdentity(
   let statusText = `Running • ${spd} km/h`;
   let statusTone: TrainIdentity['statusTone'] = 'emerald';
 
-  if (train.status === 'OHE_BRAKE_HOLD') {
+  if (train.status === 'AT_TERMINUS') {
+    statusText = 'Journey Complete • Terminus';
+    statusTone = 'slate';
+  } else if (train.status === 'OHE_BRAKE_HOLD') {
     statusText = `Stopped: OHE/Brake (${spd} km/h)`;
     statusTone = 'amber';
   } else if (train.status === 'PLATFORM_HOLD') {

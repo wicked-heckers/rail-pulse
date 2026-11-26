@@ -357,6 +357,22 @@
         {"station_code": "KUR", "stop_sequence": 5, "sched_arr_min_day": 752, "sched_dep_min_day": 754, "is_commercial_halt": true, "scheduled_dwell_m": 2},
         {"station_code": "PURI", "stop_sequence": 6, "sched_arr_min_day": 815, "sched_dep_min_day": 815, "is_commercial_halt": true, "scheduled_dwell_m": 0}
       ]
+    },
+    {
+      "train_no": "18410",
+      "train_name": "Sri Jagannath Express",
+      "train_class": "EXPRESS",
+      "priority_rank": 3,
+      "direction": "UP",
+      "max_speed_kmph": 110,
+      "halts": [
+        {"station_code": "PURI", "stop_sequence": 1, "sched_arr_min_day": 840, "sched_dep_min_day": 840, "is_commercial_halt": true, "scheduled_dwell_m": 0},
+        {"station_code": "KUR", "stop_sequence": 2, "sched_arr_min_day": 870, "sched_dep_min_day": 872, "is_commercial_halt": true, "scheduled_dwell_m": 2},
+        {"station_code": "BBS", "stop_sequence": 3, "sched_arr_min_day": 890, "sched_dep_min_day": 892, "is_commercial_halt": true, "scheduled_dwell_m": 2},
+        {"station_code": "CTC", "stop_sequence": 4, "sched_arr_min_day": 920, "sched_dep_min_day": 922, "is_commercial_halt": true, "scheduled_dwell_m": 2},
+        {"station_code": "JJKR", "stop_sequence": 5, "sched_arr_min_day": 970, "sched_dep_min_day": 972, "is_commercial_halt": true, "scheduled_dwell_m": 2},
+        {"station_code": "BHC", "stop_sequence": 6, "sched_arr_min_day": 1002, "sched_dep_min_day": 1002, "is_commercial_halt": true, "scheduled_dwell_m": 0}
+      ]
     }
   ]
 }

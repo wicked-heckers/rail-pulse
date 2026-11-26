@@ -225,13 +225,6 @@ async def test_demo_freight_inject_and_reset():
 
 
 @pytest.mark.asyncio
-async def test_multi_cause_disruption_across_trains():
-    """Verify multiple disruption causes stack accurately for Vande Bharat (22895) and UP trains (18410)."""
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        await client.post("/api/v1/demo/reset")
-
-
-@pytest.mark.asyncio
 async def test_trigger_live_overtake_does_not_teleport_trains():
     """Verify trigger-overtake preserves live coordinates while scheduling loop hold and Vande speed boost."""
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
