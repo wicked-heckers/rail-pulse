@@ -1,20 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRailStore } from '../../stores/useRailStore';
 import { setSpeedMultiplier } from '../../services/api';
 import { Shield, Navigation, ArrowLeft, Settings, Clock, GitBranch, Train } from 'lucide-react';
 import { getTrainIdentity } from '../dashboard/passengerUtils';
 
-function formatEpochClockIST(epochSecs: number): string {
-  const istSecs = (Math.floor(epochSecs) + 19800) % 86400;
-  const pos = istSecs < 0 ? istSecs + 86400 : istSecs;
-  const h24 = Math.floor(pos / 3600);
-  const mins = Math.floor((pos % 3600) / 60);
-  const secs = pos % 60;
-  const period = h24 >= 12 ? 'PM' : 'AM';
-  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-  return `${h12.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs
-    .toString()
-    .padStart(2, '0')} ${period}`;
+function formatCurrentTimeIST(date: Date): string {
+  const formatted = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  }).format(date);
+  return formatted.toUpperCase();
 }
 
 export const TopHeader: React.FC = () => {
@@ -33,33 +31,12 @@ export const TopHeader: React.FC = () => {
   const trainIdentity = getTrainIdentity(selectedTrain, activeSnapshot);
 
   const simSpeed = activeSnapshot.speed_multiplier || 1;
-  const clockAnchorRef = useRef<{ tickUtc: number; syncedAtMs: number; speed: number }>({
-    tickUtc: activeSnapshot.tick_utc || 1795067700,
-    syncedAtMs: Date.now(),
-    speed: simSpeed,
-  });
-  const [displayEpoch, setDisplayEpoch] = useState<number>(
-    activeSnapshot.tick_utc || 1795067700
-  );
+  const [now, setNow] = useState<Date>(() => new Date());
 
-  // Sync clock anchor whenever backend tick or speed multiplier changes
-  useEffect(() => {
-    const tick = activeSnapshot.tick_utc || 1795067700;
-    clockAnchorRef.current = {
-      tickUtc: tick,
-      syncedAtMs: Date.now(),
-      speed: activeSnapshot.speed_multiplier || 1,
-    };
-    setDisplayEpoch(tick);
-  }, [activeSnapshot.tick_utc, activeSnapshot.speed_multiplier]);
-
-  // Smooth sub-second digital clock interpolation scaled by 1x / 10x / 30x
   useEffect(() => {
     const id = window.setInterval(() => {
-      const { tickUtc, syncedAtMs, speed } = clockAnchorRef.current;
-      const elapsedSec = (Date.now() - syncedAtMs) / 1000;
-      setDisplayEpoch(tickUtc + elapsedSec * speed);
-    }, 200);
+      setNow(new Date());
+    }, 1000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -141,14 +118,14 @@ export const TopHeader: React.FC = () => {
 
       {/* Right Controls: Desktop Clock/Speed + Responsive At Home/On Board Toggle + Demo Button */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        {/* Live Digital Simulation Clock (hidden on mobile, visible md+) */}
+        {/* Live Digital IST Clock (hidden on mobile, visible md+) */}
         <div
           className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0F294A] text-white border border-slate-700 shadow-2xs"
-          title="Live Corridor Simulation Clock (IST)"
+          title="Current Time (IST)"
         >
           <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           <span className="font-mono font-bold text-xs tracking-tight tabular-nums whitespace-nowrap">
-            {formatEpochClockIST(displayEpoch)}{' '}
+            {formatCurrentTimeIST(now)}{' '}
             <span className="text-slate-300 text-[10px]">IST</span>
           </span>
           <div className="flex items-center gap-0.5 ml-1 pl-1.5 border-l border-slate-600">
