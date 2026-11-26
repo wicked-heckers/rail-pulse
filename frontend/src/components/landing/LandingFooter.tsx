@@ -45,13 +45,13 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onNavigateToSearch
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-10">
             {/* Column 1: Project Information */}
             <div className="md:col-span-6">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3">
                 <img
                   src="/logo.png"
                   alt="Rail-Pulse logo"
-                  className="w-6 h-6 object-contain shrink-0"
+                  className="w-9 h-9 object-contain shrink-0"
                 />
-                <span className="text-base font-bold tracking-tight text-slate-900">
+                <span className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
                   RAIL-PULSE
                 </span>
               </div>
