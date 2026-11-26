@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { useRailStore } from './stores/useRailStore';
 import { wsClient } from './services/wsClient';
 import { fetchForecast, evaluateRescue, fetchCorridorConfig } from './services/api';
@@ -8,10 +8,22 @@ import { CabModal } from './components/rescue/CabModal';
 import { AddTrainModal } from './components/layout/AddTrainModal';
 import { ArrivalConnectionCard } from './components/connection/ArrivalConnectionCard';
 import { VerticalTimeline } from './components/timeline/VerticalTimeline';
-import { CorridorMap } from './components/map/CorridorMap';
 import { LandingPage } from './components/landing/LandingPage';
 import { timeStringToMinutes } from './components/dashboard/passengerUtils';
 import { ArrowLeft, Map } from 'lucide-react';
+
+const CorridorMap = lazy(() =>
+  import('./components/map/CorridorMap').then((m) => ({ default: m.CorridorMap }))
+);
+
+const MapSkeleton = () => (
+  <div className="w-full h-full min-h-[500px] rounded-2xl bg-slate-100 animate-pulse border border-slate-200 flex items-center justify-center">
+    <div className="flex items-center gap-2 text-slate-400 font-mono text-xs">
+      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+      <span>Loading Corridor Map...</span>
+    </div>
+  </div>
+);
 
 export const App: React.FC = () => {
   const {
@@ -168,7 +180,11 @@ export const App: React.FC = () => {
 
         {/* Right Map Container (60% width, desktop only sticky full-height viewport) */}
         <div className="hidden md:block md:w-[60%] sticky top-[52px] h-[calc(100vh-52px)] p-3 md:pl-0 overflow-hidden">
-          {isDesktop && <CorridorMap />}
+          {isDesktop && (
+            <Suspense fallback={<MapSkeleton />}>
+              <CorridorMap />
+            </Suspense>
+          )}
         </div>
       </main>
 
@@ -210,7 +226,9 @@ export const App: React.FC = () => {
 
           {/* Map Container */}
           <div className="flex-1 relative w-full h-full">
-            <CorridorMap isModal={true} />
+            <Suspense fallback={<MapSkeleton />}>
+              <CorridorMap isModal={true} />
+            </Suspense>
           </div>
         </div>
       )}
