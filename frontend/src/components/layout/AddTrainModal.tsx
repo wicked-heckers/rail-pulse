@@ -123,7 +123,7 @@ export const AddTrainModal: React.FC = () => {
       setError('Please provide a valid train number (e.g. 12073).');
       return;
     }
-    if (['12821', '22895', '18410'].includes(cleanNo)) {
+    if (['12821', '22895', '18410', '12822'].includes(cleanNo)) {
       setError(`Train ${cleanNo} is a protected core corridor service and cannot be overwritten.`);
       return;
     }

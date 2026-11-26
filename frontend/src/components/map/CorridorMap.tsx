@@ -305,6 +305,18 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
             };
           });
 
+          const isKhurda = rescue?.bailout_plan?.deboard_station_code === 'KUR';
+          const highwayBadgeText = isKolkata
+            ? 'Cab from Santragachi • 25 mins faster'
+            : isKhurda
+            ? 'Cab from Khurda Road • 28 mins faster'
+            : 'Cab from Cuttack • 21 mins faster';
+          const highwayBadgePosition: [number, number] = isKolkata
+            ? [88.315, 22.565]
+            : isKhurda
+            ? [85.760, 20.210]
+            : [85.875, 20.370];
+
           // Initialize modular map layers
           initCorridorMapLayers(
             map,
@@ -315,8 +327,8 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
             initialTrainFeatures,
             activeTrackCoords,
             isKolkata ? SMOOTH_KONA_EXPRESSWAY_COORDS : SMOOTH_NH16_COORDS,
-            isKolkata ? 'Cab from Santragachi • 25 mins faster' : 'Cab from Cuttack • 21 mins faster',
-            isKolkata ? [88.315, 22.565] : [85.875, 20.370]
+            highwayBadgeText,
+            highwayBadgePosition
           );
 
           // Train click handler

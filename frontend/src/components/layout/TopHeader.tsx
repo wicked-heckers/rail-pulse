@@ -3,6 +3,7 @@ import { useRailStore } from '../../stores/useRailStore';
 import { setSpeedMultiplier } from '../../services/api';
 import { Shield, Navigation, ArrowLeft, Settings, Clock } from 'lucide-react';
 import { CorridorSwitcher } from './CorridorSwitcher';
+import { TrainDropdown } from './TrainDropdown';
 
 function formatEpochClockIST(epochSecs: number): string {
   const istSecs = (Math.floor(epochSecs) + 19800) % 86400;
@@ -104,6 +105,11 @@ export const TopHeader: React.FC = () => {
         </button>
 
         <CorridorSwitcher />
+      </div>
+
+      {/* Active Monitored Train Selector (Desktop) */}
+      <div className="hidden md:flex items-center justify-center px-1 sm:px-2 shrink-0">
+        <TrainDropdown />
       </div>
 
       {/* Right Controls: Desktop Clock/Speed + Responsive At Home/On Board Toggle + Demo Button */}
