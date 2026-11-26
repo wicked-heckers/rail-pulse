@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { TrainFront, Globe, ChevronDown, Check } from 'lucide-react';
+import { TrainFront, Globe, ChevronDown, Check, Clock } from 'lucide-react';
 import { useRailStore } from '../../stores/useRailStore';
 import { TRANSLATIONS, type Lang } from './translations';
 
@@ -9,11 +9,53 @@ const LANG_OPTIONS: { code: Lang; label: string }[] = [
   { code: 'OR', label: 'ଓଡ଼ିଆ' },
 ];
 
+function formatEpochClockIST(epochSecs: number): string {
+  const istSecs = (Math.floor(epochSecs) + 19800) % 86400;
+  const pos = istSecs < 0 ? istSecs + 86400 : istSecs;
+  const h24 = Math.floor(pos / 3600);
+  const mins = Math.floor((pos % 3600) / 60);
+  const secs = pos % 60;
+  const period = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs
+    .toString()
+    .padStart(2, '0')} ${period}`;
+}
+
 export const LandingNav: React.FC = () => {
-  const { language, setLanguage } = useRailStore();
+  const { language, setLanguage, activeSnapshot } = useRailStore();
   const t = TRANSLATIONS[language].nav;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const simSpeed = activeSnapshot.speed_multiplier || 1;
+  const clockAnchorRef = useRef<{ tickUtc: number; syncedAtMs: number; speed: number }>({
+    tickUtc: activeSnapshot.tick_utc || 1795067700,
+    syncedAtMs: Date.now(),
+    speed: simSpeed,
+  });
+  const [displayEpoch, setDisplayEpoch] = useState<number>(
+    activeSnapshot.tick_utc || 1795067700
+  );
+
+  useEffect(() => {
+    const tick = activeSnapshot.tick_utc || 1795067700;
+    clockAnchorRef.current = {
+      tickUtc: tick,
+      syncedAtMs: Date.now(),
+      speed: activeSnapshot.speed_multiplier || 1,
+    };
+    setDisplayEpoch(tick);
+  }, [activeSnapshot.tick_utc, activeSnapshot.speed_multiplier]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const { tickUtc, syncedAtMs, speed } = clockAnchorRef.current;
+      const elapsedSec = (Date.now() - syncedAtMs) / 1000;
+      setDisplayEpoch(tickUtc + elapsedSec * speed);
+    }, 200);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -52,8 +94,21 @@ export const LandingNav: React.FC = () => {
           </span>
         </div>
 
-        {/* Right-Aligned Language Dropdown */}
-        <div className="relative inline-block shrink-0" ref={menuRef}>
+        {/* Right-Aligned Controls: Live IST Clock + Language Dropdown */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Live Corridor Simulation Clock */}
+          <div
+            className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg bg-[#0F294A] text-white border border-slate-700/80 shadow-2xs select-none"
+            title="Live Corridor Simulation Clock (IST)"
+          >
+            <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="font-mono font-semibold text-xs tracking-tight tabular-nums whitespace-nowrap">
+              {formatEpochClockIST(displayEpoch)}
+              <span className="hidden sm:inline text-slate-300 text-[10px] ml-1">IST</span>
+            </span>
+          </div>
+
+          <div className="relative inline-block shrink-0" ref={menuRef}>
           <button
             type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
@@ -95,6 +150,7 @@ export const LandingNav: React.FC = () => {
               })}
             </div>
           )}
+          </div>
         </div>
       </div>
     </nav>
