@@ -132,35 +132,3 @@ export function getStationPopupHtml(
     </div>
   `;
 }
-
-export function getDelayDetailPopupHtml(
-  tag: string,
-  title: string,
-  location: string,
-  message: string
-): string {
-  const displayTag = escapeHtml(tag);
-  const displayTitle = escapeHtml(title);
-  const displayLocation = escapeHtml(location);
-  const displayMessage = escapeHtml(message);
-
-  return `
-    <div class="w-[300px] p-3.5 text-sm space-y-2 font-sans">
-      <div class="flex items-center justify-between pr-6">
-        <div class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">
-            ${displayTag}
-          </span>
-        </div>
-      </div>
-      <h4 class="font-bold text-[15px] leading-snug text-slate-900 pt-0.5">
-        ${displayTitle}
-      </h4>
-      <div class="pt-1.5 border-t border-slate-100">
-        <div class="text-xs font-semibold text-slate-500 mb-1">${displayLocation}</div>
-        <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">${displayMessage}</p>
-      </div>
-    </div>
-  `;
-}
