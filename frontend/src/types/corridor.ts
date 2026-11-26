@@ -131,6 +131,10 @@ export interface BailoutPlan {
   road_survival_pct: number;
   polyline: string;
   human_guidance: string;
+  destination_station_code?: string;
+  destination_station_name?: string;
+  road_distance_km?: number;
+  highway_name?: string;
 }
 
 export interface RescueEvaluationResponse {
