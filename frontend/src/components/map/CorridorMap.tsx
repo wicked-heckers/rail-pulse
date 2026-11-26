@@ -8,6 +8,7 @@ import { useRailStore } from '../../stores/useRailStore';
 import {
   SMOOTH_TRACK_COORDS,
   SMOOTH_NH16_COORDS,
+  SMOOTH_NH16_KUR_COORDS,
   SMOOTH_CONGESTION_AHEAD_COORDS,
   snapPointToTrack,
 } from '../../services/corridorData';
@@ -232,13 +233,28 @@ export const CorridorMap: React.FC = () => {
         if (map.getLayer('nh16-highway-badge')) {
           map.setLayoutProperty('nh16-highway-badge', 'visibility', 'visible');
         }
-        map.fitBounds(
-          [
-            [85.80, 20.24], // SW: Bhubaneswar
-            [85.92, 20.48], // NE: Cuttack
-          ],
-          { padding: 50, duration: 800 }
-        );
+        if (rescue?.bailout_plan?.deboard_station_code === 'KUR') {
+          map.fitBounds(
+            rescue.bailout_plan.destination_station_code === 'PURI'
+              ? [
+                  [85.68, 19.78], // SW: Puri
+                  [85.86, 20.22], // NE: Khurda Road
+                ]
+              : [
+                  [85.70, 20.15], // SW: Khurda Road
+                  [85.86, 20.30], // NE: Bhubaneswar
+                ],
+            { padding: 50, duration: 800 }
+          );
+        } else {
+          map.fitBounds(
+            [
+              [85.80, 20.24], // SW: Bhubaneswar
+              [85.92, 20.48], // NE: Cuttack
+            ],
+            { padding: 50, duration: 800 }
+          );
+        }
       } else if (view === 'full_journey') {
         setSelectedDelayId(null);
         map.fitBounds(
@@ -522,6 +538,7 @@ export const CorridorMap: React.FC = () => {
                   isCurrent
                 );
 
+                const rescueDeboardStn = rescue?.bailout_plan?.deboard_station_code || 'CTC';
                 return {
                   type: 'Feature',
                   properties: {
@@ -529,7 +546,7 @@ export const CorridorMap: React.FC = () => {
                     name: stn.name,
                     km: stn.km,
                     is_destination: stn.code === 'BBS',
-                    is_rescue_transfer: stn.code === 'CTC',
+                    is_rescue_transfer: stn.code === rescueDeboardStn,
                     is_current: isCurrent,
                     is_passed: isPassed,
                     role_badge: relevance.roleBadge,
@@ -755,12 +772,12 @@ export const CorridorMap: React.FC = () => {
                   <div class="flex justify-between">
                     <span>Running Status:</span>
                     <strong class="${delay > 5 ? 'text-amber-800' : 'text-emerald-700'} font-bold">
-                      ${delay > 0 ? `+${delay}m late` : 'On Time'} • ${speed > 0 ? `${speed} km/h` : 'At Station'}
+                      ${delay > 0 ? `+${delay}m late` : 'On Time'} • ${speed > 0 ? `${speed} km/h` : props.current_station ? 'At Platform' : props.status === 'AT_TERMINUS' ? 'Terminus' : 'Halted on Block'}
                     </strong>
                   </div>
                   <div class="flex justify-between">
                     <span>Position:</span>
-                    <span class="text-slate-800 font-bold">${props.current_station ? `Platform ${props.current_station}` : `En route to ${props.next_station || 'BBS'}`}</span>
+                    <span class="text-slate-800 font-bold">${props.status === 'AT_TERMINUS' ? `Terminus ${props.current_station || 'PURI'}` : props.current_station ? `Platform ${props.current_station}` : `En route to ${props.next_station || 'BBS'}`}</span>
                   </div>
                   <div class="flex justify-between">
                     <span>Data Source:</span>
@@ -888,7 +905,7 @@ export const CorridorMap: React.FC = () => {
     }
   }, [completedCoords, remainingCoords]);
 
-  // Synchronize NH-16 Rescue route visibility
+  // Synchronize NH-16 Rescue route visibility and dynamic geometry (Cuttack vs Khurda Road)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -902,7 +919,38 @@ export const CorridorMap: React.FC = () => {
     if (map.getLayer('nh16-highway-badge')) {
       map.setLayoutProperty('nh16-highway-badge', 'visibility', visibility);
     }
-  }, [isRescueAvailable, activeMapView]);
+
+    const isKhurdaRescue = rescue?.bailout_plan?.deboard_station_code === 'KUR';
+    const highwaySource = map.getSource('nh16-highway') as any;
+    if (highwaySource && typeof highwaySource.setData === 'function') {
+      highwaySource.setData({
+        type: 'Feature',
+        properties: { name: 'NH-16 Expressway Rescue Corridor' },
+        geometry: {
+          type: 'LineString',
+          coordinates: isKhurdaRescue ? SMOOTH_NH16_KUR_COORDS : SMOOTH_NH16_COORDS,
+        },
+      });
+    }
+
+    const badgeSource = map.getSource('nh16-badge-source') as any;
+    if (badgeSource && typeof badgeSource.setData === 'function') {
+      const minsSaved = rescue?.bailout_plan?.minutes_saved
+        ? Math.round(rescue.bailout_plan.minutes_saved)
+        : (isKhurdaRescue ? 22 : 21);
+      const deboardLabel = isKhurdaRescue ? 'Khurda Rd' : 'Cuttack';
+      badgeSource.setData({
+        type: 'Feature',
+        properties: {
+          label: `Cab from ${deboardLabel} • ${minsSaved} mins faster`,
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: isKhurdaRescue ? [85.775, 20.22] : [85.875, 20.37],
+        },
+      });
+    }
+  }, [isRescueAvailable, activeMapView, rescue]);
 
   // Synchronize phantom freight slow-zone visibility
   useEffect(() => {
@@ -934,14 +982,25 @@ export const CorridorMap: React.FC = () => {
       closeActivePopup();
       if (trainSnapshot && trainSnapshot.lon && trainSnapshot.lat) {
         if (selectedTrain === '12821') {
-          // Smoothly fit bounds to active rescue action corridor (Cuttack to Bhubaneswar)
-          map.fitBounds(
-            [
-              [85.80, 20.24], // SW: Bhubaneswar
-              [85.92, 20.50], // NE: Cuttack
-            ],
-            { padding: 50, duration: 750 }
-          );
+          const isNearKhurda = (trainSnapshot.chainage_km ?? 115) > 150;
+          if (isNearKhurda) {
+            map.fitBounds(
+              [
+                [85.70, 20.15], // SW: Khurda Road
+                [85.86, 20.30], // NE: Bhubaneswar
+              ],
+              { padding: 50, duration: 750 }
+            );
+          } else {
+            // Smoothly fit bounds to active rescue action corridor (Cuttack to Bhubaneswar)
+            map.fitBounds(
+              [
+                [85.80, 20.24], // SW: Bhubaneswar
+                [85.92, 20.50], // NE: Cuttack
+              ],
+              { padding: 50, duration: 750 }
+            );
+          }
         } else {
           // For other trains (Vande Bharat 22895 or Sri Jagannath 18410), center camera directly on the train
           map.flyTo({
@@ -970,14 +1029,28 @@ export const CorridorMap: React.FC = () => {
       });
     } else if (activeMapView === 'alternative_route') {
       closeActivePopup();
-      // Fit bounds between Cuttack (CTC) and Bhubaneswar (BBS)
-      map.fitBounds(
-        [
-          [85.80, 20.24], // SW: Bhubaneswar
-          [85.92, 20.48], // NE: Cuttack
-        ],
-        { padding: 50, duration: 800 }
-      );
+      if (rescue?.bailout_plan?.deboard_station_code === 'KUR') {
+        map.fitBounds(
+          rescue.bailout_plan.destination_station_code === 'PURI'
+            ? [
+                [85.68, 19.78], // SW: Puri
+                [85.86, 20.22], // NE: Khurda Road
+              ]
+            : [
+                [85.70, 20.15], // SW: Khurda Road
+                [85.86, 20.30], // NE: Bhubaneswar
+              ],
+          { padding: 50, duration: 800 }
+        );
+      } else {
+        map.fitBounds(
+          [
+            [85.80, 20.24], // SW: Bhubaneswar
+            [85.92, 20.48], // NE: Cuttack
+          ],
+          { padding: 50, duration: 800 }
+        );
+      }
     } else if (activeMapView === 'full_journey') {
       closeActivePopup();
       // Fit entire corridor (Bhadrak to Puri)

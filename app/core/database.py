@@ -77,6 +77,10 @@ class LocalRoadMatrixFallback:
     _cached_matrix: dict[str, Any] | None = None
 
     @classmethod
+    def clear_cache(cls) -> None:
+        cls._cached_matrix = None
+
+    @classmethod
     def load_matrix(cls, path: Path | None = None) -> dict[str, Any]:
         if cls._cached_matrix is not None:
             return cls._cached_matrix

@@ -497,3 +497,24 @@ async def test_live_overtake_delay_preservation_across_ticks():
     for _ in range(10):
         await provider.advance_simulation(elapsed_wall_seconds=1.5)
         assert provider._trains["12821"]["delay_mins"] >= 16.0
+
+
+@pytest.mark.asyncio
+async def test_khurda_road_junction_cascade_scenario():
+    """Verify Khurda Road Junction (KUR) cascade scenario initializes and advances properly."""
+    provider = DemoSimulationProvider(
+        speed_multiplier=1.0,
+        scenario_mode=True,
+        scenario_name="KHURDA_CASCADE",
+    )
+    assert provider._trains["12821"]["current_station"] == "KUR"
+    assert provider._trains["12821"]["chainage_km"] == 162.0
+    assert provider._overtake_target_code == "KUR"
+    assert provider._overtake_target_km == 162.0
+    assert "DN_KUR_PURI" in provider._injected_freights
+
+    snapshot = await provider.get_corridor_snapshot()
+    assert "DEMO" in snapshot["mode"]
+    dhauli = next(t for t in snapshot["trains"] if t.train_no == "12821")
+    assert dhauli.current_station == "KUR"
+    assert dhauli.speed_kmph == 0.0

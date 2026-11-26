@@ -59,7 +59,10 @@ const PRESETS: PresetTrain[] = [
 const STATIONS = [
   { code: 'BHC', name: 'Bhadrak (0 km)' },
   { code: 'JJKR', name: 'Jajpur Keonjhar Rd (44 km)' },
+  { code: 'JKPR', name: 'Jakhapura Junction (51 km)' },
+  { code: 'NRG', name: 'Nergundi Junction (106 km)' },
   { code: 'CTC', name: 'Cuttack Junction (115 km)' },
+  { code: 'BRAG', name: 'Barang Junction (128 km)' },
   { code: 'BBS', name: 'Bhubaneswar (143 km)' },
   { code: 'KUR', name: 'Khurda Road (162 km)' },
   { code: 'PURI', name: 'Puri Terminal (206 km)' },

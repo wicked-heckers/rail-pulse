@@ -164,3 +164,64 @@ def test_rescue_applies_slack_and_matches_forecast_quantiles(topology):
     assert rescue_res["train_p10_eta_epoch"] == expected_q.p10_eta_epoch
     assert rescue_res["train_p50_eta_epoch"] == expected_q.p50_eta_epoch
     assert rescue_res["train_p90_eta_epoch"] == expected_q.p90_eta_epoch
+
+
+def test_khurda_road_junction_rescue_and_road_matrix(topology):
+    """
+    Verify Khurda Road Junction (KUR) road matrix routes and early junction rescue evaluation.
+    """
+    from app.core.database import LocalRoadMatrixFallback
+
+    LocalRoadMatrixFallback.clear_cache()
+    kur_to_bbs = LocalRoadMatrixFallback.get_route("KUR", "BBS")
+    assert kur_to_bbs is not None
+    assert kur_to_bbs["distance_km"] == 18.5
+    assert "NH-16" in kur_to_bbs["highway_name"]
+
+    kur_to_puri = LocalRoadMatrixFallback.get_route("KUR", "PURI")
+    assert kur_to_puri is not None
+    assert kur_to_puri["distance_km"] == 44.0
+    assert "NH-316" in kur_to_puri["highway_name"]
+
+    # Delayed train at Khurda Road (KUR) heading towards Bhubaneswar with tight connection
+    jagannath = TrainKinematicState(
+        train_no="18410",
+        train_name="Sri Jagannath Express",
+        direction="UP",
+        priority_rank=3,
+        chainage_km=162.0,
+        current_station="KUR",
+        speed_kmph=0.0,
+        current_delay_mins=35.0,
+    )
+    current_epoch = 1795071480
+
+    sim_res = simulate_corridor_overtakes(
+        target_train_no="18410",
+        active_trains=[jagannath],
+        topology=topology,
+        freight_penalties={"UP_KUR_BBS": 28.0},
+        current_epoch=current_epoch,
+    )
+
+    # Tight connection deadline at BBS (36 mins from now): Train P50 takes ~41 mins, but road transfer from KUR beats it
+    res = evaluate_connection_rescue(
+        train_state=jagannath,
+        destination_code="BBS",
+        connection_deadline_epoch=current_epoch + int(36 * 60),
+        transfer_buffer_mins=0.0,
+        sim_result=sim_res,
+        topology=topology,
+        current_epoch=current_epoch,
+        passenger_status="ON_BOARD",
+    )
+
+    assert res["safe_boarding_lock"] is False
+    assert res["bailout_recommended"] is True
+    plan = res["bailout_plan"]
+    assert plan is not None
+    assert plan["deboard_station_code"] == "KUR"
+    assert "Khurda Road" in plan["deboard_station_name"]
+    assert plan["destination_station_code"] == "BBS"
+    assert plan["road_distance_km"] == 18.5
+    assert plan["minutes_saved"] >= 10.0

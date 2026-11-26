@@ -224,8 +224,10 @@ def evaluate_connection_rescue(
             is_junction = stn_info.get("is_major_junction", False)
 
             # Allow deboarding if train is currently at station, or arriving in >= 5 minutes
+            stn_km = float(stn_info.get("chainage_km", -999.0))
             is_currently_at_station = (
-                train_state.current_station == stn_code and train_state.speed_kmph <= 5.0
+                (train_state.current_station == stn_code or abs(train_state.chainage_km - stn_km) <= 0.5)
+                and (train_state.speed_kmph is None or train_state.speed_kmph <= 15.0)
             )
             reaction_time_secs = arrival.projected_arr_epoch - current_epoch
             sufficient_reaction = (reaction_time_secs >= 300) or is_currently_at_station
@@ -269,18 +271,24 @@ def evaluate_connection_rescue(
                 effective_drive_mins = base_drive_mins * traffic_factor
                 total_road_transit_mins = exit_penalty_mins + effective_drive_mins
 
-                road_arrival_epoch = arrival.projected_arr_epoch + int(total_road_transit_mins * 60)
+                deboard_epoch = max(current_epoch, arrival.projected_arr_epoch)
+                road_arrival_epoch = deboard_epoch + int(total_road_transit_mins * 60)
                 minutes_saved = round((quantiles.p50_eta_epoch - road_arrival_epoch) / 60.0, 1)
 
                 # Road hop must arrive before cutoff and save >= 10 mins vs train
                 if road_arrival_epoch <= cutoff_epoch and minutes_saved >= settings.MIN_TIME_SAVED_THRESHOLD_MINS:
                     # Compute road survival
                     road_survival = 0.88 if road_arrival_epoch <= (cutoff_epoch - 600) else 0.72
+                    dest_info = stations_map.get(destination_code, {})
 
                     bailout_plan = {
                         "deboard_station_code": stn_code,
                         "deboard_station_name": arrival.station_name,
-                        "deboard_eta_epoch": arrival.projected_arr_epoch,
+                        "deboard_eta_epoch": deboard_epoch,
+                        "destination_station_code": destination_code,
+                        "destination_station_name": dest_info.get("station_name", destination_code),
+                        "road_distance_km": float(road_data.get("distance_km", 27.4)),
+                        "highway_name": road_data.get("highway_name", "NH-16 Expressway"),
                         "road_mode": road_data.get("highway_name", "NH Expressway Cab"),
                         "station_exit_mins": exit_penalty_mins,
                         "road_drive_mins": round(effective_drive_mins, 1),
@@ -290,7 +298,7 @@ def evaluate_connection_rescue(
                         "polyline": road_data.get("polyline", ""),
                         "human_guidance": (
                             f"Deboard at {arrival.station_name} + take {road_data.get('highway_name')} "
-                            f"to reach {stations_map.get(destination_code, {}).get('station_name', destination_code)} "
+                            f"to reach {dest_info.get('station_name', destination_code)} "
                             f"saving {minutes_saved:.0f} mins (Road arrival beats train P50)."
                         ),
                     }

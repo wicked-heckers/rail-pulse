@@ -3,7 +3,7 @@ export type Direction = 'DN' | 'UP';
 export interface Station {
   station_code: string;
   station_name: string;
-  chainage_km: float;
+  chainage_km: number;
   lat: number;
   lon: number;
   has_750m_goods_loop: boolean;
@@ -12,8 +12,6 @@ export interface Station {
   is_major_junction: boolean;
   road_exit_penalty_m: number;
 }
-
-export type float = number;
 
 export interface TrackBlock {
   block_id: string;
@@ -131,6 +129,10 @@ export interface BailoutPlan {
   road_survival_pct: number;
   polyline: string;
   human_guidance: string;
+  destination_station_code?: string;
+  destination_station_name?: string;
+  road_distance_km?: number;
+  highway_name?: string;
 }
 
 export interface RescueEvaluationResponse {

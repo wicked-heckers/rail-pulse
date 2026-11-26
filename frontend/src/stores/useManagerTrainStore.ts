@@ -52,12 +52,15 @@ const INITIAL_TRAINS: ManagerTrain[] = [
 ];
 
 const STATION_COORDS: Record<string, { lat: number; lon: number; km: number }> = {
-  BHC: { lat: 21.0573, lon: 86.4947, km: 0.0 },
-  JJKR: { lat: 20.9506, lon: 86.1384, km: 44.0 },
-  CTC: { lat: 20.4631, lon: 85.8828, km: 115.0 },
-  BBS: { lat: 20.2646, lon: 85.8394, km: 143.0 },
-  KUR: { lat: 20.1834, lon: 85.7337, km: 162.0 },
-  PURI: { lat: 19.8135, lon: 85.8312, km: 206.0 },
+  BHC: { lat: 21.0583, lon: 86.4950, km: 0.0 },
+  JJKR: { lat: 20.9500, lon: 86.1333, km: 44.0 },
+  JKPR: { lat: 20.9400, lon: 86.0600, km: 51.0 },
+  NRG: { lat: 20.5500, lon: 85.9200, km: 106.0 },
+  CTC: { lat: 20.4625, lon: 85.8829, km: 115.0 },
+  BRAG: { lat: 20.4000, lon: 85.8300, km: 128.0 },
+  BBS: { lat: 20.2667, lon: 85.8333, km: 143.0 },
+  KUR: { lat: 20.1833, lon: 85.7333, km: 162.0 },
+  PURI: { lat: 19.8133, lon: 85.8314, km: 206.0 },
 };
 
 const STORAGE_KEY = 'rp_manager_trains';

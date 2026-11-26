@@ -78,6 +78,48 @@ class DemoSimulationProvider(CorridorDataProvider):
             self._injected_freights = {}
             self.rain_mm_hr = 0.0
             self.weather_condition = "CLEAR"
+        elif scenario_mode and scenario_name in ("KHURDA_CASCADE", "KUR_CASCADE"):
+            # Khurda Road Junction Disruption & Loop Overtake Scenario:
+            # 12821 holds at Khurda Road Junction (162 km) with DN_KUR_PURI freight blockade,
+            # while 22895 closes on mainline, triggering NH-16/NH-316 early junction rescue
+            self._trains = {
+                "12821": {
+                    "name": "Dhauli Express",
+                    "direction": "DN",
+                    "priority_rank": 2,
+                    "chainage_km": 162.0,  # At Khurda Road Junction entering loop hold
+                    "speed_kmph": 0.0,
+                    "delay_mins": 26.0,
+                    "status": "AT_STATION_HALT",
+                    "current_station": "KUR",
+                    "next_station": "PURI",
+                },
+                "22895": {
+                    "name": "Howrah-Puri Vande Bharat Express",
+                    "direction": "DN",
+                    "priority_rank": 1,
+                    "chainage_km": 143.0,  # Passing Bhubaneswar closing fast on mainline
+                    "speed_kmph": 130.0,
+                    "delay_mins": 2.0,
+                    "status": "RUNNING_HIGH_SPEED",
+                    "current_station": None,
+                    "next_station": "KUR",
+                },
+                "18410": {
+                    "name": "Sri Jagannath Express",
+                    "direction": "UP",
+                    "priority_rank": 3,
+                    "chainage_km": 180.0,  # Approaching Khurda Road from Puri
+                    "speed_kmph": 95.0,
+                    "delay_mins": 5.0,
+                    "status": "RUNNING_NORMAL",
+                    "current_station": None,
+                    "next_station": "KUR",
+                },
+            }
+            self._injected_freights = {"DN_KUR_PURI": 20.0}
+            self.rain_mm_hr = 0.0
+            self.weather_condition = "CLEAR"
         elif scenario_mode:
             # Disrupted SIH26028 cascade preset
             self._trains = {
@@ -169,11 +211,21 @@ class DemoSimulationProvider(CorridorDataProvider):
         self._accrued_freight_delays: dict[str, float] = {}
         self._accrued_loop_delays: dict[str, float] = {}
         self._freight_cause_blocks: dict[str, str] = {}
-        is_dhauli_cascade = bool(scenario_mode and scenario_name != "OVERTAKE_ONLY")
+        is_dhauli_cascade = bool(scenario_mode and scenario_name == "DHAULI_CASCADE")
+        is_khurda_cascade = bool(scenario_mode and scenario_name in ("KHURDA_CASCADE", "KUR_CASCADE"))
         self._hold_until_overtaken: bool = bool(scenario_mode)
-        self._overtake_target_km: float = 128.0 if is_dhauli_cascade else 143.0
-        self._overtake_target_code: str = "BRAG" if is_dhauli_cascade else "BBS"
-        self._overtake_min_hold_secs: float = 960.0 if is_dhauli_cascade else 0.0
+        if is_khurda_cascade:
+            self._overtake_target_km = 162.0
+            self._overtake_target_code = "KUR"
+            self._overtake_min_hold_secs = 720.0
+        elif is_dhauli_cascade:
+            self._overtake_target_km = 128.0
+            self._overtake_target_code = "BRAG"
+            self._overtake_min_hold_secs = 960.0
+        else:
+            self._overtake_target_km = 143.0
+            self._overtake_target_code = "BBS"
+            self._overtake_min_hold_secs = 0.0
 
         self._initial_scenario_mode = scenario_mode
         self._initial_scenario_name = scenario_name
@@ -210,11 +262,21 @@ class DemoSimulationProvider(CorridorDataProvider):
         self._manual_delays.clear()
         self._trains = copy.deepcopy(self._initial_trains)
         self._injected_freights = copy.deepcopy(self._initial_injected_freights)
-        is_dhauli_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name != "OVERTAKE_ONLY")
+        is_dhauli_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name == "DHAULI_CASCADE")
+        is_khurda_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name in ("KHURDA_CASCADE", "KUR_CASCADE"))
         self._hold_until_overtaken = bool(self._initial_scenario_mode)
-        self._overtake_target_km = 128.0 if is_dhauli_cascade else 143.0
-        self._overtake_target_code = "BRAG" if is_dhauli_cascade else "BBS"
-        self._overtake_min_hold_secs = 960.0 if is_dhauli_cascade else 0.0
+        if is_khurda_cascade:
+            self._overtake_target_km = 162.0
+            self._overtake_target_code = "KUR"
+            self._overtake_min_hold_secs = 720.0
+        elif is_dhauli_cascade:
+            self._overtake_target_km = 128.0
+            self._overtake_target_code = "BRAG"
+            self._overtake_min_hold_secs = 960.0
+        else:
+            self._overtake_target_km = 143.0
+            self._overtake_target_code = "BBS"
+            self._overtake_min_hold_secs = 0.0
 
     def _commercial_dwell_secs(self, train_no: str, stn: dict[str, Any]) -> float:
         master = self._trains_master.get(train_no)
@@ -343,10 +405,10 @@ class DemoSimulationProvider(CorridorDataProvider):
                 d == t["direction"] and lo <= t["chainage_km"] <= hi
                 for d, lo, hi in active_freight_zones
             )
-            # During active overtake at Barang, Vande Bharat overtakes on the clear mainline
+            # During active overtake at Barang, Khurda Road, or Bhubaneswar, Vande Bharat overtakes on the clear mainline
             if (
                 self._hold_until_overtaken
-                and self._overtake_target_code == "BRAG"
+                and self._overtake_target_code in ("BRAG", "KUR", "BBS")
                 and t_no == "22895"
             ):
                 in_freight_zone = False

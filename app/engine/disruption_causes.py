@@ -71,6 +71,17 @@ DISRUPTION_CAUSE_CATALOG: dict[str, CauseSpec] = {
         "station_name": "Bhubaneswar Yard Throat",
         "message": "Arrival platform occupied by delayed rake at junction throat (+10 min).",
     },
+    "KUR_BRANCH_HOLD": {
+        "id": "KUR_BRANCH_HOLD",
+        "label": "Khurda Road Branch Throat Hold",
+        "added_delay_mins": 15.0,
+        "freight_penalty_mins": 0.0,
+        "rain_mm_hr": 0.0,
+        "event": "JUNCTION_THROAT_HOLD",
+        "station_code": "KUR",
+        "station_name": "Khurda Road Junction",
+        "message": "Puri branch single-line throat occupied by delayed rake; holding at Khurda Road Junction Loop (+15 min).",
+    },
     "OHE_BRAKE_FAULT": {
         "id": "OHE_BRAKE_FAULT",
         "label": "OHE Traction Trip / Brake-Binding",
