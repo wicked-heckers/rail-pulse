@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useCallback } from 'react';
 import { LandingNav } from './LandingNav';
 import { HeroSection } from './HeroSection';
 import { SearchCard } from './SearchCard';
@@ -8,6 +8,19 @@ import { LandingFooter } from './LandingFooter';
 import { LandingBackground } from './LandingBackground';
 
 export const LandingPage: React.FC = () => {
+  const searchCardRef = useRef<HTMLDivElement>(null);
+
+  const handleNavigateToSearch = useCallback((tab: 'find' | 'track') => {
+    const container = searchCardRef.current;
+    if (!container) return;
+
+    container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    const tabButtons = container.querySelectorAll<HTMLButtonElement>(':scope > div > div > div:first-child button');
+    const targetBtn = tab === 'find' ? tabButtons[0] : tabButtons[1];
+    targetBtn?.click();
+  }, []);
+
   return (
     <div className="relative min-h-screen bg-[#F4F7FA] text-slate-800 flex flex-col font-sans overflow-x-hidden">
       {/* Fixed SVG Railway Transit Background Layer */}
@@ -22,7 +35,9 @@ export const LandingPage: React.FC = () => {
             <div className="mb-6 md:mb-8">
               <HeroSection />
             </div>
-            <SearchCard />
+            <div ref={searchCardRef}>
+              <SearchCard />
+            </div>
             <div className="mt-6 md:mt-8">
               <ValueComparison />
             </div>
@@ -32,7 +47,7 @@ export const LandingPage: React.FC = () => {
           </div>
         </main>
 
-        <LandingFooter />
+        <LandingFooter onNavigateToSearch={handleNavigateToSearch} />
       </div>
     </div>
   );
