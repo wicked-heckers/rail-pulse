@@ -1,32 +1,107 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRailStore } from '../../stores/useRailStore';
 import { Car, X, Check, MapPin, Navigation } from 'lucide-react';
+import { formatEpochTo12Hour } from '../dashboard/passengerUtils';
 
 export const CabModal: React.FC = () => {
-  const { cabModalOpen, setCabModalOpen, rescue } = useRailStore();
+  const { cabModalOpen, setCabModalOpen, rescue, activeSnapshot, activeCorridorId } = useRailStore();
   const [isBooked, setIsBooked] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
+
+  // Close modal on Escape
+  useEffect(() => {
+    if (!cabModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setCabModalOpen(false);
+        setIsBooked(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [cabModalOpen, setCabModalOpen]);
 
   if (!cabModalOpen) return null;
 
   const plan = rescue?.bailout_plan;
+  const isKolkata = activeCorridorId === 'SER_HWH_KGP' || plan?.deboard_station_code === 'SRC' || plan?.deboard_station_code === 'MCA';
   const isKhurda = plan?.deboard_station_code === 'KUR';
-  const pickupName = isKhurda
+
+  const destName = plan?.destination_station_name || (
+    isKolkata
+      ? 'Howrah Station'
+      : plan?.destination_station_code === 'PURI'
+      ? 'Puri Terminal'
+      : 'Bhubaneswar Station'
+  );
+
+  const deboardName = plan?.deboard_station_name || (
+    isKolkata
+      ? (plan?.deboard_station_code === 'MCA' ? 'Mecheda Junction' : 'Santragachi Junction')
+      : isKhurda
+      ? 'Khurda Road Junction'
+      : 'Cuttack Junction'
+  );
+
+  const highwayTitle = plan?.highway_name || (
+    isKolkata
+      ? 'Kona Expressway Road Transfer'
+      : isKhurda && plan?.destination_station_code === 'PURI'
+      ? 'NH-316 Highway Road Transfer'
+      : 'NH-16 Highway Road Transfer'
+  );
+
+  const pickupName = isKolkata
+    ? (plan?.deboard_station_code === 'MCA' ? 'Mecheda Junction (MCA) — Station Exit Gate 1' : 'Santragachi Junction (SRC) — Kona Expressway Gate')
+    : isKhurda
     ? 'Khurda Road Junction (KUR) — Station Portico Gate 1'
     : 'Cuttack Junction (CTC) — Exit Gate 2 Portico';
-  const dropName = plan?.destination_station_code === 'PURI'
+
+  const dropName = isKolkata
+    ? 'Howrah Station (HWH) — Platform 1 Main Portico'
+    : plan?.destination_station_code === 'PURI'
     ? 'Puri Terminal (PURI) — VIP Road Entrance'
     : 'Bhubaneswar (BBS) — Platform 1 Main Concourse';
-  const roadSubtext = isKhurda
-    ? '19.5 km via NH-16 Expressway (28 mins)'
+
+  const driveMins = plan?.road_drive_mins
+    ? Math.round(plan.road_drive_mins)
+    : isKolkata
+    ? 18
+    : isKhurda
+    ? 26
+    : 38;
+
+  const roadSubtext = plan?.road_distance_km
+    ? `${plan.road_distance_km} km via ${plan.highway_name || 'Expressway'} (${driveMins} mins)`
+    : isKolkata
+    ? '10.5 km via Kona Expressway & Vidyasagar Setu (18 mins)'
+    : isKhurda
+    ? '18.5 km via NH-16 Expressway (26 mins)'
     : '27.4 km via NH-16 Expressway (38 mins)';
-  const fare = isKhurda ? '₹390' : '₹480';
-  const dispatchHeader = isKhurda
+
+  const fare = isKolkata
+    ? '₹280'
+    : isKhurda
+    ? (plan?.destination_station_code === 'PURI' ? '₹650' : '₹390')
+    : '₹480';
+
+  const dispatchHeader = isKolkata
+    ? (plan?.deboard_station_code === 'MCA' ? 'Cab Dispatched to MCA Gate 1' : 'Cab Dispatched to SRC Kona Gate')
+    : isKhurda
     ? 'Cab Dispatched to KUR Gate 1'
     : 'Cab Dispatched to CTC Gate 2';
-  const dispatchDesc = isKhurda
-    ? 'Your driver Rajesh Sahu is waiting at Khurda Road Junction Portico Gate 1. Estimated road journey: 28 minutes to Bhubaneswar Station.'
-    : 'Your driver Rajesh Sahu is waiting at Cuttack Junction Exit Gate 2. Estimated road journey: 38 minutes to Bhubaneswar Station.';
+
+  const dispatchDesc = isKolkata
+    ? `Your driver Subhash Mondal is waiting at Santragachi Junction Kona Expressway Gate. Estimated road journey: ${driveMins} minutes to ${destName}.`
+    : isKhurda
+    ? `Your driver Rajesh Sahu is waiting at Khurda Road Junction Portico Gate 1. Estimated road journey: ${driveMins} minutes to ${destName}.`
+    : `Your driver Rajesh Sahu is waiting at Cuttack Junction Exit Gate 2. Estimated road journey: ${driveMins} minutes to ${destName}.`;
+
+  const defaultRoadEpoch = (activeSnapshot.tick_utc || 1795067700) + driveMins * 60;
+  const roadArrival = rescue?.bailout_plan?.final_road_arrival_epoch
+    ? formatEpochTo12Hour(rescue.bailout_plan.final_road_arrival_epoch)
+    : formatEpochTo12Hour(defaultRoadEpoch);
+  const minsSaved = rescue?.bailout_plan?.minutes_saved ?? (isKolkata ? 25 : isKhurda ? 28 : 21);
 
   const handleConfirm = () => {
     setIsBooking(true);
@@ -51,9 +126,9 @@ export const CabModal: React.FC = () => {
               <Car className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm">NH-16 Highway Road Transfer</h3>
+              <h3 className="font-bold text-sm">{highwayTitle}</h3>
               <p className="text-xs text-gray-300">
-                {isKhurda ? 'Khurda Road Junction ➔ Bhubaneswar Station' : 'Cuttack Junction ➔ Bhubaneswar Station'}
+                {deboardName} ➔ {destName}
               </p>
             </div>
           </div>
@@ -109,7 +184,7 @@ export const CabModal: React.FC = () => {
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex items-center justify-between text-xs">
                 <span className="text-emerald-800">Connection Arrival via Road:</span>
                 <span className="font-mono font-bold text-emerald-700 bg-white px-2 py-0.5 rounded border border-emerald-300">
-                  {isKhurda ? '12:12 PM (+28m lead)' : '12:02 PM (+36m lead)'}
+                  {roadArrival} (~{minsSaved}m lead)
                 </span>
               </div>
 

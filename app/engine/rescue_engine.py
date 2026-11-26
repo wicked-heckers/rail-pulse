@@ -145,7 +145,9 @@ def evaluate_connection_rescue(
 
     # 1. Evaluate Train Arrival at Final Destination
     dest_arrival = next((a for a in timeline if a.station_code == destination_code), None)
-    dest_km = stations_map[destination_code]["chainage_km"] if destination_code in stations_map else 143.0
+    corridor_stations = topology.get("stations", []) if topology else []
+    fallback_km = float(corridor_stations[-1]["chainage_km"]) if corridor_stations else 143.0
+    dest_km = stations_map[destination_code]["chainage_km"] if destination_code in stations_map else fallback_km
     already_reached = (
         (train_state.direction == "DN" and train_state.chainage_km >= dest_km - 0.5)
         or (train_state.direction == "UP" and train_state.chainage_km <= dest_km + 0.5)
@@ -224,8 +226,10 @@ def evaluate_connection_rescue(
             is_junction = stn_info.get("is_major_junction", False)
 
             # Allow deboarding if train is currently at station, or arriving in >= 5 minutes
+            stn_km = float(stn_info.get("chainage_km", -999.0))
             is_currently_at_station = (
-                train_state.current_station == stn_code and train_state.speed_kmph <= 5.0
+                (train_state.current_station == stn_code or abs(train_state.chainage_km - stn_km) <= 0.5)
+                and (train_state.speed_kmph is None or train_state.speed_kmph <= 15.0)
             )
             reaction_time_secs = arrival.projected_arr_epoch - current_epoch
             sufficient_reaction = (reaction_time_secs >= 300) or is_currently_at_station
@@ -269,7 +273,8 @@ def evaluate_connection_rescue(
                 effective_drive_mins = base_drive_mins * traffic_factor
                 total_road_transit_mins = exit_penalty_mins + effective_drive_mins
 
-                road_arrival_epoch = arrival.projected_arr_epoch + int(total_road_transit_mins * 60)
+                deboard_epoch = max(current_epoch, arrival.projected_arr_epoch)
+                road_arrival_epoch = deboard_epoch + int(total_road_transit_mins * 60)
                 minutes_saved = round((quantiles.p50_eta_epoch - road_arrival_epoch) / 60.0, 1)
 
                 # Road hop must arrive before cutoff and save >= 10 mins vs train
@@ -281,7 +286,7 @@ def evaluate_connection_rescue(
                     bailout_plan = {
                         "deboard_station_code": stn_code,
                         "deboard_station_name": arrival.station_name,
-                        "deboard_eta_epoch": arrival.projected_arr_epoch,
+                        "deboard_eta_epoch": deboard_epoch,
                         "destination_station_code": destination_code,
                         "destination_station_name": dest_info.get("station_name", destination_code),
                         "road_distance_km": float(road_data.get("distance_km", 27.4)),

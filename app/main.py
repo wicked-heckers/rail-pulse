@@ -217,8 +217,8 @@ async def root(request: Request) -> Any:
 
     return {
         "project": "RAIL-PULSE",
-        "description": "ECoR Predictive Delay Cascade & Multimodal Rescue Engine",
-        "corridor": "Bhadrak (BHC, 0.0km) -> Puri (PURI, 206.0km)",
+        "description": "Predictive Delay Cascade & Multimodal Rescue Engine",
+        "corridor": demo_provider.topology.get("corridor_name") or demo_provider.topology.get("corridor", {}).get("description") or "Bhadrak (BHC, 0.0km) -> Puri (PURI, 206.0km)",
         "version": settings.VERSION,
         "dashboard_url": "/dashboard",
         "docs_url": "/docs",

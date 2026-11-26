@@ -4,6 +4,12 @@ import type {
   RescueEvaluationResponse,
 } from '../../types/corridor';
 import type { StationData } from '../timeline/StationRow';
+import {
+  FULL_CORRIDOR_STATIONS,
+  FULL_CORRIDOR_STATIONS_UP,
+  FULL_SER_STATIONS,
+  FULL_SER_STATIONS_UP,
+} from '../../services/corridorTimetable';
 
 export interface TrainIdentity {
   trainNo: string;
@@ -76,8 +82,8 @@ export function formatTime12Hour(timeStr?: string): string {
 /**
  * Converts a simulation UTC epoch to 12-hour IST (UTC+05:30) string.
  */
-export function formatEpochTo12Hour(epoch: number): string {
-  if (!epoch || isNaN(epoch)) return '12:09 PM';
+export function formatEpochTo12Hour(epoch?: number | null): string {
+  if (!epoch || isNaN(epoch) || epoch <= 0) return '—';
   // IST offset is +19800 seconds
   const istSeconds = (Math.floor(epoch) + 19800) % 86400;
   const positiveSecs = istSeconds < 0 ? istSeconds + 86400 : istSeconds;
@@ -122,6 +128,7 @@ export function getTrainIdentity(
     '12821': 'Dhauli Express',
     '22895': 'Howrah-Puri Vande Bharat Express',
     '18410': 'Sri Jagannath Express',
+    '12822': 'Dhauli Express (UP)',
   };
 
   const trainName = train?.train_name || fallbackNames[trainNo] || `Express ${trainNo}`;
@@ -144,11 +151,17 @@ export function getTrainIdentity(
         ? 'Puri Terminal'
         : train.current_station === 'BHC'
         ? 'Bhadrak'
+        : train.current_station === 'HWH'
+        ? 'Howrah Terminal'
+        : train.current_station === 'KGP'
+        ? 'Kharagpur'
         : train.current_station ?? 'Terminus';
     locationText = `Arrived at ${termName} (Terminus)`;
   } else if (train.current_station) {
     locationText = `Stopped at ${train.current_station} station`;
     if (train.current_station === 'CTC') locationText = 'Waiting at Cuttack (CTC)';
+    if (train.current_station === 'MCA') locationText = 'Waiting at Mecheda (MCA)';
+    if (train.current_station === 'SRC') locationText = 'Waiting at Santragachi (SRC)';
   } else if (train.next_station) {
     locationText = `Approaching ${train.next_station}`;
     if (train.chainage_km) {
@@ -246,6 +259,24 @@ export function getArrivalPrediction(
   }
 
   // Train-specific fallback defaults when live forecast is loading
+  if (trainNo === '12822') {
+    return {
+      destinationCode: 'HWH',
+      destinationName: 'Howrah Junction',
+      expectedTime: '04:15 PM',
+      likelyWindow: '04:15 PM – 04:25 PM',
+      earliestTime: '04:15 PM',
+      worstCaseTime: '04:25 PM',
+      slackMins: 5,
+      p10Time: '04:15 PM',
+      p50Time: '04:18 PM',
+      p90Time: '04:25 PM',
+      p10DelayMins: 0,
+      p50DelayMins: 3,
+      p90DelayMins: 10,
+    };
+  }
+
   if (trainNo === '22895') {
     return {
       destinationCode: 'BBS',
@@ -341,9 +372,12 @@ export function evaluateLogicalConnection(
     };
   }
 
-  // Handle cross-midnight rollover (e.g. expected 23:50, deadline 00:20)
+  // Handle cross-midnight rollover (e.g. expected 23:50, deadline 00:20 or expected 00:20, deadline 23:55)
   if (deadlineMin < expectedMin && expectedMin - deadlineMin > 720) {
     deadlineMin += 1440;
+  } else if (expectedMin < deadlineMin && deadlineMin - expectedMin > 720) {
+    expectedMin += 1440;
+    worstCaseMin += 1440;
   }
   if (worstCaseMin < expectedMin && expectedMin - worstCaseMin > 720) {
     worstCaseMin += 1440;
@@ -401,6 +435,27 @@ export function evaluateLogicalConnection(
   };
 }
 
+export const STATION_COORDINATES_MAP: Record<string, [number, number]> = {
+  BHC: [86.4950, 21.0583],
+  JJKR: [86.1333, 20.9500],
+  JKPR: [86.0600, 20.9400],
+  NRG: [85.9200, 20.5500],
+  CTC: [85.8829, 20.4625],
+  BRAG: [85.8300, 20.4000],
+  BBS: [85.8333, 20.2667],
+  KUR: [85.7333, 20.1833],
+  PURI: [85.8314, 19.8133],
+  // South Eastern Railway Kolkata Trunk Line
+  HWH: [88.3426, 22.5830],
+  SRC: [88.2830, 22.5800],
+  ULB: [88.1100, 22.4700],
+  BZN: [87.9700, 22.4600],
+  MCA: [87.8600, 22.4200],
+  PKU: [87.7200, 22.4100],
+  BCK: [87.5500, 22.3700],
+  KGP: [87.3200, 22.3300],
+};
+
 /**
  * 4. Generates max 2-3 delay causes in everyday passenger wording.
  * Strictly excludes speed-to-restriction ratios, signal identifiers, priority ranks, and technical codes.
@@ -429,14 +484,7 @@ export function getDelayCauses(
       tagType: c.event.includes('OVERTAKE') ? 'projected' : 'confirmed',
       explanation: c.human_message,
       locationName: `${c.station_name} (${c.station_code})`,
-      coordinates:
-        c.station_code === 'CTC'
-          ? [85.8829, 20.4625]
-          : c.station_code === 'KUR'
-          ? [85.7333, 20.1833]
-          : c.station_code === 'JKPR'
-          ? [86.06, 20.94]
-          : [85.856, 20.431],
+      coordinates: STATION_COORDINATES_MAP[c.station_code] || [85.856, 20.431],
       popupTitle: titleMap[c.event] || c.event,
       popupMessage: c.human_message,
       highlightType: c.event.includes('FREIGHT')
@@ -575,11 +623,27 @@ export function getStationRelevance(
   roleTone: 'emerald' | 'amber' | 'blue' | 'slate' | 'rose';
   relevanceExplanation: string;
 } {
-  if (stationCode === 'BBS') {
+  if (stationCode === 'BBS' || stationCode === 'PURI' || stationCode === 'KGP' || stationCode === 'HWH') {
     return {
       roleBadge: 'Destination & Connection Hub',
       roleTone: 'rose',
-      relevanceExplanation: 'Your target station where transfer connection 20817 Rajdhani departs.',
+      relevanceExplanation: `Your target destination where journey concludes and onward transfers depart.`,
+    };
+  }
+
+  if (stationCode === 'SRC' && isRescueActive) {
+    return {
+      roleBadge: 'Kona Expressway Road Rescue Transfer Point',
+      roleTone: 'amber',
+      relevanceExplanation: 'Recommended early-deboard station: take Kona Expressway cab here to save ~25 mins to Howrah/Kolkata.',
+    };
+  }
+
+  if (stationCode === 'MCA' && isRescueActive) {
+    return {
+      roleBadge: 'NH-16 Road Rescue Transfer Point',
+      roleTone: 'amber',
+      relevanceExplanation: 'Recommended early-deboard station: take NH-16 highway cab here to save ~32 mins to Howrah.',
     };
   }
 
@@ -622,260 +686,88 @@ export function getStationRelevance(
   };
 }
 
-
 /**
  * 6. Returns complete 9-station timetable for Section 4 (Journey details).
  */
-export const FULL_CORRIDOR_STATIONS: StationData[] = [
-  {
-    station_code: 'BHC',
-    station_name: 'Bhadrak',
-    chainage_km: 0.0,
-    scheduled_arr: '09:25 AM',
-    scheduled_dep: '09:30 AM',
-    projected_arr: '09:25 AM',
-    projected_dep: '09:30 AM',
-    delay_mins: 0,
-    platform: 'PF 1 (Origin)',
-    is_junction: true,
-    status: 'passed',
-  },
-  {
-    station_code: 'JJKR',
-    station_name: 'Jajpur Keonjhar Road',
-    chainage_km: 44.0,
-    scheduled_arr: '10:15 AM',
-    scheduled_dep: '10:18 AM',
-    projected_arr: '10:15 AM',
-    projected_dep: '10:18 AM',
-    delay_mins: 0,
-    platform: 'PF 2 (Main)',
-    is_junction: false,
-    status: 'passed',
-  },
-  {
-    station_code: 'JKPR',
-    station_name: 'Jakhapura Junction',
-    chainage_km: 51.0,
-    scheduled_arr: '10:28 AM',
-    scheduled_dep: '10:30 AM',
-    projected_arr: '10:34 AM',
-    projected_dep: '10:36 AM',
-    delay_mins: 6,
-    platform: 'PF 1 (Loop)',
-    is_junction: true,
-    status: 'passed',
-  },
-  {
-    station_code: 'NRG',
-    station_name: 'Nergundi Junction',
-    chainage_km: 106.0,
-    scheduled_arr: '11:10 AM',
-    scheduled_dep: '11:12 AM',
-    projected_arr: '11:32 AM',
-    projected_dep: '11:34 AM',
-    delay_mins: 22,
-    platform: 'PF 2 (Main)',
-    is_junction: false,
-    status: 'passed',
-  },
-  {
-    station_code: 'CTC',
-    station_name: 'Cuttack Junction',
-    chainage_km: 115.0,
-    scheduled_arr: '11:22 AM',
-    scheduled_dep: '11:25 AM',
-    projected_arr: '11:50 AM',
-    projected_dep: '11:53 AM',
-    delay_mins: 28,
-    platform: 'PF 1 (Loop Hold)',
-    is_junction: true,
-    status: 'current',
-  },
-  {
-    station_code: 'BRAG',
-    station_name: 'Barang Junction',
-    chainage_km: 128.0,
-    scheduled_arr: '11:42 AM',
-    scheduled_dep: '11:44 AM',
-    projected_arr: '12:10 PM',
-    projected_dep: '12:12 PM',
-    delay_mins: 28,
-    platform: 'PF 2 (Main)',
-    is_junction: true,
-    status: 'upcoming',
-  },
-  {
-    station_code: 'BBS',
-    station_name: 'Bhubaneswar',
-    chainage_km: 143.0,
-    scheduled_arr: '12:05 PM',
-    scheduled_dep: '12:10 PM',
-    projected_arr: '12:09 PM',
-    projected_dep: '12:14 PM',
-    delay_mins: 4,
-    platform: 'PF 3 (Transfer)',
-    is_junction: true,
-    status: 'upcoming',
-  },
-  {
-    station_code: 'KUR',
-    station_name: 'Khurda Road Junction',
-    chainage_km: 162.0,
-    scheduled_arr: '12:40 PM',
-    scheduled_dep: '12:45 PM',
-    projected_arr: '12:48 PM',
-    projected_dep: '12:53 PM',
-    delay_mins: 8,
-    platform: 'PF 2 (Main)',
-    is_junction: true,
-    status: 'upcoming',
-  },
-  {
-    station_code: 'PURI',
-    station_name: 'Puri Terminal',
-    chainage_km: 206.0,
-    scheduled_arr: '02:00 PM',
-    scheduled_dep: '—',
-    projected_arr: '02:10 PM',
-    projected_dep: '—',
-    delay_mins: 10,
-    platform: 'PF 4 (Terminus)',
-    is_junction: true,
-    status: 'upcoming',
-  },
-];
-
-export const FULL_CORRIDOR_STATIONS_UP: StationData[] = [
-  {
-    station_code: 'PURI',
-    station_name: 'Puri Terminal',
-    chainage_km: 206.0,
-    scheduled_arr: '09:30 AM',
-    scheduled_dep: '09:30 AM',
-    projected_arr: '09:30 AM',
-    projected_dep: '09:30 AM',
-    delay_mins: 0,
-    platform: 'PF 3 (Origin)',
-    is_junction: true,
-    status: 'passed',
-  },
-  {
-    station_code: 'KUR',
-    station_name: 'Khurda Road Junction',
-    chainage_km: 162.0,
-    scheduled_arr: '10:20 AM',
-    scheduled_dep: '10:25 AM',
-    projected_arr: '10:25 AM',
-    projected_dep: '10:30 AM',
-    delay_mins: 5,
-    platform: 'PF 1 (Main)',
-    is_junction: true,
-    status: 'passed',
-  },
-  {
-    station_code: 'BBS',
-    station_name: 'Bhubaneswar',
-    chainage_km: 143.0,
-    scheduled_arr: '10:50 AM',
-    scheduled_dep: '10:55 AM',
-    projected_arr: '10:55 AM',
-    projected_dep: '11:00 AM',
-    delay_mins: 5,
-    platform: 'PF 2 (Main)',
-    is_junction: true,
-    status: 'current',
-  },
-  {
-    station_code: 'BRAG',
-    station_name: 'Barang Junction',
-    chainage_km: 128.0,
-    scheduled_arr: '11:12 AM',
-    scheduled_dep: '11:14 AM',
-    projected_arr: '11:17 AM',
-    projected_dep: '11:19 AM',
-    delay_mins: 5,
-    platform: 'PF 1 (Pass)',
-    is_junction: true,
-    status: 'upcoming',
-  },
-  {
-    station_code: 'CTC',
-    station_name: 'Cuttack Junction',
-    chainage_km: 115.0,
-    scheduled_arr: '11:35 AM',
-    scheduled_dep: '11:40 AM',
-    projected_arr: '11:40 AM',
-    projected_dep: '11:45 AM',
-    delay_mins: 5,
-    platform: 'PF 2 (Main)',
-    is_junction: true,
-    status: 'upcoming',
-  },
-  {
-    station_code: 'NRG',
-    station_name: 'Nergundi Junction',
-    chainage_km: 106.0,
-    scheduled_arr: '11:52 AM',
-    scheduled_dep: '11:54 AM',
-    projected_arr: '11:57 AM',
-    projected_dep: '11:59 AM',
-    delay_mins: 5,
-    platform: 'PF 1 (Main)',
-    is_junction: false,
-    status: 'upcoming',
-  },
-  {
-    station_code: 'JKPR',
-    station_name: 'Jakhapura Junction',
-    chainage_km: 51.0,
-    scheduled_arr: '12:20 PM',
-    scheduled_dep: '12:22 PM',
-    projected_arr: '12:25 PM',
-    projected_dep: '12:27 PM',
-    delay_mins: 5,
-    platform: 'PF 2 (Main)',
-    is_junction: true,
-    status: 'upcoming',
-  },
-  {
-    station_code: 'JJKR',
-    station_name: 'Jajpur Keonjhar Road',
-    chainage_km: 44.0,
-    scheduled_arr: '12:30 PM',
-    scheduled_dep: '12:32 PM',
-    projected_arr: '12:35 PM',
-    projected_dep: '12:37 PM',
-    delay_mins: 5,
-    platform: 'PF 1 (Main)',
-    is_junction: false,
-    status: 'upcoming',
-  },
-  {
-    station_code: 'BHC',
-    station_name: 'Bhadrak',
-    chainage_km: 0.0,
-    scheduled_arr: '01:20 PM',
-    scheduled_dep: '—',
-    projected_arr: '01:25 PM',
-    projected_dep: '—',
-    delay_mins: 5,
-    platform: 'PF 3 (Terminus)',
-    is_junction: true,
-    status: 'upcoming',
-  },
-];
-
 export function getStationTimeline(
   trainNo: string,
   forecast: ForecastResponse | null,
   activeSnapshot: CorridorSnapshot
 ): StationData[] {
   const train = activeSnapshot.trains.find((t) => t.train_no === trainNo);
-  const trainKm = train?.chainage_km ?? 115.0;
-  const isUp = train?.direction === 'UP' || trainNo === '18410';
+  const hasLiveTrain = Boolean(train);
+  const isUp = train?.direction === 'UP' || trainNo === '18410' || trainNo === '12822';
+  const isKolkata = activeSnapshot.corridor_id === 'SER_HWH_KGP' || trainNo === '12822';
+  const trainKm = train?.chainage_km ?? (isUp ? (isKolkata ? 115.0 : 206.0) : 0.0);
 
-  const baseStations = isUp ? FULL_CORRIDOR_STATIONS_UP : FULL_CORRIDOR_STATIONS;
+  // If live forecast provides a validated timeline for this train, map directly from it
+  if (
+    forecast?.train_no === trainNo &&
+    forecast.station_timeline &&
+    forecast.station_timeline.length > 0
+  ) {
+    const lastIdx = forecast.station_timeline.length - 1;
+    let currentAssigned = false;
+    const junctionCodes = [
+      'HWH', 'SRC', 'MCA', 'PKU', 'KGP',
+      'BHC', 'JKPR', 'CTC', 'BRAG', 'BBS', 'KUR', 'PURI',
+    ];
+
+    return forecast.station_timeline.map((fcStop, idx) => {
+      const isTerminus = idx === lastIdx;
+      const isPassed = hasLiveTrain
+        ? isUp
+          ? fcStop.chainage_km > trainKm + 0.8
+          : fcStop.chainage_km < trainKm - 0.8
+        : false;
+
+      let status: 'passed' | 'current' | 'upcoming' = 'upcoming';
+      let isHalted = false;
+
+      if (train?.status === 'AT_TERMINUS' && isTerminus) {
+        status = 'current';
+        isHalted = true;
+        currentAssigned = true;
+      } else if (train?.current_station === fcStop.station_code) {
+        status = 'current';
+        isHalted = (train?.speed_kmph ?? 0) === 0;
+        currentAssigned = true;
+      } else if (isPassed) {
+        status = 'passed';
+      } else if (!currentAssigned && (train?.next_station === fcStop.station_code || isTerminus)) {
+        status = 'current';
+        isHalted = (train?.speed_kmph ?? 0) === 0 && Math.abs(fcStop.chainage_km - trainKm) <= 0.8;
+        currentAssigned = true;
+      }
+
+      const schedArr = formatEpochTo12Hour(fcStop.sched_arr_epoch);
+      const schedDep = isTerminus ? '—' : formatEpochTo12Hour(fcStop.sched_dep_epoch);
+      const projArr = formatEpochTo12Hour(fcStop.projected_arr_epoch);
+      const projDep = isTerminus ? '—' : formatEpochTo12Hour(fcStop.projected_dep_epoch);
+
+      return {
+        station_code: fcStop.station_code,
+        station_name: fcStop.station_name,
+        chainage_km: fcStop.chainage_km,
+        scheduled_arr: schedArr,
+        scheduled_dep: schedDep,
+        projected_arr: projArr,
+        projected_dep: projDep,
+        delay_mins: Math.max(0, Math.round(fcStop.net_delay_mins)),
+        platform: isTerminus ? 'PF (Terminus)' : idx === 0 ? 'PF (Origin)' : 'PF (Main)',
+        is_junction: junctionCodes.includes(fcStop.station_code),
+        status,
+        is_terminus: isTerminus,
+        is_halted: isHalted,
+      };
+    });
+  }
+
+  // Fallback to static base stations when forecast is still loading
+  const baseStations = isKolkata
+    ? (isUp ? FULL_SER_STATIONS_UP : FULL_SER_STATIONS)
+    : (isUp ? FULL_CORRIDOR_STATIONS_UP : FULL_CORRIDOR_STATIONS);
+
   const forecastMap = new Map(
     (forecast?.train_no === trainNo ? forecast.station_timeline : []).map((s) => [
       s.station_code,
@@ -889,7 +781,11 @@ export function getStationTimeline(
   return baseStations.map((stn, idx) => {
     const isTerminus = idx === lastIdx;
     const fcStop = forecastMap.get(stn.station_code);
-    const isPassed = isUp ? stn.chainage_km > trainKm + 0.8 : stn.chainage_km < trainKm - 0.8;
+    const isPassed = hasLiveTrain
+      ? isUp
+        ? stn.chainage_km > trainKm + 0.8
+        : stn.chainage_km < trainKm - 0.8
+      : false;
 
     let status: 'passed' | 'current' | 'upcoming' = 'upcoming';
     let isHalted = false;

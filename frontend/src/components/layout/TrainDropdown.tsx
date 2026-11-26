@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useRailStore } from '../../stores/useRailStore';
 import { useManagerTrainStore, type ManagerTrain } from '../../stores/useManagerTrainStore';
 import {
@@ -12,14 +12,29 @@ import {
 } from 'lucide-react';
 
 export const TrainDropdown: React.FC = () => {
-  const { selectedTrain, setSelectedTrain } = useRailStore();
+  const { selectedTrain, setSelectedTrain, activeCorridorId } = useRailStore();
   const { trains, setAddModalOpen, removeTrain } = useManagerTrainStore();
 
   const [isOpen, setIsOpen] = useState(false);
   const [filterQuery, setFilterQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
+  const isKolkata = activeCorridorId === 'SER_HWH_KGP';
+
+  // Filter corridor-relevant trains
+  const corridorRelevantTrains = useMemo(() => {
+    return trains.filter((t) => {
+      if (t.isCustom) return true;
+      if (isKolkata) {
+        // SER corridor trains
+        return t.no === '12821' || t.no === '22895' || t.no === '12822';
+      }
+      // ECoR corridor trains
+      return t.no === '12821' || t.no === '22895' || t.no === '18410';
+    });
+  }, [trains, isKolkata]);
+
+  // Close on outside click or Escape
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -41,16 +56,17 @@ export const TrainDropdown: React.FC = () => {
   }, [isOpen]);
 
   // Find currently active train details
-  const activeTrain = trains.find((t) => t.no === selectedTrain) || {
-    no: selectedTrain,
-    name: 'Selected Train',
-    priority: 'Target',
-    direction: 'DN',
-    from: 'HWH',
-    to: 'PURI',
-  };
+  const activeTrain = corridorRelevantTrains.find((t) => t.no === selectedTrain) ||
+    trains.find((t) => t.no === selectedTrain) || {
+      no: selectedTrain,
+      name: 'Monitored Train',
+      priority: 'Target' as const,
+      direction: 'DN' as const,
+      from: isKolkata ? 'HWH' : 'BHC',
+      to: isKolkata ? 'KGP' : 'PURI',
+    };
 
-  const filteredTrains = trains.filter(
+  const filteredTrains = corridorRelevantTrains.filter(
     (t) =>
       t.no.includes(filterQuery) ||
       t.name.toLowerCase().includes(filterQuery.toLowerCase())
@@ -60,26 +76,26 @@ export const TrainDropdown: React.FC = () => {
     switch (priority) {
       case 'Target':
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
             Target
           </span>
         );
       case 'Superfast':
         return (
-          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
             Superfast
           </span>
         );
       case 'Express':
         return (
-          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
             Express
           </span>
         );
       default:
         return (
-          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
             {priority}
           </span>
         );
@@ -92,7 +108,7 @@ export const TrainDropdown: React.FC = () => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
           isOpen
             ? 'bg-slate-100 border-[#0F294A] ring-2 ring-[#0F294A]/10'
             : 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-800'
@@ -100,12 +116,12 @@ export const TrainDropdown: React.FC = () => {
         title="Select active monitored train"
       >
         <div className="p-1 rounded-md bg-[#0F294A]/5 text-[#0F294A]">
-          <Train className="w-4 h-4" />
+          <Train className="w-3.5 h-3.5" />
         </div>
 
-        <div className="flex items-center gap-2 font-mono text-sm">
+        <div className="flex items-center gap-1.5 font-mono text-xs sm:text-sm">
           <span className="font-extrabold text-[#0F294A]">{activeTrain.no}</span>
-          <span className="text-slate-600 font-sans font-medium hidden sm:inline truncate max-w-[140px]">
+          <span className="text-slate-600 font-sans font-medium hidden sm:inline truncate max-w-[130px]">
             {activeTrain.name}
           </span>
         </div>
@@ -115,7 +131,7 @@ export const TrainDropdown: React.FC = () => {
         )}
 
         <ChevronDown
-          className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+          className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
             isOpen ? 'rotate-180 text-slate-700' : ''
           }`}
         />
@@ -123,31 +139,31 @@ export const TrainDropdown: React.FC = () => {
 
       {/* Popover Menu */}
       {isOpen && (
-        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 md:left-0 md:right-auto w-84 sm:w-92 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 md:left-0 md:right-auto w-80 sm:w-88 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2.5 z-50 animate-in fade-in zoom-in-95 duration-100">
           {/* Header */}
-          <div className="px-4 pb-2.5 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Compass className="w-4 h-4 text-slate-400" />
-              <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                Corridor Train Fleet
+          <div className="px-4 pb-2 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Compass className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Corridor Trains ({corridorRelevantTrains.length})
               </span>
             </div>
-            <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
-              {trains.length} services
+            <span className="text-[10px] font-mono font-semibold text-slate-400">
+              {isKolkata ? 'SER Trunk' : 'ECoR Trunk'}
             </span>
           </div>
 
-          {/* Search filter if more than 3 trains */}
-          {trains.length > 3 && (
-            <div className="px-3.5 pt-2.5 pb-1">
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          {/* Quick Filter Search */}
+          {corridorRelevantTrains.length > 3 && (
+            <div className="px-3 pt-2 pb-1">
+              <div className="relative flex items-center">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Filter by train no or name..."
                   value={filterQuery}
                   onChange={(e) => setFilterQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#0F294A]"
+                  placeholder="Filter by train no. or name..."
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 rounded-lg border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#0F294A]"
                 />
               </div>
             </div>
@@ -156,7 +172,7 @@ export const TrainDropdown: React.FC = () => {
           {/* Train List */}
           <div className="max-h-72 overflow-y-auto px-2 py-1.5 space-y-1">
             {filteredTrains.length === 0 ? (
-              <div className="py-5 text-center text-sm text-slate-400">
+              <div className="py-5 text-center text-xs text-slate-400">
                 No matching trains found.
               </div>
             ) : (
@@ -169,49 +185,49 @@ export const TrainDropdown: React.FC = () => {
                       setSelectedTrain(t.no);
                       setIsOpen(false);
                     }}
-                    className={`group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
+                    className={`group flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-[#0F294A]/5 border border-[#0F294A]/20 shadow-2xs'
                         : 'hover:bg-slate-50 border border-transparent'
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <div
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-mono font-bold ${
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-mono font-bold ${
                           isSelected
                             ? 'bg-[#0F294A] text-white shadow-2xs'
                             : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
                         }`}
                       >
-                        {isSelected ? <Check className="w-4 h-4" /> : t.direction}
+                        {isSelected ? <Check className="w-3.5 h-3.5" /> : t.direction}
                       </div>
 
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <span className="font-mono font-bold text-slate-900">
                             {t.no}
                           </span>
-                          <span className="font-semibold text-slate-800 truncate max-w-[140px]">
+                          <span className="font-semibold text-slate-800 truncate max-w-[130px]">
                             {t.name}
                           </span>
                           {t.isCustom && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-mono font-bold">
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 font-mono font-bold">
                               Added
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
-                          <span>{t.from || 'HWH'} → {t.to || 'PURI'}</span>
+                        <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                          <span>{t.from || (isKolkata ? 'HWH' : 'BHC')} → {t.to || (isKolkata ? 'KGP' : 'PURI')}</span>
                           <span>•</span>
                           <span>{t.direction === 'DN' ? 'Down Line' : 'Up Line'}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
                       {getPriorityBadge(t.priority)}
 
-                      {/* Delete button for manager-added trains */}
+                      {/* Delete button for custom trains */}
                       {t.isCustom && (
                         <button
                           type="button"
@@ -222,7 +238,7 @@ export const TrainDropdown: React.FC = () => {
                           className="p-1 rounded-md text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                           title="Remove custom train"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -233,23 +249,20 @@ export const TrainDropdown: React.FC = () => {
           </div>
 
           {/* Manager Action Footer */}
-          <div className="mt-1.5 pt-2.5 px-2.5 border-t border-slate-100">
+          <div className="mt-1 pt-2 px-2.5 border-t border-slate-100">
             <button
               type="button"
               onClick={() => {
                 setIsOpen(false);
                 setAddModalOpen(true);
               }}
-              className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-bold text-[#0F294A] bg-blue-50/70 hover:bg-blue-100/70 border border-blue-200/80 transition-colors cursor-pointer group"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-[#0F294A] bg-blue-50/70 hover:bg-blue-100/70 border border-blue-200/80 transition-colors cursor-pointer group"
             >
               <div className="p-0.5 rounded bg-blue-600 text-white group-hover:scale-105 transition-transform">
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3 h-3" />
               </div>
-              <span>Add Train (Manager Team)</span>
+              <span>Add Train (Manager Dispatch)</span>
             </button>
-            <p className="text-xs text-center text-slate-400 mt-1.5">
-              Managers can inject extra services to simulate dispatch
-            </p>
           </div>
         </div>
       )}

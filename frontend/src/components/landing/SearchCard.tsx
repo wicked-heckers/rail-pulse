@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Clock,
   ArrowLeftRight,
@@ -8,100 +8,47 @@ import {
   X,
 } from 'lucide-react';
 import { useRailStore } from '../../stores/useRailStore';
+import { useManagerTrainStore } from '../../stores/useManagerTrainStore';
 import { TRANSLATIONS } from './translations';
-
-interface PilotStation {
-  code: string;
-  name: string;
-  km: number;
-}
-
-const PILOT_STATIONS: PilotStation[] = [
-  { code: 'BHC', name: 'Bhadrak', km: 0.0 },
-  { code: 'JJKR', name: 'Jajpur Keonjhar Road', km: 44.0 },
-  { code: 'CTC', name: 'Cuttack', km: 115.0 },
-  { code: 'BBS', name: 'Bhubaneswar', km: 143.0 },
-  { code: 'KUR', name: 'Khurda Road', km: 162.0 },
-  { code: 'PURI', name: 'Puri', km: 206.0 },
-];
-
-interface PilotTrain {
-  no: string;
-  name: string;
-  direction: 'DN' | 'UP';
-  delayStatus: string;
-  statusColor: 'amber' | 'emerald';
-  departureTime: string;
-  origin: string;
-  destination: string;
-  subtitle: string;
-}
-
-const PILOT_TRAINS: PilotTrain[] = [
-  {
-    no: '12821',
-    name: 'Dhauli Express',
-    direction: 'DN',
-    delayStatus: '+28m late',
-    statusColor: 'amber',
-    departureTime: '09:50 AM',
-    origin: 'Bhadrak (BHC)',
-    destination: 'Puri (PURI)',
-    subtitle: 'Departs 09:50 AM • Bhadrak (BHC) → Puri (PURI)',
-  },
-  {
-    no: '22895',
-    name: 'Vande Bharat',
-    direction: 'DN',
-    delayStatus: '+2m late',
-    statusColor: 'emerald',
-    departureTime: '10:17 AM',
-    origin: 'Bhadrak (BHC)',
-    destination: 'Puri (PURI)',
-    subtitle: 'Departs 10:17 AM • Bhadrak (BHC) → Puri (PURI)',
-  },
-  {
-    no: '18410',
-    name: 'Sri Jagannath Express',
-    direction: 'UP',
-    delayStatus: '+5m late',
-    statusColor: 'amber',
-    departureTime: '09:30 AM',
-    origin: 'Puri (PURI)',
-    destination: 'Bhadrak (BHC)',
-    subtitle: 'Departs 09:30 AM • Puri (PURI) → Bhadrak (BHC)',
-  },
-];
-
-interface RecentItem {
-  id: string;
-  label: string;
-  fromCode: string;
-  toCode: string;
-}
-
-const DEFAULT_RECENT: RecentItem[] = [
-  {
-    id: 'r1',
-    label: 'Bhadrak (BHC) → Bhubaneswar (BBS)',
-    fromCode: 'BHC',
-    toCode: 'BBS',
-  },
-  {
-    id: 'r2',
-    label: 'Cuttack (CTC) → Khurda Road (KUR)',
-    fromCode: 'CTC',
-    toCode: 'KUR',
-  },
-];
+import {
+  getStationsForCorridor,
+  getTrainsForCorridor,
+  getDefaultRecentForCorridor,
+  type PilotTrain,
+  type RecentItem,
+} from './searchConstants';
 
 export const SearchCard: React.FC = () => {
-  const { language, navigateToDashboardWithTrain, setSelectedTrain } = useRailStore();
+  const { language, navigateToDashboardWithTrain, setSelectedTrain, activeCorridorId } = useRailStore();
+  const managerTrains = useManagerTrainStore((s) => s.trains);
   const t = TRANSLATIONS[language].search;
 
+  const isKolkata = activeCorridorId === 'SER_HWH_KGP';
+  const corridorStations = useMemo(() => getStationsForCorridor(activeCorridorId), [activeCorridorId]);
+  const baseCorridorTrains = useMemo(() => getTrainsForCorridor(activeCorridorId), [activeCorridorId]);
+
+  // Combine pilot trains with any manager / custom trains dynamically
+  const allCorridorTrains = useMemo<PilotTrain[]>(() => {
+    const custom = managerTrains.filter(
+      (mt) => !baseCorridorTrains.some((pt) => pt.no === mt.no)
+    );
+    const mappedCustom: PilotTrain[] = custom.map((ct) => ({
+      no: ct.no,
+      name: ct.name,
+      direction: ct.direction,
+      delayStatus: (ct.currentDelayMins ?? 0) > 0 ? `+${ct.currentDelayMins}m late` : 'On time',
+      statusColor: (ct.currentDelayMins ?? 0) <= 5 ? 'emerald' : 'amber',
+      departureTime: '10:00 AM',
+      origin: `${ct.from}`,
+      destination: `${ct.to}`,
+      subtitle: `${ct.from} → ${ct.to} • ${ct.priority} (${ct.direction})`,
+    }));
+    return [...baseCorridorTrains, ...mappedCustom];
+  }, [managerTrains, baseCorridorTrains]);
+
   const [activeTab, setActiveTab] = useState<'find' | 'track'>('find');
-  const [fromStation, setFromStation] = useState('BHC');
-  const [toStation, setToStation] = useState('BBS');
+  const [fromStation, setFromStation] = useState(() => (isKolkata ? 'HWH' : 'BHC'));
+  const [toStation, setToStation] = useState(() => (isKolkata ? 'KGP' : 'BBS'));
   const [trainQuery, setTrainQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PilotTrain[] | null>(null);
   const [showFindPopover, setShowFindPopover] = useState(false);
@@ -112,18 +59,36 @@ export const SearchCard: React.FC = () => {
   const searchButtonRef = useRef<HTMLButtonElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
-  const [recent, setRecent] = useState<RecentItem[]>(() => {
+  const recentStorageKey = `rp_recent_routes_${activeCorridorId}`;
+
+  const loadRecentForCorridor = (corridorId: string): RecentItem[] => {
     try {
-      const saved = localStorage.getItem('rp_recent_routes');
-      if (saved) {
+      const saved = localStorage.getItem(`rp_recent_routes_${corridorId}`);
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(0, 2);
+        if (Array.isArray(parsed)) return parsed.slice(0, 2);
       }
-      return DEFAULT_RECENT;
+      return getDefaultRecentForCorridor(corridorId);
     } catch {
-      return DEFAULT_RECENT;
+      return getDefaultRecentForCorridor(corridorId);
     }
-  });
+  };
+
+  const [recent, setRecent] = useState<RecentItem[]>(() => loadRecentForCorridor(activeCorridorId));
+
+  // Synchronize stations and recent routes on corridor switch
+  useEffect(() => {
+    if (isKolkata) {
+      setFromStation('HWH');
+      setToStation('KGP');
+    } else {
+      setFromStation('BHC');
+      setToStation('BBS');
+    }
+    setRecent(loadRecentForCorridor(activeCorridorId));
+    setSearchResults(null);
+    setShowFindPopover(false);
+  }, [isKolkata, activeCorridorId]);
 
   // Handle outside click and Escape key for Find popover and Autocomplete
   useEffect(() => {
@@ -164,7 +129,7 @@ export const SearchCard: React.FC = () => {
       );
       const updated = [{ ...item, id: String(Date.now()) }, ...filtered].slice(0, 2);
       try {
-        localStorage.setItem('rp_recent_routes', JSON.stringify(updated));
+        localStorage.setItem(recentStorageKey, JSON.stringify(updated));
       } catch {
         /* noop */
       }
@@ -178,16 +143,16 @@ export const SearchCard: React.FC = () => {
       return;
     }
 
-    const fromStn = PILOT_STATIONS.find((s) => s.code === fromCode);
-    const toStn = PILOT_STATIONS.find((s) => s.code === toCode);
+    const fromStn = corridorStations.find((s) => s.code === fromCode);
+    const toStn = corridorStations.find((s) => s.code === toCode);
     const fromKm = fromStn?.km ?? 0;
     const toKm = toStn?.km ?? 0;
 
     let matches: PilotTrain[] = [];
     if (fromKm < toKm) {
-      matches = PILOT_TRAINS.filter((t) => t.direction === 'DN');
+      matches = allCorridorTrains.filter((t) => t.direction === 'DN');
     } else {
-      matches = PILOT_TRAINS.filter((t) => t.direction === 'UP');
+      matches = allCorridorTrains.filter((t) => t.direction === 'UP');
     }
 
     setSearchResults(matches);
@@ -215,8 +180,8 @@ export const SearchCard: React.FC = () => {
     filterTrains(fromStation, toStation);
     setShowFindPopover(true);
     if (fromStation && toStation && fromStation !== toStation) {
-      const fromStn = PILOT_STATIONS.find((s) => s.code === fromStation);
-      const toStn = PILOT_STATIONS.find((s) => s.code === toStation);
+      const fromStn = corridorStations.find((s) => s.code === fromStation);
+      const toStn = corridorStations.find((s) => s.code === toStation);
       saveRecent({
         label: `${fromStn?.name} (${fromStation}) → ${toStn?.name} (${toStation})`,
         fromCode: fromStation,
@@ -238,13 +203,23 @@ export const SearchCard: React.FC = () => {
     const q = trainQuery.trim();
     if (!q) return;
 
-    // Search against the 3 live corridor trains
-    const match = PILOT_TRAINS.find(
-      (t) =>
-        t.no === q ||
-        t.name.toLowerCase().includes(q.toLowerCase()) ||
-        q.toLowerCase().includes(t.no)
+    // Search against all corridor trains (exact no first, then exact name, then partial match)
+    const qLower = q.toLowerCase();
+    const exactNoMatch = allCorridorTrains.find((t) => t.no === q);
+    const exactNameMatch = allCorridorTrains.find(
+      (t) => t.name.toLowerCase() === qLower
     );
+    const partialMatch =
+      q.length >= 2
+        ? allCorridorTrains.find(
+            (t) =>
+              t.no.includes(q) ||
+              t.name.toLowerCase().includes(qLower) ||
+              qLower.includes(t.name.toLowerCase())
+          )
+        : null;
+
+    const match = exactNoMatch || exactNameMatch || partialMatch;
 
     if (match) {
       setUnmatchedNotice(null);
@@ -266,19 +241,22 @@ export const SearchCard: React.FC = () => {
   const handleClearRecent = () => {
     setRecent([]);
     try {
-      localStorage.removeItem('rp_recent_routes');
+      localStorage.setItem(recentStorageKey, '[]');
     } catch {
       /* noop */
     }
   };
 
   // Autocomplete suggestions based on query
-  const autocompleteSuggestions = PILOT_TRAINS.filter(
-    (t) =>
-      !trainQuery.trim() ||
-      t.no.includes(trainQuery.trim()) ||
-      t.name.toLowerCase().includes(trainQuery.trim().toLowerCase())
-  );
+  const autocompleteSuggestions = useMemo(() => {
+    const q = trainQuery.trim().toLowerCase();
+    if (!q) return allCorridorTrains;
+    return allCorridorTrains.filter(
+      (t) =>
+        t.no.toLowerCase().includes(q) ||
+        t.name.toLowerCase().includes(q)
+    );
+  }, [allCorridorTrains, trainQuery]);
 
   const searchDisabled = !fromStation || !toStation || fromStation === toStation;
 
@@ -323,12 +301,12 @@ export const SearchCard: React.FC = () => {
                       <select
                         value={fromStation}
                         onChange={(e) => handleFromChange(e.target.value)}
-                        className="w-full appearance-none pl-3.5 pr-8 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all cursor-pointer truncate shadow-2xs h-11"
+                        className="w-full appearance-none pl-3.5 pr-8 h-11 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all cursor-pointer truncate shadow-2xs"
                       >
                         <option value="" disabled>
                           {t.fromPlaceholder}
                         </option>
-                        {PILOT_STATIONS.map((s) => (
+                        {corridorStations.map((s) => (
                           <option key={s.code} value={s.code}>
                             {s.name} ({s.code})
                           </option>
@@ -339,12 +317,12 @@ export const SearchCard: React.FC = () => {
                   </div>
 
                   {/* Swap Stations Button */}
-                  <div className="shrink-0 self-center -my-1 md:my-0 md:self-auto">
+                  <div className="shrink-0 self-center -my-1 md:my-0 md:self-auto rotate-90 md:rotate-0 md:pb-0.5">
                     <button
                       type="button"
                       onClick={handleSwap}
                       aria-label="Swap stations"
-                      className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-500 transition-all active:scale-90 cursor-pointer shadow-2xs rotate-90 md:rotate-0"
+                      className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-500 transition-all active:scale-90 cursor-pointer shadow-2xs"
                       title="Swap Origin & Destination"
                     >
                       <ArrowLeftRight className="w-4 h-4" />
@@ -360,12 +338,12 @@ export const SearchCard: React.FC = () => {
                       <select
                         value={toStation}
                         onChange={(e) => handleToChange(e.target.value)}
-                        className="w-full appearance-none pl-3.5 pr-8 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all cursor-pointer truncate shadow-2xs h-11"
+                        className="w-full appearance-none pl-3.5 pr-8 h-11 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all cursor-pointer truncate shadow-2xs"
                       >
                         <option value="" disabled>
                           {t.toPlaceholder}
                         </option>
-                        {PILOT_STATIONS.map((s) => (
+                        {corridorStations.map((s) => (
                           <option key={s.code} value={s.code}>
                             {s.name} ({s.code})
                           </option>
@@ -376,13 +354,13 @@ export const SearchCard: React.FC = () => {
                   </div>
 
                   {/* Search Button */}
-                  <div className="shrink-0 w-full md:w-auto">
+                  <div className="w-full md:w-auto shrink-0">
                     <button
                       ref={searchButtonRef}
                       type="button"
                       onClick={handleSearch}
                       disabled={searchDisabled}
-                      className="w-full md:w-auto h-11 px-5 sm:px-6 py-2.5 rounded-xl bg-[#0F294A] text-white text-xs sm:text-sm font-bold hover:bg-[#1a3a60] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap cursor-pointer shadow-xs flex items-center justify-center"
+                      className="w-full md:w-auto h-11 px-5 sm:px-6 rounded-xl bg-[#0F294A] text-white text-xs sm:text-sm font-bold hover:bg-[#1a3a60] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap cursor-pointer shadow-xs flex items-center justify-center"
                     >
                       {t.btnSearch}
                     </button>
@@ -472,7 +450,7 @@ export const SearchCard: React.FC = () => {
               </div>
 
               {/* Single horizontal strip with route pills and subtle Clear link - ALWAYS stays in place without shifting card */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500 flex-wrap">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
                 <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                   <span className="text-xs font-semibold text-slate-400 shrink-0">Recent:</span>
                   {recent.length === 0 ? (
@@ -483,7 +461,7 @@ export const SearchCard: React.FC = () => {
                         key={item.id}
                         type="button"
                         onClick={() => handleRecentClick(item)}
-                        className="recent-route-pill px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer truncate max-w-full sm:max-w-none"
+                        className="recent-route-pill px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer truncate max-w-full"
                       >
                         {item.label}
                       </button>
@@ -521,14 +499,14 @@ export const SearchCard: React.FC = () => {
                     onFocus={() => setShowAutocomplete(true)}
                     onKeyDown={(e) => e.key === 'Enter' && handleTrackSubmit()}
                     placeholder="Enter train no. or name (e.g. 12821, Vande Bharat)"
-                    className="w-full sm:flex-1 min-w-0 h-11 px-4 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all shadow-2xs"
+                    className="w-full sm:flex-1 min-w-0 px-4 h-11 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all shadow-2xs"
                   />
 
                   <button
                     type="button"
                     onClick={handleTrackSubmit}
                     disabled={!trainQuery.trim()}
-                    className="w-full sm:w-auto h-11 shrink-0 px-5 sm:px-6 py-2.5 rounded-xl bg-[#0F294A] text-white text-xs sm:text-sm font-bold hover:bg-[#1a3a60] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap cursor-pointer shadow-xs flex items-center justify-center"
+                    className="w-full sm:w-auto h-11 px-5 sm:px-6 rounded-xl bg-[#0F294A] text-white text-xs sm:text-sm font-bold hover:bg-[#1a3a60] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap cursor-pointer shadow-xs flex items-center justify-center"
                   >
                     {t.btnTrack}
                   </button>
@@ -591,12 +569,12 @@ export const SearchCard: React.FC = () => {
                   <div className="flex items-start gap-2">
                     <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-slate-700 leading-relaxed">
-                      Live telemetry is currently active for the <strong>Bhadrak–Puri pilot corridor</strong>. Choose one of the 3 live trains below:
+                      Live telemetry is currently active for the <strong>Bhadrak–Puri pilot corridor</strong>. Choose one of the {allCorridorTrains.length} live trains below:
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap pt-0.5 pl-6">
-                    {PILOT_TRAINS.map((tr) => (
+                    {allCorridorTrains.map((tr) => (
                       <button
                         type="button"
                         key={tr.no}
@@ -618,27 +596,16 @@ export const SearchCard: React.FC = () => {
               {!unmatchedNotice && !showAutocomplete && (
                 <div className="pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-500 flex-wrap">
                   <span className="text-xs font-semibold text-slate-400 shrink-0">Quick select:</span>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTrainAndNavigate('12821', '12821 Dhauli Express')}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
-                  >
-                    12821 Dhauli Exp
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTrainAndNavigate('22895', '22895 Vande Bharat')}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
-                  >
-                    22895 Vande Bharat
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTrainAndNavigate('18410', '18410 Sri Jagannath Express')}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
-                  >
-                    18410 Sri Jagannath
-                  </button>
+                  {allCorridorTrains.slice(0, 5).map((tr) => (
+                    <button
+                      type="button"
+                      key={tr.no}
+                      onClick={() => handleSelectTrainAndNavigate(tr.no, `${tr.no} ${tr.name}`)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      {tr.no} {tr.name}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
