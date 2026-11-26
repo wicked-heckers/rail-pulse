@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Radio } from 'lucide-react';
+import { Radio } from 'lucide-react';
 
 export interface StationData {
   station_code: string;
@@ -54,17 +54,23 @@ export const StationRow: React.FC<StationRowProps> = ({
     <div className="relative pl-8 pr-1 py-1.5">
       {/* Station Node on Vertical Track */}
       <div
-        className={`absolute left-[11px] top-4 -translate-x-1/2 rounded-full transition-all z-10 ${
+        className={`absolute left-[11px] top-4 -translate-x-1/2 rounded-full transition-all z-10 flex items-center justify-center ${
           isCurrent
             ? isAtPlatform
               ? 'w-4 h-4 bg-emerald-600 border-2 border-white shadow-md ring-3 ring-emerald-300'
               : 'w-4 h-4 bg-white border-4 border-emerald-600 shadow-md ring-3 ring-emerald-200'
             : isPassed
-            ? 'w-3.5 h-3.5 bg-emerald-600 border-2 border-white shadow-2xs'
+            ? 'w-4 h-4 bg-white shadow-2xs'
             : 'w-3.5 h-3.5 bg-white border-2 border-slate-300 shadow-2xs'
         }`}
       >
-        {isPassed && <CheckCircle2 className="w-2.5 h-2.5 text-white -mt-0.5 -ml-0.5 stroke-[3]" />}
+        {isPassed && (
+          <img
+            src="/reached-tick.png"
+            alt="Reached"
+            className="w-4 h-4 object-contain"
+          />
+        )}
         {isCurrent && (
           <span
             className={`w-1.5 h-1.5 rounded-full block m-auto ${
