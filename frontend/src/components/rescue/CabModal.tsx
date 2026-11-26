@@ -4,7 +4,7 @@ import { Car, X, Check, MapPin, Navigation } from 'lucide-react';
 import { formatEpochTo12Hour } from '../dashboard/passengerUtils';
 
 export const CabModal: React.FC = () => {
-  const { cabModalOpen, setCabModalOpen, rescue, activeCorridorId } = useRailStore();
+  const { cabModalOpen, setCabModalOpen, rescue, activeSnapshot, activeCorridorId } = useRailStore();
   const [isBooked, setIsBooked] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
 
@@ -97,13 +97,10 @@ export const CabModal: React.FC = () => {
     ? `Your driver Rajesh Sahu is waiting at Khurda Road Junction Portico Gate 1. Estimated road journey: ${driveMins} minutes to ${destName}.`
     : `Your driver Rajesh Sahu is waiting at Cuttack Junction Exit Gate 2. Estimated road journey: ${driveMins} minutes to ${destName}.`;
 
+  const defaultRoadEpoch = (activeSnapshot.tick_utc || 1795067700) + driveMins * 60;
   const roadArrival = rescue?.bailout_plan?.final_road_arrival_epoch
     ? formatEpochTo12Hour(rescue.bailout_plan.final_road_arrival_epoch)
-    : isKolkata
-    ? '07:12 AM'
-    : isKhurda
-    ? '12:12 PM'
-    : '12:02 PM';
+    : formatEpochTo12Hour(defaultRoadEpoch);
   const minsSaved = rescue?.bailout_plan?.minutes_saved ?? (isKolkata ? 25 : isKhurda ? 28 : 21);
 
   const handleConfirm = () => {

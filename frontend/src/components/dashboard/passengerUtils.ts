@@ -695,9 +695,10 @@ export function getStationTimeline(
   activeSnapshot: CorridorSnapshot
 ): StationData[] {
   const train = activeSnapshot.trains.find((t) => t.train_no === trainNo);
-  const trainKm = train?.chainage_km ?? 115.0;
+  const hasLiveTrain = Boolean(train);
   const isUp = train?.direction === 'UP' || trainNo === '18410' || trainNo === '12822';
   const isKolkata = activeSnapshot.corridor_id === 'SER_HWH_KGP' || trainNo === '12822';
+  const trainKm = train?.chainage_km ?? (isUp ? (isKolkata ? 115.0 : 206.0) : 0.0);
 
   // If live forecast provides a validated timeline for this train, map directly from it
   if (
@@ -714,9 +715,11 @@ export function getStationTimeline(
 
     return forecast.station_timeline.map((fcStop, idx) => {
       const isTerminus = idx === lastIdx;
-      const isPassed = isUp
-        ? fcStop.chainage_km > trainKm + 0.8
-        : fcStop.chainage_km < trainKm - 0.8;
+      const isPassed = hasLiveTrain
+        ? isUp
+          ? fcStop.chainage_km > trainKm + 0.8
+          : fcStop.chainage_km < trainKm - 0.8
+        : false;
 
       let status: 'passed' | 'current' | 'upcoming' = 'upcoming';
       let isHalted = false;
@@ -778,7 +781,11 @@ export function getStationTimeline(
   return baseStations.map((stn, idx) => {
     const isTerminus = idx === lastIdx;
     const fcStop = forecastMap.get(stn.station_code);
-    const isPassed = isUp ? stn.chainage_km > trainKm + 0.8 : stn.chainage_km < trainKm - 0.8;
+    const isPassed = hasLiveTrain
+      ? isUp
+        ? stn.chainage_km > trainKm + 0.8
+        : stn.chainage_km < trainKm - 0.8
+      : false;
 
     let status: 'passed' | 'current' | 'upcoming' = 'upcoming';
     let isHalted = false;

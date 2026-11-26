@@ -56,6 +56,8 @@ export function getTrainPopupHtml(props: {
   const curStation = escapeHtml(props.current_station);
   const nxtStation = escapeHtml(props.next_station || 'BBS');
 
+  const safeTrainId = String(props.train_no).replace(/[^a-zA-Z0-9_-]/g, '');
+
   return `
     <div class="p-3 max-w-xs text-xs space-y-2 font-sans">
       <div class="flex items-center justify-between border-b pb-1.5 border-slate-100">
@@ -85,7 +87,7 @@ export function getTrainPopupHtml(props: {
       </div>
       ${
         !isTarget
-          ? `<button id="btn-track-${props.train_no}" class="w-full mt-1.5 py-1 px-2.5 bg-[#0F294A] hover:bg-slate-800 text-white font-bold rounded-lg text-center transition-colors cursor-pointer text-xs">
+          ? `<button id="btn-track-${safeTrainId}" class="w-full mt-1.5 py-1 px-2.5 bg-[#0F294A] hover:bg-slate-800 text-white font-bold rounded-lg text-center transition-colors cursor-pointer text-xs">
               Track this train
             </button>`
           : ''

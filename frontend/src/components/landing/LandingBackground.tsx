@@ -4,20 +4,19 @@ export const LandingBackground: React.FC = () => {
   return (
     <div
       aria-hidden="true"
-      className="fixed inset-0 z-0 pointer-events-none select-none overflow-hidden"
+      className="fixed inset-x-0 bottom-0 z-0 pointer-events-none select-none overflow-hidden flex flex-col justify-end"
     >
-      {/* SVG Railway Transit Vector Layer adjusted to frame the gap right below hero text and above the search card */}
-      <img
-        src="/landing-bg.svg"
-        alt=""
-        className="w-full h-full object-cover object-top opacity-65 blur-[1px] min-h-[1050px] translate-y-20 sm:translate-y-24 scale-103"
-      />
+      <div className="relative w-full max-w-[2172px] mx-auto h-[380px] sm:h-[480px] md:h-[560px] lg:h-[620px]">
+        {/* Modern High-Speed Railway Transit & Traveller Background Illustration */}
+        <img
+          src="/landing-bg2.svg"
+          alt=""
+          className="w-full h-full object-contain object-bottom opacity-95 transition-opacity duration-500"
+        />
 
-      {/* Soft translucent tint overlay for text legibility */}
-      <div className="absolute inset-0 bg-white/20" />
-
-      {/* Gentle Bottom Fade for Smooth Transition into Content and Footer */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#F4F7FA]/40 to-[#F4F7FA]" />
+        {/* Gentle Top Fade for Smooth Ambient Transition into the Upper Page */}
+        <div className="absolute inset-x-0 top-0 h-24 sm:h-32 bg-gradient-to-b from-[#F4F7FA] via-[#F4F7FA]/70 to-transparent" />
+      </div>
     </div>
   );
 };

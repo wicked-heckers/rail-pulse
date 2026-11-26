@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Suspense, lazy } from 'react';
+import React, { useEffect, useState, useRef, Suspense, lazy } from 'react';
 import { useRailStore } from './stores/useRailStore';
 import { wsClient } from './services/wsClient';
 import { fetchForecast, evaluateRescue, fetchCorridorConfig } from './services/api';
@@ -39,6 +39,7 @@ export const App: React.FC = () => {
   } = useRailStore();
 
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
+  const lastAutoDeadlineRef = useRef<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth >= 768 : true
   );
@@ -115,7 +116,11 @@ export const App: React.FC = () => {
           const hh = istDate.getUTCHours().toString().padStart(2, '0');
           const mm = istDate.getUTCMinutes().toString().padStart(2, '0');
           const autoDeadline = `${hh}:${mm}`;
-          if (connectionTarget?.deadline_time !== autoDeadline) {
+          if (
+            connectionTarget?.deadline_time !== autoDeadline &&
+            lastAutoDeadlineRef.current !== autoDeadline
+          ) {
+            lastAutoDeadlineRef.current = autoDeadline;
             setConnectionTarget({ deadline_time: autoDeadline, isCustom: false });
           }
         } else {

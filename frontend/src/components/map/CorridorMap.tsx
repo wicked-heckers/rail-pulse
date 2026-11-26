@@ -50,6 +50,14 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const activePopupRef = useRef<MapLibrePopup | null>(null);
+  const popupTimeoutRef = useRef<number | null>(null);
+
+  const clearPopupTimeout = useCallback(() => {
+    if (popupTimeoutRef.current) {
+      clearTimeout(popupTimeoutRef.current);
+      popupTimeoutRef.current = null;
+    }
+  }, []);
 
   // Trigger map resize on mount and after render frame for modal transitions
   useEffect(() => {
@@ -99,6 +107,8 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
 
   // Connection evaluation for journey status synchronization
   const prediction = getArrivalPrediction(selectedTrain, forecast);
+  const predictionRef = useRef(prediction);
+  predictionRef.current = prediction;
   const connectionDeadlineFormatted = formatTime12Hour(connectionTarget?.deadline_time);
 
   const connectionEval = evaluateLogicalConnection(
@@ -135,11 +145,12 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
 
   // Clean close any active popup
   const closeActivePopup = useCallback(() => {
+    clearPopupTimeout();
     if (activePopupRef.current) {
       activePopupRef.current.remove();
       activePopupRef.current = null;
     }
-  }, []);
+  }, [clearPopupTimeout]);
 
   // Anchors popup to the left (west) of the track so the train marker is never blocked
   const openGoodsTrainPopup = useCallback(
@@ -175,7 +186,8 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
       if (view === 'delays_ahead') {
         setSelectedDelayId('cause-2');
         map.fitBounds(preset.bounds, { padding: preset.padding, duration: preset.duration });
-        setTimeout(() => {
+        clearPopupTimeout();
+        popupTimeoutRef.current = window.setTimeout(() => {
           if (!mapRef.current) return;
           openGoodsTrainPopup(mapRef.current);
         }, 200);
@@ -204,6 +216,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   useEffect(() => {
     if (!mapContainerRef.current) return;
     let isCancelled = false;
+    let resizeObserver: ResizeObserver | null = null;
 
     fetchCorridorConfig()
       .then((cfg) => cfg.mapbox_access_token)
@@ -230,7 +243,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         });
 
         // Auto-resize observer
-        const resizeObserver = new ResizeObserver(() => {
+        resizeObserver = new ResizeObserver(() => {
           map.resize();
         });
         if (mapContainerRef.current) {
@@ -357,8 +370,10 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
             activePopupRef.current = popup;
 
             // Wire up "Track this train" button inside popup
-            setTimeout(() => {
-              const btn = document.getElementById(`btn-track-${props.train_no}`);
+            const safeTrainId = String(props.train_no).replace(/[^a-zA-Z0-9_-]/g, '');
+            clearPopupTimeout();
+            popupTimeoutRef.current = window.setTimeout(() => {
+              const btn = document.getElementById(`btn-track-${safeTrainId}`);
               if (btn) {
                 btn.onclick = () => {
                   setSelectedTrain(props.train_no);
@@ -384,7 +399,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
                 role_badge: props.role_badge,
                 explanation: props.explanation,
               },
-              prediction
+              predictionRef.current
             );
 
             const popup = new maplibregl.Popup({ offset: 10, closeButton: true })
@@ -429,6 +444,8 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
 
     return () => {
       isCancelled = true;
+      clearPopupTimeout();
+      resizeObserver?.disconnect();
       closeActivePopup();
       if (mapRef.current) {
         mapRef.current.remove();
@@ -501,97 +518,93 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
       {/* MapLibre WebGL Canvas Container */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Floating View Controls (Top Left) */}
-      <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-        {/* Camera Views Bar */}
-        <div className="backdrop-blur-md bg-white/95 p-1 rounded-xl border border-[#E2E8F0] shadow-md flex items-center gap-1">
+      {/* Floating Camera Preset Bar (Top Right) */}
+      <div className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 p-1.5 rounded-2xl bg-white/95 backdrop-blur-sm border border-slate-200/80 shadow-md">
+        <button
+          type="button"
+          onClick={() => handleCameraView('my_train')}
+          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeMapView === 'my_train'
+              ? 'bg-[#0F294A] text-white shadow-2xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+          title="Focus on monitored train"
+        >
+          <Train className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">My Train</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleCameraView('delays_ahead')}
+          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeMapView === 'delays_ahead'
+              ? 'bg-amber-600 text-white shadow-2xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+          title="Inspect delays ahead"
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Delays Ahead</span>
+        </button>
+
+        {isRescueAvailable && (
           <button
             type="button"
-            onClick={() => handleCameraView('my_train')}
+            onClick={() => handleCameraView('alternative_route')}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeMapView === 'my_train'
-                ? 'bg-[#0F294A] text-white shadow-2xs'
+              activeMapView === 'alternative_route'
+                ? 'bg-emerald-600 text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
-            title="Focus on monitored train"
+            title={isKolkata ? "Kona Expressway Road Transfer" : "NH-16 Road Transfer Bypass"}
           >
-            <Train className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">My Train</span>
+            <Car className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Cab Bypass</span>
           </button>
+        )}
 
-          <button
-            type="button"
-            onClick={() => handleCameraView('delays_ahead')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeMapView === 'delays_ahead'
-                ? 'bg-amber-600 text-white shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-            title="Inspect delay bottleneck"
-          >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Bottleneck</span>
-          </button>
+        <button
+          type="button"
+          onClick={() => handleCameraView('full_journey')}
+          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeMapView === 'full_journey'
+              ? 'bg-[#0F294A] text-white shadow-2xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+          title={`Fit full corridor (${isKolkata ? 'Howrah to Kharagpur' : 'Bhadrak to Puri'})`}
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Full Journey</span>
+        </button>
+      </div>
 
-          {isRescueAvailable && (
-            <button
-              type="button"
-              onClick={() => handleCameraView('alternative_route')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeMapView === 'alternative_route'
-                  ? 'bg-emerald-600 text-white shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-              title={isKolkata ? "Kona Expressway Road Transfer" : "NH-16 Road Transfer Bypass"}
-            >
-              <Car className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{isKolkata ? "Kona Exp" : "Road Rescue"}</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => handleCameraView('full_journey')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeMapView === 'full_journey'
-                ? 'bg-[#0F294A] text-white shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-            title={`Fit full corridor (${isKolkata ? 'Howrah to Kharagpur' : 'Bhadrak to Puri'})`}
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Full Journey</span>
-          </button>
-        </div>
-
-        {/* Camera Navigation Buttons */}
-        <div className="backdrop-blur-md bg-white/95 p-1 rounded-xl border border-[#E2E8F0] shadow-md flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={() => handleCameraView('my_train')}
-            title="Center on My Train"
-            className="p-1.5 text-slate-600 hover:text-[#0F294A] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-          >
-            <LocateFixed className="w-4 h-4 text-orange-600" />
-          </button>
-          <div className="h-px bg-slate-200 mx-1" />
-          <button
-            type="button"
-            onClick={() => mapRef.current?.zoomIn()}
-            title="Zoom In"
-            className="p-1.5 text-slate-600 hover:text-[#0F294A] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => mapRef.current?.zoomOut()}
-            title="Zoom Out"
-            className="p-1.5 text-slate-600 hover:text-[#0F294A] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-        </div>
+      {/* Compact Zoom & Recenter Stack (Top Right, below preset bar) */}
+      <div className="absolute top-16 right-3 z-10 flex flex-col w-9 rounded-xl bg-white/95 backdrop-blur-sm border border-slate-200/80 shadow-md divide-y divide-slate-200/70 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => handleCameraView('my_train')}
+          title="Center on My Train"
+          className="w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
+        >
+          <LocateFixed className="w-4 h-4 text-orange-600" />
+        </button>
+        <button
+          type="button"
+          onClick={() => mapRef.current?.zoomIn()}
+          title="Zoom In"
+          className="w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => mapRef.current?.zoomOut()}
+          title="Zoom Out"
+          className="w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Contextual Clean Map Legend */}
