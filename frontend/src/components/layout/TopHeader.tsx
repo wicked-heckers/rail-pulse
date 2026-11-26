@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRailStore } from '../../stores/useRailStore';
 import { setSpeedMultiplier } from '../../services/api';
-import { Shield, Navigation, ArrowLeft, Settings, Clock } from 'lucide-react';
-import { CorridorSwitcher } from './CorridorSwitcher';
-import { TrainDropdown } from './TrainDropdown';
+import { Shield, Navigation, ArrowLeft, Settings, Clock, GitBranch, Train } from 'lucide-react';
+import { getTrainIdentity } from '../dashboard/passengerUtils';
 
 function formatEpochClockIST(epochSecs: number): string {
   const istSecs = (Math.floor(epochSecs) + 19800) % 86400;
@@ -20,6 +19,8 @@ function formatEpochClockIST(epochSecs: number): string {
 
 export const TopHeader: React.FC = () => {
   const {
+    selectedTrain,
+    activeCorridorId,
     activeSnapshot,
     updateSnapshot,
     passengerStatus,
@@ -28,6 +29,8 @@ export const TopHeader: React.FC = () => {
     setDrawerOpen,
     setCurrentView,
   } = useRailStore();
+
+  const trainIdentity = getTrainIdentity(selectedTrain, activeSnapshot);
 
   const simSpeed = activeSnapshot.speed_multiplier || 1;
   const clockAnchorRef = useRef<{ tickUtc: number; syncedAtMs: number; speed: number }>({
@@ -104,12 +107,36 @@ export const TopHeader: React.FC = () => {
           </span>
         </button>
 
-        <CorridorSwitcher />
+        {/* Static Corridor Badge */}
+        <div
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono font-bold shadow-2xs pointer-events-none select-none ${
+            activeCorridorId === 'SER_HWH_KGP'
+              ? 'bg-amber-50 text-amber-900 border-amber-300'
+              : 'bg-indigo-50 text-indigo-900 border-indigo-200'
+          }`}
+        >
+          <GitBranch className="w-3.5 h-3.5 shrink-0 opacity-75" />
+          <span className="tabular-nums whitespace-nowrap">
+            {activeCorridorId === 'SER_HWH_KGP' ? 'SER • HWH–KGP' : 'ECoR • BHC–PURI'}
+          </span>
+        </div>
       </div>
 
-      {/* Active Monitored Train Selector (Desktop) */}
+      {/* Active Monitored Train Badge (Static Read-Only, Desktop) */}
       <div className="hidden md:flex items-center justify-center px-1 sm:px-2 shrink-0">
-        <TrainDropdown />
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-white border-slate-200/90 text-slate-800 shadow-2xs pointer-events-none select-none">
+          <div className="p-1 rounded-md bg-[#0F294A]/5 text-[#0F294A]">
+            <Train className="w-3.5 h-3.5" />
+          </div>
+
+          <div className="flex items-center gap-1.5 font-mono text-xs sm:text-sm">
+            <span className="font-extrabold text-[#0F294A]">{trainIdentity.trainNo}</span>
+            <span className="text-slate-400">•</span>
+            <span className="text-slate-600 font-sans font-medium truncate max-w-[160px]">
+              {trainIdentity.trainName}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Right Controls: Desktop Clock/Speed + Responsive At Home/On Board Toggle + Demo Button */}
