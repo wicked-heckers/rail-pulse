@@ -27,7 +27,6 @@ export interface TrackBlock {
   terminal_slack_mins: number;
   is_single_line_throat?: boolean;
 }
-
 export interface CausalCard {
   event: string;
   station_code: string;

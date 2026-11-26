@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useManagerTrainStore, type ManagerTrain } from '../../stores/useManagerTrainStore';
 import { X, Train, Plus, Sparkles, AlertCircle } from 'lucide-react';
 
@@ -90,6 +90,16 @@ export const AddTrainModal: React.FC = () => {
   const [currentDelayMins, setCurrentDelayMins] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  // Close modal on Escape
+  useEffect(() => {
+    if (!isAddModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAddModalOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAddModalOpen, setAddModalOpen]);
+
   if (!isAddModalOpen) return null;
 
   const handleApplyPreset = (p: PresetTrain) => {
@@ -111,6 +121,10 @@ export const AddTrainModal: React.FC = () => {
 
     if (!cleanNo) {
       setError('Please provide a valid train number (e.g. 12073).');
+      return;
+    }
+    if (['12821', '22895', '18410'].includes(cleanNo)) {
+      setError(`Train ${cleanNo} is a protected core corridor service and cannot be overwritten.`);
       return;
     }
     if (!cleanName) {

@@ -14,12 +14,12 @@ export const LandingNav: React.FC = () => {
   ];
 
   return (
-    <nav className="sticky top-0 z-40 backdrop-blur-md bg-white/95 border-b border-slate-200 px-4 sm:px-8 shadow-2xs">
-      <div className="max-w-5xl mx-auto w-full flex items-center justify-between h-16 sm:h-[68px]">
+    <nav className="sticky top-0 z-40 backdrop-blur-md bg-white/95 border-b border-slate-200 px-4 sm:px-6 shadow-2xs">
+      <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-2 h-16 sm:h-[68px]">
         {/* Brand */}
-        <div className="flex items-center gap-2.5 sm:gap-3 select-none shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 select-none shrink-0">
           <img src="/logo.png" alt="Rail-Pulse logo" className="w-8 h-8 sm:w-9 sm:h-9 object-contain shrink-0" />
-          <span className="font-bold text-base sm:text-xl tracking-wider text-[#0F294A] whitespace-nowrap shrink-0">
+          <span className="font-bold text-lg sm:text-xl tracking-wider text-[#0F294A] whitespace-nowrap shrink-0">
             {t.brand}
           </span>
         </div>

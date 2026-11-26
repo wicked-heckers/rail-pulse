@@ -4,6 +4,7 @@ import type {
   CorridorSummary,
   ForecastResponse,
   RescueEvaluationResponse,
+  TrainKinematicState,
 } from '../types/corridor';
 import { MOCK_SNAPSHOT } from '../services/mockFallback';
 import { listCorridors, switchCorridorApi } from '../services/api';
@@ -21,7 +22,6 @@ interface RailStore {
   language: 'EN' | 'HI' | 'OR';
   selectedTrain: string;
   passengerStatus: 'PRE_BOARDING' | 'ON_BOARD';
-  mobileTab: 'timeline' | 'radar';
   drawerOpen: boolean;
   cabModalOpen: boolean;
 
@@ -29,6 +29,7 @@ interface RailStore {
   activeCorridorId: string;
   availableCorridors: CorridorSummary[];
   activeSnapshot: CorridorSnapshot;
+  customTrains: TrainKinematicState[];
   forecast: ForecastResponse | null;
   rescue: RescueEvaluationResponse | null;
   connectionTarget: ConnectionTargetState;
@@ -51,13 +52,15 @@ interface RailStore {
   navigateToDashboardWithTrain: (trainNo?: string) => void;
   setSelectedTrain: (trainNo: string) => void;
   setPassengerStatus: (status: 'PRE_BOARDING' | 'ON_BOARD') => void;
-  setMobileTab: (tab: 'timeline' | 'radar') => void;
   setDrawerOpen: (open: boolean) => void;
   setCabModalOpen: (open: boolean) => void;
   setConnectionTarget: (target: Partial<ConnectionTargetState>) => void;
   setActiveMapView: (view: 'my_train' | 'delays_ahead' | 'alternative_route' | 'full_journey') => void;
   setSelectedDelayId: (id: string | null) => void;
   updateSnapshot: (snapshot: CorridorSnapshot) => void;
+  addCustomTrain: (train: TrainKinematicState) => void;
+  removeCustomTrain: (trainNo: string) => void;
+  clearCustomTrains: () => void;
   setForecast: (forecast: ForecastResponse) => void;
   setRescue: (rescue: RescueEvaluationResponse) => void;
   setWsStatus: (connected: boolean, text: string) => void;
@@ -71,7 +74,6 @@ export const useRailStore = create<RailStore>((set, get) => ({
   language: 'EN',
   selectedTrain: '12821',
   passengerStatus: 'ON_BOARD',
-  mobileTab: 'timeline',
   drawerOpen: false,
   cabModalOpen: false,
 
@@ -103,6 +105,7 @@ export const useRailStore = create<RailStore>((set, get) => ({
   selectedDelayId: null,
 
   activeSnapshot: MOCK_SNAPSHOT,
+  customTrains: [],
   forecast: null,
   rescue: null,
   connectionTarget: {
@@ -167,7 +170,6 @@ export const useRailStore = create<RailStore>((set, get) => ({
       connectionTarget: { ...state.connectionTarget, isCustom: false },
     })),
   setPassengerStatus: (status) => set({ passengerStatus: status }),
-  setMobileTab: (tab) => set({ mobileTab: tab }),
   setDrawerOpen: (open) => set({ drawerOpen: open }),
   setCabModalOpen: (open) => set({ cabModalOpen: open }),
   setConnectionTarget: (target) =>
@@ -179,21 +181,59 @@ export const useRailStore = create<RailStore>((set, get) => ({
   updateSnapshot: (snapshot) => {
     // Sync active corridor id if snapshot has it
     const activeCorridorId = snapshot.corridor_id || get().activeCorridorId;
-    // Preserve custom trains that were injected into the client-side snapshot
-    const currentCustom = get().activeSnapshot?.trains?.filter(
-      (t) => !snapshot.trains?.some((st) => st.train_no === t.train_no)
+    // Preserve custom trains explicitly managed in customTrains state
+    const custom = get().customTrains || [];
+    const customFiltered = custom.filter(
+      (ct) => !snapshot.trains?.some((st) => st.train_no === ct.train_no)
     );
-    if (currentCustom && currentCustom.length > 0) {
+    if (customFiltered.length > 0) {
       set({
         activeCorridorId,
         activeSnapshot: {
           ...snapshot,
-          trains: [...snapshot.trains, ...currentCustom],
+          trains: [...(snapshot.trains || []), ...customFiltered],
         },
       });
     } else {
       set({ activeCorridorId, activeSnapshot: snapshot });
     }
+  },
+  addCustomTrain: (train) => {
+    const updated = [...(get().customTrains || []).filter((t) => t.train_no !== train.train_no), train];
+    const currentTrains = get().activeSnapshot?.trains || [];
+    const updatedSnapshotTrains = [
+      ...currentTrains.filter((t) => t.train_no !== train.train_no),
+      train,
+    ];
+    set({
+      customTrains: updated,
+      activeSnapshot: {
+        ...get().activeSnapshot,
+        trains: updatedSnapshotTrains,
+      },
+    });
+  },
+  removeCustomTrain: (trainNo) => {
+    const updated = (get().customTrains || []).filter((t) => t.train_no !== trainNo);
+    const currentTrains = get().activeSnapshot?.trains || [];
+    set({
+      customTrains: updated,
+      activeSnapshot: {
+        ...get().activeSnapshot,
+        trains: currentTrains.filter((t) => t.train_no !== trainNo),
+      },
+    });
+  },
+  clearCustomTrains: () => {
+    const currentTrains = get().activeSnapshot?.trains || [];
+    const customNos = new Set((get().customTrains || []).map((t) => t.train_no));
+    set({
+      customTrains: [],
+      activeSnapshot: {
+        ...get().activeSnapshot,
+        trains: currentTrains.filter((t) => !customNos.has(t.train_no)),
+      },
+    });
   },
   setForecast: (forecast) => set({ forecast }),
   setRescue: (rescue) => set({ rescue }),

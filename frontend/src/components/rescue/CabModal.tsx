@@ -1,11 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRailStore } from '../../stores/useRailStore';
 import { Car, X, Check, MapPin, Navigation } from 'lucide-react';
+import { formatEpochTo12Hour } from '../dashboard/passengerUtils';
 
 export const CabModal: React.FC = () => {
   const { cabModalOpen, setCabModalOpen, rescue, activeCorridorId } = useRailStore();
   const [isBooked, setIsBooked] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
+
+  // Close modal on Escape
+  useEffect(() => {
+    if (!cabModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setCabModalOpen(false);
+        setIsBooked(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [cabModalOpen, setCabModalOpen]);
 
   if (!cabModalOpen) return null;
 
@@ -82,6 +96,15 @@ export const CabModal: React.FC = () => {
     : isKhurda
     ? `Your driver Rajesh Sahu is waiting at Khurda Road Junction Portico Gate 1. Estimated road journey: ${driveMins} minutes to ${destName}.`
     : `Your driver Rajesh Sahu is waiting at Cuttack Junction Exit Gate 2. Estimated road journey: ${driveMins} minutes to ${destName}.`;
+
+  const roadArrival = rescue?.bailout_plan?.final_road_arrival_epoch
+    ? formatEpochTo12Hour(rescue.bailout_plan.final_road_arrival_epoch)
+    : isKolkata
+    ? '07:12 AM'
+    : isKhurda
+    ? '12:12 PM'
+    : '12:02 PM';
+  const minsSaved = rescue?.bailout_plan?.minutes_saved ?? (isKolkata ? 25 : isKhurda ? 28 : 21);
 
   const handleConfirm = () => {
     setIsBooking(true);
@@ -164,7 +187,7 @@ export const CabModal: React.FC = () => {
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex items-center justify-between text-xs">
                 <span className="text-emerald-800">Connection Arrival via Road:</span>
                 <span className="font-mono font-bold text-emerald-700 bg-white px-2 py-0.5 rounded border border-emerald-300">
-                  {isKhurda ? '12:12 PM (+28m lead)' : '12:02 PM (+36m lead)'}
+                  {roadArrival} (~{minsSaved}m lead)
                 </span>
               </div>
 

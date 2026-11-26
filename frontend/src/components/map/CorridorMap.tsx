@@ -8,20 +8,30 @@ import { useRailStore } from '../../stores/useRailStore';
 import {
   SMOOTH_TRACK_COORDS,
   SMOOTH_NH16_COORDS,
-  SMOOTH_NH16_KUR_COORDS,
-  SMOOTH_CONGESTION_AHEAD_COORDS,
-  SMOOTH_HWH_KGP_TRACK_COORDS,
-  SMOOTH_KONA_EXPRESSWAY_COORDS,
-  SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS,
   snapPointToTrack,
 } from '../../services/corridorData';
 import {
-  getDelayCauses,
   getStationRelevance,
   getArrivalPrediction,
   evaluateLogicalConnection,
   formatTime12Hour,
 } from '../dashboard/passengerUtils';
+import {
+  STATIONS,
+  SER_STATIONS,
+  CAMERA_PRESETS,
+  SER_CAMERA_PRESETS,
+  SMOOTH_HWH_KGP_TRACK_COORDS,
+  SMOOTH_KONA_EXPRESSWAY_COORDS,
+  createBaseMapStyle,
+  type MapCameraView,
+} from './mapConstants';
+import {
+  getGoodsTrainPopupHtml,
+  getTrainPopupHtml,
+  getStationPopupHtml,
+} from './mapPopupTemplates';
+import { initCorridorMapLayers, updateRouteLineGeometry } from './mapLayers';
 import {
   Train,
   AlertTriangle,
@@ -32,66 +42,30 @@ import {
   ZoomOut,
 } from 'lucide-react';
 
-// Verified ECoR Stations on the Corridor
-const STATIONS = [
-  { code: 'BHC', name: 'Bhadrak', km: 0.0, coords: [86.4950, 21.0583] as [number, number] },
-  { code: 'JJKR', name: 'Jajpur K. Rd', km: 44.0, coords: [86.1333, 20.9500] as [number, number] },
-  { code: 'JKPR', name: 'Jakhapura Jn', km: 51.0, coords: [86.0600, 20.9400] as [number, number] },
-  { code: 'NRG', name: 'Nergundi Jn', km: 106.0, coords: [85.9200, 20.5500] as [number, number] },
-  { code: 'CTC', name: 'Cuttack Jn', km: 115.0, coords: [85.8829, 20.4625] as [number, number] },
-  { code: 'BRAG', name: 'Barang Jn', km: 128.0, coords: [85.8300, 20.4000] as [number, number] },
-  { code: 'BBS', name: 'Bhubaneswar', km: 143.0, coords: [85.8333, 20.2667] as [number, number] },
-  { code: 'KUR', name: 'Khurda Rd Jn', km: 162.0, coords: [85.7333, 20.1833] as [number, number] },
-  { code: 'PURI', name: 'Puri', km: 206.0, coords: [85.8314, 19.8133] as [number, number] },
-];
-
-// Verified South Eastern Railway Kolkata Trunk Line Stations
-const SER_STATIONS = [
-  { code: 'HWH', name: 'Howrah Jn', km: 0.0, coords: [88.3426, 22.5830] as [number, number] },
-  { code: 'SRC', name: 'Santragachi Jn', km: 7.0, coords: [88.2830, 22.5800] as [number, number] },
-  { code: 'ULB', name: 'Uluberia', km: 32.0, coords: [88.1100, 22.4700] as [number, number] },
-  { code: 'BZN', name: 'Bagnan', km: 45.0, coords: [87.9700, 22.4600] as [number, number] },
-  { code: 'MCA', name: 'Mecheda Jn', km: 58.0, coords: [87.8600, 22.4200] as [number, number] },
-  { code: 'PKU', name: 'Panskura Jn', km: 71.0, coords: [87.7200, 22.4100] as [number, number] },
-  { code: 'BCK', name: 'Balichak', km: 91.0, coords: [87.5500, 22.3700] as [number, number] },
-  { code: 'KGP', name: 'Kharagpur Jn', km: 115.0, coords: [87.3200, 22.3300] as [number, number] },
-];
-
-function createBaseMapStyle(mapboxToken?: string | null): any {
-  const tileUrl = mapboxToken
-    ? `https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}?access_token=${mapboxToken}`
-    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-  return {
-    version: 8,
-    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-    sources: {
-      'basemap-raster': {
-        type: 'raster',
-        tiles: [tileUrl],
-        tileSize: 256,
-        attribution: mapboxToken ? '© Mapbox © OpenStreetMap' : '© OpenStreetMap contributors',
-      },
-    },
-    layers: [
-      {
-        id: 'basemap-layer',
-        type: 'raster',
-        source: 'basemap-raster',
-        minzoom: 0,
-        maxzoom: 20,
-      },
-    ],
-  };
+export interface CorridorMapProps {
+  isModal?: boolean;
 }
 
-export const CorridorMap: React.FC = () => {
+export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const activePopupRef = useRef<MapLibrePopup | null>(null);
 
+  // Trigger map resize on mount and after render frame for modal transitions
+  useEffect(() => {
+    const t1 = setTimeout(() => {
+      mapRef.current?.resize();
+    }, 60);
+    const t2 = setTimeout(() => {
+      mapRef.current?.resize();
+    }, 300);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, []);
+
   const {
-    activeCorridorId,
     selectedTrain,
     setSelectedTrain,
     activeSnapshot,
@@ -103,12 +77,12 @@ export const CorridorMap: React.FC = () => {
     selectedDelayId,
     setSelectedDelayId,
     connectionTarget,
+    activeCorridorId,
   } = useRailStore();
 
   const isKolkata = activeCorridorId === 'SER_HWH_KGP';
-  const activeStations = isKolkata ? SER_STATIONS : STATIONS;
   const activeTrackCoords = isKolkata ? SMOOTH_HWH_KGP_TRACK_COORDS : SMOOTH_TRACK_COORDS;
-  const activeCongestionCoords = isKolkata ? SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS : SMOOTH_CONGESTION_AHEAD_COORDS;
+  const totalKm = isKolkata ? 115.0 : 206.0;
 
   // Synchronize 60 FPS GPU vector animator
   useTrainAnimator(mapRef);
@@ -121,9 +95,9 @@ export const CorridorMap: React.FC = () => {
     );
   }, [activeSnapshot.trains, selectedTrain]);
 
-  const trainKm = currentTrain?.chainage_km ?? 115.0;
+  const trainKm = currentTrain?.chainage_km ?? (isKolkata ? 58.0 : 115.0);
 
-  // Connection evaluation for journey status synchronization (Section 7)
+  // Connection evaluation for journey status synchronization
   const prediction = getArrivalPrediction(selectedTrain, forecast);
   const connectionDeadlineFormatted = formatTime12Hour(connectionTarget?.deadline_time);
 
@@ -131,8 +105,7 @@ export const CorridorMap: React.FC = () => {
     prediction.expectedTime,
     prediction.worstCaseTime,
     connectionDeadlineFormatted,
-    connectionTarget?.transfer_buffer_mins ?? 15,
-    rescue?.survival_probability_pct
+    connectionTarget?.transfer_buffer_mins || 15
   );
 
   const isRescueAvailable =
@@ -142,23 +115,23 @@ export const CorridorMap: React.FC = () => {
 
   // Split route coordinates: Completed (muted) vs Remaining (prominent navy)
   const { completedCoords, remainingCoords } = useMemo(() => {
-    const totalKm = isKolkata ? 115.0 : 206.0;
-    const track = activeTrackCoords;
-    const progressRatio = Math.min(1, Math.max(0, trainKm / totalKm));
-    const splitIndex = Math.floor(progressRatio * (track.length - 1));
+    const safeKm = Number.isFinite(trainKm) ? trainKm : (isKolkata ? 58.0 : 115.0);
+    const progressRatio = Math.min(1, Math.max(0, safeKm / totalKm));
+    const maxIdx = Math.max(0, activeTrackCoords.length - 1);
+    const splitIndex = Math.min(maxIdx, Math.max(0, Math.floor(progressRatio * maxIdx)));
 
     if (currentTrain?.direction === 'UP') {
       return {
-        completedCoords: track.slice(splitIndex),
-        remainingCoords: track.slice(0, splitIndex + 1),
+        completedCoords: activeTrackCoords.slice(splitIndex),
+        remainingCoords: activeTrackCoords.slice(0, splitIndex + 1),
       };
     }
 
     return {
-      completedCoords: track.slice(0, splitIndex + 1),
-      remainingCoords: track.slice(splitIndex),
+      completedCoords: activeTrackCoords.slice(0, splitIndex + 1),
+      remainingCoords: activeTrackCoords.slice(splitIndex),
     };
-  }, [trainKm, currentTrain?.direction, isKolkata, activeTrackCoords]);
+  }, [trainKm, currentTrain?.direction, activeTrackCoords, totalKm, isKolkata]);
 
   // Clean close any active popup
   const closeActivePopup = useCallback(() => {
@@ -168,45 +141,11 @@ export const CorridorMap: React.FC = () => {
     }
   }, []);
 
-  // Passenger-friendly Goods Train Ahead popup HTML
-  const getGoodsTrainPopupHtml = () => `
-    <div class="w-[300px] p-3.5 text-sm space-y-2 font-sans">
-      <!-- Row 1: Orange status dot + soft amber badge (clean space on right for × close button) -->
-      <div class="flex items-center justify-between pr-6">
-        <div class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">
-            ~14 min delay
-          </span>
-        </div>
-      </div>
-
-      <!-- Row 2: Full-width Title -->
-      <h4 class="font-bold text-[15px] leading-snug text-slate-900 pt-0.5">
-        ${isKolkata ? 'Freight Drag Merging Ahead' : 'Goods Train Ahead'}
-      </h4>
-
-      <!-- Row 3: Location + Plain Description -->
-      <div class="pt-1.5 border-t border-slate-100">
-        <div class="text-xs font-semibold text-slate-500 mb-1">
-          ${isKolkata ? 'Mecheda – Panskura Branch Junction' : 'Between Cuttack & Barang'}
-        </div>
-        <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">
-          ${
-            isKolkata
-              ? 'A slow Haldia port freight rake is occupying the branch chord ahead, adding about 14 mins to your journey.'
-              : 'A slow goods train is ahead of you toward Bhubaneswar, adding about 14 mins to your journey.'
-          }
-        </p>
-      </div>
-    </div>
-  `;
-
   // Anchors popup to the left (west) of the track so the train marker is never blocked
   const openGoodsTrainPopup = useCallback(
     (map: MapLibreMap) => {
       closeActivePopup();
-      const popupCoords: [number, number] = isKolkata ? [87.86, 22.42] : [85.856, 20.431];
+      const popupCoords: [number, number] = isKolkata ? [87.970, 22.460] : [85.856, 20.431];
       const popup = new maplibregl.Popup({
         anchor: 'right',
         offset: [-16, 0],
@@ -224,103 +163,38 @@ export const CorridorMap: React.FC = () => {
 
   // Direct camera view handler triggered on button click or track click
   const handleCameraView = useCallback(
-    (view: 'my_train' | 'delays_ahead' | 'alternative_route' | 'full_journey') => {
+    (view: MapCameraView) => {
       setActiveMapView(view);
       const map = mapRef.current;
       if (!map) return;
 
       closeActivePopup();
+      const presets = isKolkata ? SER_CAMERA_PRESETS : CAMERA_PRESETS;
+      const preset = presets[view];
 
-      if (view === 'my_train') {
-        setSelectedDelayId(null);
-        if (isKolkata) {
-          map.fitBounds(
-            [
-              [87.30, 22.30], // SW: Kharagpur
-              [88.38, 22.62], // NE: Howrah
-            ],
-            { padding: 50, duration: 800 }
-          );
-        } else {
-          map.fitBounds(
-            [
-              [85.80, 20.24], // SW: Bhubaneswar
-              [85.92, 20.50], // NE: Cuttack
-            ],
-            { padding: 50, duration: 800 }
-          );
-        }
-      } else if (view === 'delays_ahead') {
+      if (view === 'delays_ahead') {
         setSelectedDelayId('cause-2');
-        // Smoothly zoom in on the delay zone ahead of the train
-        map.flyTo({
-          center: isKolkata ? [87.86, 22.42] : [85.856, 20.431],
-          zoom: 12.2,
-          speed: 1.2,
-          duration: 800,
-        });
-
-        // Show non-blocking delay explanation popup anchored to the left of the track
+        map.fitBounds(preset.bounds, { padding: preset.padding, duration: preset.duration });
         setTimeout(() => {
           if (!mapRef.current) return;
           openGoodsTrainPopup(mapRef.current);
         }, 200);
       } else if (view === 'alternative_route') {
-        if (map.getLayer('nh16-highway-line')) {
-          map.setLayoutProperty('nh16-highway-line', 'visibility', 'visible');
-        }
-        if (map.getLayer('nh16-highway-badge')) {
-          map.setLayoutProperty('nh16-highway-badge', 'visibility', 'visible');
-        }
-        if (isKolkata) {
-          map.fitBounds(
-            [
-              [88.26, 22.54], // SW: Santragachi
-              [88.36, 22.60], // NE: Howrah
-            ],
-            { padding: 50, duration: 800 }
-          );
-        } else if (rescue?.bailout_plan?.deboard_station_code === 'KUR') {
-          map.fitBounds(
-            rescue.bailout_plan.destination_station_code === 'PURI'
-              ? [
-                  [85.68, 19.78], // SW: Puri
-                  [85.86, 20.22], // NE: Khurda Road
-                ]
-              : [
-                  [85.70, 20.15], // SW: Khurda Road
-                  [85.86, 20.30], // NE: Bhubaneswar
-                ],
-            { padding: 50, duration: 800 }
-          );
-        } else {
-          map.fitBounds(
-            [
-              [85.80, 20.24], // SW: Bhubaneswar
-              [85.92, 20.48], // NE: Cuttack
-            ],
-            { padding: 50, duration: 800 }
-          );
-        }
-      } else if (view === 'full_journey') {
+        ['nh16-highway-casing', 'nh16-highway-line', 'nh16-highway-badge'].forEach((layerId) => {
+          if (map.getLayer(layerId)) {
+            map.setLayoutProperty(layerId, 'visibility', 'visible');
+          }
+        });
+        const isKhurda = rescue?.bailout_plan?.deboard_station_code === 'KUR';
+        const bounds = isKolkata
+          ? preset.bounds
+          : isKhurda
+          ? ([[85.70, 20.15], [85.86, 20.30]] as [[number, number], [number, number]])
+          : preset.bounds;
+        map.fitBounds(bounds, { padding: preset.padding, duration: preset.duration });
+      } else {
         setSelectedDelayId(null);
-        if (isKolkata) {
-          map.fitBounds(
-            [
-              [87.25, 22.25], // SW (Kharagpur)
-              [88.42, 22.65], // NE (Howrah)
-            ],
-            { padding: 40, duration: 800 }
-          );
-        } else {
-          map.fitBounds(
-            [
-              [85.55, 19.75], // SW (Puri)
-              [86.60, 21.15], // NE (Bhadrak)
-            ],
-            { padding: 40, duration: 800 }
-          );
-        }
+        map.fitBounds(preset.bounds, { padding: preset.padding, duration: preset.duration });
       }
     },
     [closeActivePopup, openGoodsTrainPopup, setActiveMapView, setSelectedDelayId, isKolkata, rescue]
@@ -336,12 +210,11 @@ export const CorridorMap: React.FC = () => {
         if (isCancelled || !mapContainerRef.current || mapRef.current) return;
 
         const baseStyle = createBaseMapStyle(cfg.mapbox_access_token);
-
         const map = new maplibregl.Map({
           container: mapContainerRef.current,
           style: baseStyle,
-          center: [85.8829, 20.4625],
-          zoom: 9.8,
+          center: isKolkata ? [87.9700, 22.4600] : [85.8829, 20.4625],
+          zoom: isKolkata ? 9.5 : 9.8,
           attributionControl: false,
         });
 
@@ -356,372 +229,54 @@ export const CorridorMap: React.FC = () => {
         }
 
         map.on('load', () => {
-          // Hide built-in basemap city/town place label layers to avoid duplicate text
-          const styleLayers = map.getStyle().layers || [];
-          for (const layer of styleLayers) {
-            if (
-              layer.type === 'symbol' &&
-              (layer.id.includes('place') ||
-                layer.id.includes('label') ||
-                layer.id.includes('town') ||
-                layer.id.includes('city') ||
-                layer.id.includes('settlement'))
-            ) {
-              map.setLayoutProperty(layer.id, 'visibility', 'none');
-            }
-          }
+          const presets = isKolkata ? SER_CAMERA_PRESETS : CAMERA_PRESETS;
+          const defaultPreset = presets.my_train;
+          map.fitBounds(defaultPreset.bounds, {
+            padding: defaultPreset.padding,
+            duration: defaultPreset.duration,
+          });
 
-          // Default initial view: Focus on active rescue action corridor
-          if (isKolkata) {
-            map.fitBounds(
-              [
-                [87.30, 22.30], // SW: Kharagpur
-                [88.38, 22.62], // NE: Howrah
-              ],
-              { padding: 50, duration: 600 }
+          // Prepare Station GeoJSON
+          const isUp = currentTrain?.direction === 'UP' || selectedTrain === '18410' || selectedTrain === '12822';
+          const safeTrainKm = Number.isFinite(trainKm) ? trainKm : (isKolkata ? 58.0 : 115.0);
+          const stationsList = isKolkata ? SER_STATIONS : STATIONS;
+
+          const stationFeatures = stationsList.map((stn) => {
+            const isPassed = isUp ? stn.km > safeTrainKm + 4 : safeTrainKm > stn.km + 4;
+            const isCurrent = Math.abs(stn.km - safeTrainKm) <= 6;
+            const relevance = getStationRelevance(
+              stn.code,
+              selectedTrain,
+              isRescueAvailable,
+              isPassed,
+              isCurrent
             );
-          } else {
-            map.fitBounds(
-              [
-                [85.80, 20.24], // SW: South of Bhubaneswar
-                [85.92, 20.50], // NE: North of Cuttack
-              ],
-              { padding: 50, duration: 600 }
-            );
-          }
 
-          // 1. Natural Railway Track (Casing)
-          map.addSource('railway-track-casing-source', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: { name: isKolkata ? 'SER Trunk Line' : 'ECoR Trunk Line' },
-              geometry: { type: 'LineString', coordinates: activeTrackCoords },
-            },
-          });
-
-          map.addLayer({
-            id: 'railway-track-casing',
-            type: 'line',
-            source: 'railway-track-casing-source',
-            paint: {
-              'line-color': '#94A3B8',
-              'line-width': 5.5,
-              'line-opacity': 0.4,
-            },
-          });
-
-          // 2. Completed Journey Section (Muted neutral line)
-          map.addSource('completed-track-source', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: { name: 'Completed Section' },
-              geometry: { type: 'LineString', coordinates: completedCoords },
-            },
-          });
-
-          map.addLayer({
-            id: 'completed-track-line',
-            type: 'line',
-            source: 'completed-track-source',
-            paint: {
-              'line-color': '#CBD5E1',
-              'line-width': 3,
-              'line-opacity': 0.85,
-            },
-          });
-
-          // 3. Remaining Journey Section (Prominent navy line)
-          map.addSource('remaining-track-source', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: { name: 'Remaining Section' },
-              geometry: { type: 'LineString', coordinates: remainingCoords },
-            },
-          });
-
-          map.addLayer({
-            id: 'remaining-track-line',
-            type: 'line',
-            source: 'remaining-track-source',
-            paint: {
-              'line-color': '#0F294A',
-              'line-width': 3.5,
-            },
-          });
-
-          // Directional chevrons along remaining track indicating forward travel
-          map.addLayer({
-            id: 'railway-direction-chevrons',
-            type: 'symbol',
-            source: 'remaining-track-source',
-            layout: {
-              'symbol-placement': 'line',
-              'symbol-spacing': 90,
-              'text-field': '›',
-              'text-size': 14,
-              'text-keep-upright': false,
-            },
-            paint: {
-              'text-color': '#0F294A',
-              'text-opacity': 0.75,
-              'text-halo-color': '#FFFFFF',
-              'text-halo-width': 1,
-            },
-          });
-
-          // 4. Affected Delay Section (Ahead of train)
-          map.addSource('freight-hazard-source', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: { name: 'Delay Section Ahead' },
-              geometry: { type: 'LineString', coordinates: activeCongestionCoords },
-            },
-          });
-
-          map.addLayer({
-            id: 'freight-hazard-glow',
-            type: 'line',
-            source: 'freight-hazard-source',
-            paint: {
-              'line-color': '#F59E0B',
-              'line-width': 8,
-              'line-opacity': 0.45,
-            },
-          });
-
-          map.addLayer({
-            id: 'freight-hazard-core',
-            type: 'line',
-            source: 'freight-hazard-source',
-            paint: {
-              'line-color': '#D97706',
-              'line-width': 3,
-              'line-dasharray': [3, 2],
-            },
-          });
-
-          // Delay badge: Plain passenger copy
-          map.addSource('freight-badge-source', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
+            return {
+              type: 'Feature' as const,
               properties: {
-                label: isKolkata
-                  ? '⚠ Suburban Freight Drag Ahead (~14m delay)'
-                  : '⚠ Goods Train Ahead (~14m delay)',
+                code: stn.code,
+                name: stn.name,
+                km: stn.km,
+                is_destination: isKolkata ? stn.code === 'KGP' || stn.code === 'HWH' : stn.code === 'BBS',
+                is_rescue_transfer: isKolkata ? stn.code === 'SRC' || stn.code === 'MCA' : stn.code === 'CTC',
+                is_current: isCurrent,
+                is_passed: isPassed,
+                role_badge: relevance.roleBadge,
+                explanation: relevance.relevanceExplanation,
               },
               geometry: {
-                type: 'Point',
-                coordinates: isKolkata ? [87.86, 22.42] : [85.856, 20.431],
+                type: 'Point' as const,
+                coordinates: stn.coords,
               },
-            },
+            };
           });
 
-          map.addLayer({
-            id: 'freight-badge-layer',
-            type: 'symbol',
-            source: 'freight-badge-source',
-            layout: {
-              'text-field': ['get', 'label'],
-              'text-size': 12,
-              'text-offset': [0, -1.4],
-              'text-anchor': 'bottom',
-            },
-            paint: {
-              'text-color': '#92400E',
-              'text-halo-color': '#FEF3C7',
-              'text-halo-width': 2.5,
-            },
-          });
-
-          // 5. Dashed Emerald Highway Rescue Route
-          map.addSource('nh16-highway', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: {
-                name: isKolkata
-                  ? 'Kona Expressway Rescue Corridor'
-                  : 'NH-16 Expressway Rescue Corridor',
-              },
-              geometry: {
-                type: 'LineString',
-                coordinates: isKolkata ? SMOOTH_KONA_EXPRESSWAY_COORDS : SMOOTH_NH16_COORDS,
-              },
-            },
-          });
-
-          map.addLayer({
-            id: 'nh16-highway-line',
-            type: 'line',
-            source: 'nh16-highway',
-            layout: {
-              visibility: isRescueAvailable ? 'visible' : 'none',
-            },
-            paint: {
-              'line-color': '#10B981',
-              'line-width': 4,
-              'line-dasharray': [2, 2],
-            },
-          });
-
-          // Highway Rescue Pill Badge
-          map.addSource('nh16-badge-source', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: {
-                label: isKolkata
-                  ? 'Cab from Santragachi • 24 mins faster'
-                  : 'Cab from Cuttack • 21 mins faster',
-              },
-              geometry: {
-                type: 'Point',
-                coordinates: isKolkata ? [88.31, 22.57] : [85.875, 20.370],
-              },
-            },
-          });
-
-          map.addLayer({
-            id: 'nh16-highway-badge',
-            type: 'symbol',
-            source: 'nh16-badge-source',
-            layout: {
-              visibility: isRescueAvailable ? 'visible' : 'none',
-              'text-field': ['get', 'label'],
-              'text-size': 12,
-              'text-offset': [1.2, 0],
-              'text-anchor': 'left',
-            },
-            paint: {
-              'text-color': '#065F46',
-              'text-halo-color': '#D1FAE5',
-              'text-halo-width': 2.5,
-            },
-          });
-
-          // 6. Station Nodes
-          map.addSource('station-nodes', {
-            type: 'geojson',
-            data: {
-              type: 'FeatureCollection',
-              features: activeStations.map((stn) => {
-                const isPassed = trainKm > stn.km + 4;
-                const isCurrent = Math.abs(stn.km - trainKm) <= 6;
-                const relevance = getStationRelevance(
-                  stn.code,
-                  selectedTrain,
-                  isRescueAvailable,
-                  isPassed,
-                  isCurrent
-                );
-
-                const rescueDeboardStn =
-                  rescue?.bailout_plan?.deboard_station_code || (isKolkata ? 'SRC' : 'CTC');
-                return {
-                  type: 'Feature',
-                  properties: {
-                    code: stn.code,
-                    name: stn.name,
-                    km: stn.km,
-                    is_destination: stn.code === (isKolkata ? 'HWH' : 'BBS'),
-                    is_rescue_transfer: stn.code === rescueDeboardStn,
-                    is_current: isCurrent,
-                    is_passed: isPassed,
-                    role_badge: relevance.roleBadge,
-                    explanation: relevance.relevanceExplanation,
-                  },
-                  geometry: {
-                    type: 'Point',
-                    coordinates: stn.coords,
-                  },
-                };
-              }),
-            },
-          });
-
-          // Station Circle Outer Ring (highlighting destination & transfer hub)
-          map.addLayer({
-            id: 'station-outer-halo',
-            type: 'circle',
-            source: 'station-nodes',
-            paint: {
-              'circle-radius': [
-                'case',
-                ['get', 'is_destination'],
-                11,
-                ['get', 'is_rescue_transfer'],
-                9,
-                ['get', 'is_current'],
-                9,
-                0,
-              ],
-              'circle-color': [
-                'case',
-                ['get', 'is_destination'],
-                '#0F294A',
-                ['get', 'is_rescue_transfer'],
-                '#F59E0B',
-                '#10B981',
-              ],
-              'circle-opacity': 0.25,
-            },
-          });
-
-          map.addLayer({
-            id: 'station-circles',
-            type: 'circle',
-            source: 'station-nodes',
-            paint: {
-              'circle-radius': [
-                'case',
-                ['get', 'is_destination'],
-                6,
-                ['get', 'is_current'],
-                5.5,
-                4.5,
-              ],
-              'circle-color': '#FFFFFF',
-              'circle-stroke-color': [
-                'case',
-                ['get', 'is_destination'],
-                '#0F294A',
-                ['get', 'is_rescue_transfer'],
-                '#D97706',
-                ['get', 'is_current'],
-                '#059669',
-                '#64748B',
-              ],
-              'circle-stroke-width': 2.5,
-            },
-          });
-
-          // Station labels: Anchored RIGHT with offset
-          map.addLayer({
-            id: 'station-labels',
-            type: 'symbol',
-            source: 'station-nodes',
-            layout: {
-              'text-field': ['get', 'name'],
-              'text-size': 12,
-              'text-offset': [-1.0, 0],
-              'text-anchor': 'right',
-            },
-            paint: {
-              'text-color': '#0F172A',
-              'text-halo-color': '#FFFFFF',
-              'text-halo-width': 2,
-            },
-          });
-
-          // 7. Live Trains GeoJSON Source (Snapped strictly to railway polyline)
+          // Prepare Initial Trains GeoJSON
           const initialTrainFeatures = activeSnapshot.trains.map((t) => {
-            const rawLon = t.lon ?? 85.8829;
-            const rawLat = t.lat ?? 20.4625;
+            const defaultCoord = isKolkata ? [87.9700, 22.4600] : [85.8829, 20.4625];
+            const rawLon = t.lon ?? defaultCoord[0];
+            const rawLat = t.lat ?? defaultCoord[1];
             const [snappedLon, snappedLat] = snapPointToTrack(rawLon, rawLat);
             return {
               type: 'Feature' as const,
@@ -741,90 +296,19 @@ export const CorridorMap: React.FC = () => {
             };
           });
 
-          map.addSource('trains-source', {
-            type: 'geojson',
-            data: {
-              type: 'FeatureCollection',
-              features: initialTrainFeatures,
-            },
-          });
-
-          // Selected train pulsing orange/navy halo
-          map.addLayer({
-            id: 'trains-halo',
-            type: 'circle',
-            source: 'trains-source',
-            paint: {
-              'circle-radius': [
-                'case',
-                ['get', 'is_target'],
-                16,
-                8,
-              ],
-              'circle-color': [
-                'case',
-                ['get', 'is_target'],
-                '#F97316',
-                '#3B82F6',
-              ],
-              'circle-opacity': [
-                'case',
-                ['get', 'is_target'],
-                0.35,
-                0.2,
-              ],
-            },
-          });
-
-          // Train core point
-          map.addLayer({
-            id: 'trains-point',
-            type: 'circle',
-            source: 'trains-source',
-            paint: {
-              'circle-radius': [
-                'case',
-                ['get', 'is_target'],
-                8,
-                5.5,
-              ],
-              'circle-color': [
-                'case',
-                ['get', 'is_target'],
-                '#EA580C',
-                '#2563EB',
-              ],
-              'circle-stroke-color': '#FFFFFF',
-              'circle-stroke-width': 2.5,
-            },
-          });
-
-          // Train label
-          map.addLayer({
-            id: 'trains-label',
-            type: 'symbol',
-            source: 'trains-source',
-            layout: {
-              'text-field': [
-                'case',
-                ['get', 'is_target'],
-                ['concat', ['get', 'train_no'], ' • ', ['get', 'train_name']],
-                ['concat', ['get', 'train_no'], ' (+', ['to-string', ['get', 'delay_mins']], 'm)'],
-              ],
-              'text-size': 12,
-              'text-offset': [1.4, 0],
-              'text-anchor': 'left',
-            },
-            paint: {
-              'text-color': '#0F172A',
-              'text-halo-color': '#FFFFFF',
-              'text-halo-width': 2.5,
-            },
-          });
-
-          // ==========================================
-          // Interactive Marker Popups (Section 8)
-          // ==========================================
+          // Initialize modular map layers
+          initCorridorMapLayers(
+            map,
+            completedCoords,
+            remainingCoords,
+            isRescueAvailable,
+            stationFeatures,
+            initialTrainFeatures,
+            activeTrackCoords,
+            isKolkata ? SMOOTH_KONA_EXPRESSWAY_COORDS : SMOOTH_NH16_COORDS,
+            isKolkata ? 'Cab from Santragachi • 25 mins faster' : 'Cab from Cuttack • 21 mins faster',
+            isKolkata ? [88.315, 22.565] : [85.875, 20.370]
+          );
 
           // Train click handler
           map.on('click', 'trains-point', (e) => {
@@ -834,48 +318,15 @@ export const CorridorMap: React.FC = () => {
 
             closeActivePopup();
 
-            const isTarget = props.is_target;
-            const trainNo = props.train_no;
-            const trainName = props.train_name;
-            const delay = props.delay_mins;
-            const speed = props.speed_kmph;
-
-            const popupHtml = `
-              <div class="p-3 max-w-xs text-xs space-y-2">
-                <div class="flex items-center justify-between border-b pb-1.5 border-slate-100">
-                  <div class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full ${isTarget ? 'bg-orange-500 ring-2 ring-orange-200' : 'bg-blue-600'}"></span>
-                    <strong class="font-bold text-sm text-[#0F294A]">${trainNo} ${trainName}</strong>
-                  </div>
-                  <span class="px-1.5 py-0.5 rounded text-xs font-bold ${isTarget ? 'bg-orange-50 text-orange-800' : 'bg-slate-100 text-slate-700'}">
-                    ${isTarget ? 'Your Train' : 'Corridor Train'}
-                  </span>
-                </div>
-                <div class="space-y-1 text-slate-600 font-medium">
-                  <div class="flex justify-between">
-                    <span>Running Status:</span>
-                    <strong class="${delay > 5 ? 'text-amber-800' : 'text-emerald-700'} font-bold">
-                      ${delay > 0 ? `+${delay}m late` : 'On Time'} • ${speed > 0 ? `${speed} km/h` : props.current_station ? 'At Platform' : props.status === 'AT_TERMINUS' ? 'Terminus' : 'Halted on Block'}
-                    </strong>
-                  </div>
-                  <div class="flex justify-between">
-                    <span>Position:</span>
-                    <span class="text-slate-800 font-bold">${props.status === 'AT_TERMINUS' ? `Terminus ${props.current_station || 'PURI'}` : props.current_station ? `Platform ${props.current_station}` : `En route to ${props.next_station || 'BBS'}`}</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span>Data Source:</span>
-                    <span class="text-slate-500 font-mono text-xs">Real-Time Corridor Telemetry</span>
-                  </div>
-                </div>
-                ${
-                  !isTarget
-                    ? `<button id="btn-track-${trainNo}" class="w-full mt-1.5 py-1 px-2.5 bg-[#0F294A] hover:bg-slate-800 text-white font-bold rounded-lg text-center transition-colors cursor-pointer text-xs">
-                        Track this train
-                      </button>`
-                    : ''
-                }
-              </div>
-            `;
+            const popupHtml = getTrainPopupHtml({
+              train_no: props.train_no,
+              train_name: props.train_name,
+              delay_mins: props.delay_mins,
+              speed_kmph: props.speed_kmph,
+              current_station: props.current_station,
+              next_station: props.next_station,
+              is_target: props.is_target,
+            });
 
             const popup = new maplibregl.Popup({ offset: 12, closeButton: true })
               .setLngLat(coords)
@@ -886,10 +337,10 @@ export const CorridorMap: React.FC = () => {
 
             // Wire up "Track this train" button inside popup
             setTimeout(() => {
-              const btn = document.getElementById(`btn-track-${trainNo}`);
+              const btn = document.getElementById(`btn-track-${props.train_no}`);
               if (btn) {
                 btn.onclick = () => {
-                  setSelectedTrain(trainNo);
+                  setSelectedTrain(props.train_no);
                   popup.remove();
                 };
               }
@@ -904,25 +355,16 @@ export const CorridorMap: React.FC = () => {
 
             closeActivePopup();
 
-            const popupHtml = `
-              <div class="p-3 max-w-xs text-xs space-y-2">
-                <div class="flex items-center justify-between border-b pb-1.5 border-slate-100">
-                  <strong class="font-bold text-sm text-[#0F294A]">${props.name} (${props.code})</strong>
-                  <span class="px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 text-slate-700">km ${Number(props.km).toFixed(1)}</span>
-                </div>
-                <div class="space-y-1">
-                  <div class="text-xs font-bold text-[#0F294A]">${props.role_badge}</div>
-                  <p class="text-slate-600 leading-snug">${props.explanation}</p>
-                </div>
-                ${
-                  props.code === 'BBS'
-                    ? `<div class="bg-slate-50 p-1.5 rounded border border-slate-200 text-xs text-slate-700 font-medium">
-                        Expected Arrival: <strong class="text-[#0F294A] font-bold">${prediction.expectedTime}</strong> (Window: ${prediction.likelyWindow})
-                      </div>`
-                    : ''
-                }
-              </div>
-            `;
+            const popupHtml = getStationPopupHtml(
+              {
+                name: props.name,
+                code: props.code,
+                km: props.km,
+                role_badge: props.role_badge,
+                explanation: props.explanation,
+              },
+              prediction
+            );
 
             const popup = new maplibregl.Popup({ offset: 10, closeButton: true })
               .setLngLat(coords)
@@ -933,7 +375,13 @@ export const CorridorMap: React.FC = () => {
           });
 
           // Change cursor to pointer over interactive layers
-          ['trains-point', 'station-circles', 'freight-hazard-core', 'freight-hazard-glow', 'freight-badge-layer'].forEach((layerId) => {
+          [
+            'trains-point',
+            'station-circles',
+            'freight-hazard-core',
+            'freight-hazard-casing',
+            'freight-badge-layer',
+          ].forEach((layerId) => {
             map.on('mouseenter', layerId, () => {
               map.getCanvas().style.cursor = 'pointer';
             });
@@ -942,8 +390,12 @@ export const CorridorMap: React.FC = () => {
             });
           });
 
-          // Direct click on delay hazard on map triggers Goods Train Ahead view & popup
-          ['freight-hazard-core', 'freight-hazard-glow', 'freight-badge-layer'].forEach((layerId) => {
+          // Direct click on delay hazard on map triggers Delays Ahead view
+          [
+            'freight-hazard-core',
+            'freight-hazard-casing',
+            'freight-badge-layer',
+          ].forEach((layerId) => {
             map.on('click', layerId, () => {
               handleCameraView('delays_ahead');
             });
@@ -962,33 +414,16 @@ export const CorridorMap: React.FC = () => {
         mapRef.current = null;
       }
     };
-  }, []); // Run on mount
+  }, [isKolkata]); // Re-initialize or re-fit on corridor switch
 
-  // Update track completed vs remaining geometry when trainKm changes
+  // Update track completed vs remaining geometry when train advances
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-
-    const completedSource = map.getSource('completed-track-source') as any;
-    if (completedSource && typeof completedSource.setData === 'function') {
-      completedSource.setData({
-        type: 'Feature',
-        properties: { name: 'Completed Section' },
-        geometry: { type: 'LineString', coordinates: completedCoords },
-      });
-    }
-
-    const remainingSource = map.getSource('remaining-track-source') as any;
-    if (remainingSource && typeof remainingSource.setData === 'function') {
-      remainingSource.setData({
-        type: 'Feature',
-        properties: { name: 'Remaining Section' },
-        geometry: { type: 'LineString', coordinates: remainingCoords },
-      });
-    }
+    updateRouteLineGeometry(map, completedCoords, remainingCoords);
   }, [completedCoords, remainingCoords]);
 
-  // Synchronize NH-16 Rescue route visibility and dynamic geometry (Cuttack vs Khurda Road)
+  // Synchronize Highway Rescue route visibility
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -996,375 +431,59 @@ export const CorridorMap: React.FC = () => {
     const shouldShowRescue = isRescueAvailable || activeMapView === 'alternative_route';
     const visibility = shouldShowRescue ? 'visible' : 'none';
 
-    if (map.getLayer('nh16-highway-line')) {
-      map.setLayoutProperty('nh16-highway-line', 'visibility', visibility);
-    }
-    if (map.getLayer('nh16-highway-badge')) {
-      map.setLayoutProperty('nh16-highway-badge', 'visibility', visibility);
-    }
-
-    const isKhurdaRescue = rescue?.bailout_plan?.deboard_station_code === 'KUR';
-    const isKolkataRescue =
-      isKolkata ||
-      rescue?.bailout_plan?.deboard_station_code === 'SRC' ||
-      rescue?.bailout_plan?.deboard_station_code === 'MCA';
-    const highwaySource = map.getSource('nh16-highway') as any;
-    if (highwaySource && typeof highwaySource.setData === 'function') {
-      highwaySource.setData({
-        type: 'Feature',
-        properties: {
-          name: isKolkataRescue
-            ? 'Kona Expressway Rescue Corridor'
-            : 'NH-16 Expressway Rescue Corridor',
-        },
-        geometry: {
-          type: 'LineString',
-          coordinates: isKolkataRescue
-            ? SMOOTH_KONA_EXPRESSWAY_COORDS
-            : isKhurdaRescue
-            ? SMOOTH_NH16_KUR_COORDS
-            : SMOOTH_NH16_COORDS,
-        },
-      });
-    }
-
-    const badgeSource = map.getSource('nh16-badge-source') as any;
-    if (badgeSource && typeof badgeSource.setData === 'function') {
-      const minsSaved = rescue?.bailout_plan?.minutes_saved
-        ? Math.round(rescue.bailout_plan.minutes_saved)
-        : isKolkataRescue
-        ? 24
-        : isKhurdaRescue
-        ? 22
-        : 21;
-      const deboardLabel = isKolkataRescue
-        ? rescue?.bailout_plan?.deboard_station_code === 'MCA'
-          ? 'Mecheda'
-          : 'Santragachi'
-        : isKhurdaRescue
-        ? 'Khurda Rd'
-        : 'Cuttack';
-      const badgeCoords: [number, number] = isKolkataRescue
-        ? [88.31, 22.57]
-        : isKhurdaRescue
-        ? [85.775, 20.22]
-        : [85.875, 20.37];
-      badgeSource.setData({
-        type: 'Feature',
-        properties: {
-          label: `Cab from ${deboardLabel} • ${minsSaved} mins faster`,
-        },
-        geometry: {
-          type: 'Point',
-          coordinates: badgeCoords,
-        },
-      });
-    }
-  }, [isRescueAvailable, activeMapView, rescue, isKolkata]);
-
-  // Synchronize entire corridor layers and camera when activeCorridorId changes
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-
-    // 1. Update track casing
-    const casingSource = map.getSource('railway-track-casing-source') as any;
-    if (casingSource && typeof casingSource.setData === 'function') {
-      casingSource.setData({
-        type: 'Feature',
-        properties: { name: isKolkata ? 'SER Trunk Line' : 'ECoR Trunk Line' },
-        geometry: { type: 'LineString', coordinates: activeTrackCoords },
-      });
-    }
-
-    // 2. Update station nodes
-    const stationSource = map.getSource('station-nodes') as any;
-    if (stationSource && typeof stationSource.setData === 'function') {
-      stationSource.setData({
-        type: 'FeatureCollection',
-        features: activeStations.map((stn) => {
-          const isPassed = trainKm > stn.km + 4;
-          const isCurrent = Math.abs(stn.km - trainKm) <= 6;
-          const relevance = getStationRelevance(
-            stn.code,
-            selectedTrain,
-            isRescueAvailable,
-            isPassed,
-            isCurrent
-          );
-          const rescueDeboardStn =
-            rescue?.bailout_plan?.deboard_station_code || (isKolkata ? 'SRC' : 'CTC');
-          return {
-            type: 'Feature',
-            properties: {
-              code: stn.code,
-              name: stn.name,
-              km: stn.km,
-              is_destination: stn.code === (isKolkata ? 'HWH' : 'BBS'),
-              is_rescue_transfer: stn.code === rescueDeboardStn,
-              is_current: isCurrent,
-              is_passed: isPassed,
-              role_badge: relevance.roleBadge,
-              explanation: relevance.relevanceExplanation,
-            },
-            geometry: {
-              type: 'Point',
-              coordinates: stn.coords,
-            },
-          };
-        }),
-      });
-    }
-
-    // 3. Update delay section ahead
-    const hazardSource = map.getSource('freight-hazard-source') as any;
-    if (hazardSource && typeof hazardSource.setData === 'function') {
-      hazardSource.setData({
-        type: 'Feature',
-        properties: { name: 'Delay Section Ahead' },
-        geometry: { type: 'LineString', coordinates: activeCongestionCoords },
-      });
-    }
-
-    const freightBadgeSource = map.getSource('freight-badge-source') as any;
-    if (freightBadgeSource && typeof freightBadgeSource.setData === 'function') {
-      freightBadgeSource.setData({
-        type: 'Feature',
-        properties: {
-          label: isKolkata
-            ? '⚠ Suburban Freight Drag Ahead (~14m delay)'
-            : '⚠ Goods Train Ahead (~14m delay)',
-        },
-        geometry: {
-          type: 'Point',
-          coordinates: isKolkata ? [87.86, 22.42] : [85.856, 20.431],
-        },
-      });
-    }
-
-    // 4. Reset camera bounds to the new corridor
-    if (isKolkata) {
-      map.fitBounds(
-        [
-          [87.25, 22.25], // SW: Kharagpur
-          [88.40, 22.65], // NE: Howrah
-        ],
-        { padding: 60, duration: 800 }
-      );
-    } else {
-      map.fitBounds(
-        [
-          [85.75, 20.20], // SW: Bhubaneswar
-          [85.95, 20.52], // NE: Cuttack
-        ],
-        { padding: 60, duration: 800 }
-      );
-    }
-  }, [activeCorridorId, isKolkata, activeTrackCoords, activeStations, activeCongestionCoords, trainKm, selectedTrain, isRescueAvailable, rescue]);
+    ['nh16-highway-casing', 'nh16-highway-line', 'nh16-highway-badge'].forEach((layerId) => {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', visibility);
+      }
+    });
+  }, [isRescueAvailable, activeMapView]);
 
   // Synchronize phantom freight slow-zone visibility
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    const hasActiveFreight =
-      (activeSnapshot.phantom_freights?.length ?? 0) > 0 || activeMapView === 'delays_ahead';
-    const visibility = hasActiveFreight ? 'visible' : 'none';
+    const shouldShowFreight = selectedDelayId === 'cause-2' || activeMapView === 'delays_ahead';
+    const visibility = shouldShowFreight ? 'visible' : 'none';
 
-    for (const layerId of ['freight-hazard-glow', 'freight-hazard-core', 'freight-badge-layer']) {
+    ['freight-hazard-casing', 'freight-hazard-core', 'freight-badge-layer'].forEach((layerId) => {
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(layerId, 'visibility', visibility);
       }
-    }
-  }, [activeSnapshot.phantom_freights, activeMapView]);
+    });
+  }, [selectedDelayId, activeMapView]);
 
-  // Keep latest train coordinates in a ref so 1.5s WebSocket ticks never hijack manual user zoom/pan
-  const currentTrainRef = useRef(currentTrain);
-  currentTrainRef.current = currentTrain;
-
-  // Synchronize Map Camera with activeMapView ONLY when view mode or selected train changes
+  // Smooth camera view pan/zoom updates
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !map.isStyleLoaded()) return;
 
-    const trainSnapshot = currentTrainRef.current;
-    if (activeMapView === 'my_train') {
-      closeActivePopup();
-      if (trainSnapshot && trainSnapshot.lon && trainSnapshot.lat) {
-        if (selectedTrain === '12821') {
-          const isNearKhurda = (trainSnapshot.chainage_km ?? 115) > 150;
-          if (isNearKhurda) {
-            map.fitBounds(
-              [
-                [85.70, 20.15], // SW: Khurda Road
-                [85.86, 20.30], // NE: Bhubaneswar
-              ],
-              { padding: 50, duration: 750 }
-            );
-          } else {
-            // Smoothly fit bounds to active rescue action corridor (Cuttack to Bhubaneswar)
-            map.fitBounds(
-              [
-                [85.80, 20.24], // SW: Bhubaneswar
-                [85.92, 20.50], // NE: Cuttack
-              ],
-              { padding: 50, duration: 750 }
-            );
-          }
-        } else {
-          // For other trains (Vande Bharat 22895 or Sri Jagannath 18410), center camera directly on the train
-          map.flyTo({
-            center: [trainSnapshot.lon, trainSnapshot.lat],
-            zoom: 12.2,
-            speed: 1.2,
-            duration: 800,
-          });
-        }
+    const presets = isKolkata ? SER_CAMERA_PRESETS : CAMERA_PRESETS;
+    const preset = presets[activeMapView];
+    if (preset) {
+      if (activeMapView === 'alternative_route') {
+        const isKhurda = rescue?.bailout_plan?.deboard_station_code === 'KUR';
+        const bounds = isKolkata
+          ? preset.bounds
+          : isKhurda
+          ? ([[85.70, 20.15], [85.86, 20.30]] as [[number, number], [number, number]])
+          : preset.bounds;
+        map.fitBounds(bounds, { padding: preset.padding, duration: preset.duration });
       } else {
-        map.fitBounds(
-          [
-            [85.80, 20.24],
-            [85.92, 20.50],
-          ],
-          { padding: 50, duration: 750 }
-        );
+        map.fitBounds(preset.bounds, { padding: preset.padding, duration: preset.duration });
       }
-    } else if (activeMapView === 'delays_ahead') {
-      // Focus on active disruption sector ahead of train (Cuttack to Barang)
-      map.flyTo({
-        center: [85.856, 20.431],
-        zoom: 12.2,
-        speed: 1.2,
-        duration: 900,
-      });
-    } else if (activeMapView === 'alternative_route') {
-      closeActivePopup();
-      if (rescue?.bailout_plan?.deboard_station_code === 'KUR') {
-        map.fitBounds(
-          rescue.bailout_plan.destination_station_code === 'PURI'
-            ? [
-                [85.68, 19.78], // SW: Puri
-                [85.86, 20.22], // NE: Khurda Road
-              ]
-            : [
-                [85.70, 20.15], // SW: Khurda Road
-                [85.86, 20.30], // NE: Bhubaneswar
-              ],
-          { padding: 50, duration: 800 }
-        );
-      } else {
-        map.fitBounds(
-          [
-            [85.80, 20.24], // SW: Bhubaneswar
-            [85.92, 20.48], // NE: Cuttack
-          ],
-          { padding: 50, duration: 800 }
-        );
-      }
-    } else if (activeMapView === 'full_journey') {
-      closeActivePopup();
-      // Fit entire corridor (Bhadrak to Puri)
-      map.fitBounds(
-        [
-          [85.55, 19.75], // SW (Puri)
-          [86.60, 21.15], // NE (Bhadrak)
-        ],
-        { padding: 40, duration: 800 }
-      );
     }
-  }, [activeMapView, selectedTrain, closeActivePopup]);
-
-  // Synchronize Delay Inspection between Left Dashboard and Map (Section 5)
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !selectedDelayId) return;
-
-    closeActivePopup();
-
-    if (selectedDelayId === 'cause-2') {
-      map.flyTo({
-        center: [85.856, 20.431],
-        zoom: 12.2,
-        speed: 1.2,
-        duration: 800,
-      });
-
-      setTimeout(() => {
-        if (!mapRef.current) return;
-        openGoodsTrainPopup(mapRef.current);
-      }, 150);
-      return;
-    }
-
-    const causes = getDelayCauses(selectedTrain, forecast, currentTrain?.current_station);
-    const targetCause = causes.find((c) => c.id === selectedDelayId);
-
-    if (targetCause && targetCause.coordinates) {
-      const targetCoords = targetCause.coordinates;
-      map.flyTo({
-        center: targetCoords,
-        zoom: 12.0,
-        speed: 1.2,
-        duration: 800,
-      });
-
-      const displayTag = targetCause.tag === 'Projected (+12m)' || targetCause.id === 'cause-1'
-        ? '~12 min wait'
-        : targetCause.tag;
-
-      const displayTitle = targetCause.popupTitle || targetCause.title;
-      const displayLocation = targetCause.locationName || 'Trunk corridor';
-      const displayMessage = targetCause.id === 'cause-1'
-        ? 'Your train will pause briefly at Cuttack so the faster 22895 Vande Bharat can pass ahead.'
-        : (targetCause.popupMessage || targetCause.explanation);
-
-      const popupHtml = `
-        <div class="w-[300px] p-3.5 text-sm space-y-2 font-sans">
-          <!-- Row 1: Top bar (status dot + soft amber badge, clean space for close button) -->
-          <div class="flex items-center justify-between pr-6">
-            <div class="flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
-              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">
-                ${displayTag}
-              </span>
-            </div>
-          </div>
-
-          <!-- Row 2: Full-width Title -->
-          <h4 class="font-bold text-[15px] leading-snug text-slate-900 pt-0.5">
-            ${displayTitle}
-          </h4>
-
-          <!-- Row 3: Location + Plain Description -->
-          <div class="pt-1.5 border-t border-slate-100">
-            <div class="text-xs font-semibold text-slate-500 mb-1">${displayLocation}</div>
-            <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">${displayMessage}</p>
-          </div>
-        </div>
-      `;
-
-      setTimeout(() => {
-        if (!mapRef.current) return;
-        const popup = new maplibregl.Popup({ anchor: 'right', offset: [-16, 0], closeButton: true, maxWidth: '320px' })
-          .setLngLat(targetCoords)
-          .setHTML(popupHtml)
-          .addTo(mapRef.current);
-
-        activePopupRef.current = popup;
-      }, 150);
-    }
-  }, [selectedDelayId, selectedTrain, forecast, currentTrain?.current_station, closeActivePopup, openGoodsTrainPopup]);
+  }, [activeMapView, isKolkata, rescue]);
 
   return (
-    <div className="relative w-full h-full min-h-[260px] md:min-h-[500px] bg-[#FAF9F6] rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-xs">
-      <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+    <div className={`relative w-full ${isModal ? 'h-full' : 'h-[360px] sm:h-[460px] lg:h-full'} bg-[#FAF9F6] overflow-hidden`}>
+      {/* MapLibre WebGL Canvas Container */}
+      <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* ======================================================== */}
-      {/* Top-Right: Simplified Passenger Map Controls (Section 6) */}
-      {/* ======================================================== */}
-      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex flex-col gap-2 pointer-events-auto items-end max-w-[calc(100%-24px)]">
-        {/* Mode Switcher */}
-        <div className="backdrop-blur-md bg-white/95 p-1 rounded-xl border border-[#E2E8F0] shadow-md flex items-center gap-1 max-w-[calc(100vw-24px)] overflow-x-auto">
+      {/* Floating View Controls (Top Left) */}
+      <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
+        {/* Camera Views Bar */}
+        <div className="backdrop-blur-md bg-white/95 p-1 rounded-xl border border-[#E2E8F0] shadow-md flex items-center gap-1">
           <button
             type="button"
             onClick={() => handleCameraView('my_train')}
@@ -1373,7 +492,7 @@ export const CorridorMap: React.FC = () => {
                 ? 'bg-[#0F294A] text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
-            title="Focus on your selected passenger train"
+            title="Focus on monitored train"
           >
             <Train className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">My Train</span>
@@ -1384,28 +503,30 @@ export const CorridorMap: React.FC = () => {
             onClick={() => handleCameraView('delays_ahead')}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
               activeMapView === 'delays_ahead'
-                ? 'bg-[#0F294A] text-white shadow-2xs'
+                ? 'bg-amber-600 text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
-            title="Inspect congestion and delays ahead"
+            title="Inspect delay bottleneck"
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Delays Ahead</span>
+            <span className="hidden sm:inline">Bottleneck</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => handleCameraView('alternative_route')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeMapView === 'alternative_route'
-                ? 'bg-emerald-700 text-white shadow-2xs'
-                : 'text-emerald-800 hover:bg-emerald-50'
-            }`}
-            title="Compare NH-16 highway alternative route"
-          >
-            <Car className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Cab Bypass</span>
-          </button>
+          {isRescueAvailable && (
+            <button
+              type="button"
+              onClick={() => handleCameraView('alternative_route')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeMapView === 'alternative_route'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+              title={isKolkata ? "Kona Expressway Road Transfer" : "NH-16 Road Transfer Bypass"}
+            >
+              <Car className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{isKolkata ? "Kona Exp" : "Road Rescue"}</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -1415,7 +536,7 @@ export const CorridorMap: React.FC = () => {
                 ? 'bg-[#0F294A] text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
-            title="Fit full corridor (Bhadrak to Puri)"
+            title={`Fit full corridor (${isKolkata ? 'Howrah to Kharagpur' : 'Bhadrak to Puri'})`}
           >
             <Maximize2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Full Journey</span>
@@ -1452,7 +573,7 @@ export const CorridorMap: React.FC = () => {
         </div>
       </div>
 
-      {/* Contextual Clean Map Legend (Section 10) */}
+      {/* Contextual Clean Map Legend */}
       <MapLegend />
     </div>
   );
