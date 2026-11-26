@@ -223,38 +223,47 @@ export const ArrivalConnectionCard: React.FC = () => {
 
       {/* 2. Static Read-Only Train Information Header */}
       <div className="pb-3.5 border-b border-slate-100">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <img
-              src="/dashboard-train-icon.png"
-              alt="Train icon"
-              className="w-9 h-9 rounded-xl object-contain bg-slate-50 border border-slate-200/80 p-0.5 shrink-0 shadow-2xs"
-            />
-            <div className="min-w-0 flex-1">
-              <h2 className="text-[15px] sm:text-base font-bold leading-snug text-[#0F294A] truncate">
-                <span className="font-mono font-extrabold tabular-nums">{trainIdentity.trainNo}</span>
-                <span className="text-slate-400 mx-1.5 font-normal">•</span>
-                <span className="text-slate-800">{trainIdentity.trainName}</span>
-              </h2>
-              <p className="text-[13px] text-slate-500 font-medium mt-0.5 truncate">
-                {trainIdentity.locationText}
-              </p>
-            </div>
-          </div>
+        <div className="flex items-start gap-3">
+          <img
+            src="/dashboard-train-icon.png"
+            alt="Train icon"
+            className="w-10 h-10 rounded-xl object-contain bg-slate-50 border border-slate-200/80 p-0.5 shrink-0 shadow-2xs mt-0.5"
+          />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[15px] sm:text-base font-bold leading-snug text-[#0F294A] whitespace-normal break-words">
+              <span className="font-mono font-extrabold tabular-nums">{trainIdentity.trainNo}</span>
+              <span className="text-slate-400 mx-1.5 font-normal">•</span>
+              <span className="text-slate-800">{trainIdentity.trainName}</span>
+            </h2>
 
-          {/* Train Delay Pill - dynamically synced with selected quantile */}
-          <div className="shrink-0">
-            {selectedDelayMins <= 5 ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs tabular-nums whitespace-nowrap">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span>{selectedDelayMins > 0 ? `+${selectedDelayMins}m delay` : 'On time'}</span>
+            {/* Route badge (shown here when compact header has no space) + Delay Pill + Location */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 mt-1.5">
+              {selectedDelayMins <= 5 ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs tabular-nums whitespace-nowrap">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>{selectedDelayMins > 0 ? `+${selectedDelayMins}m delay` : 'On time'}</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs tabular-nums whitespace-nowrap">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                  <span>+{selectedDelayMins}m delay</span>
+                </span>
+              )}
+
+              <span
+                className={`sm:hidden inline-flex items-center px-2 py-0.5 rounded-md border text-[11px] font-mono font-bold whitespace-nowrap ${
+                  isKolkata
+                    ? 'bg-amber-50 text-amber-900 border-amber-300'
+                    : 'bg-indigo-50 text-indigo-900 border-indigo-200'
+                }`}
+              >
+                {isKolkata ? 'SER • HWH–KGP' : 'ECoR • BHC–PURI'}
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs tabular-nums whitespace-nowrap">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                <span>+{selectedDelayMins}m delay</span>
+
+              <span className="text-[13px] text-slate-500 font-medium">
+                {trainIdentity.locationText}
               </span>
-            )}
+            </div>
           </div>
         </div>
       </div>
