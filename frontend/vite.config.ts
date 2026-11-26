@@ -24,5 +24,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'maplibre': ['maplibre-gl'],
+          'lucide': ['lucide-react'],
+        },
+      },
+    },
   },
 });

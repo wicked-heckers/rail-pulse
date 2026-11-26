@@ -1,4 +1,5 @@
 import type {
+  CorridorSummary,
   ForecastResponse,
   RescueEvaluationResponse,
 } from '../types/corridor';
@@ -69,7 +70,40 @@ export async function evaluateRescue(payload: {
   }
 }
 
-export async function injectTrainDelay(trainNo: string, addedDelayMins: number): Promise<any> {
+export interface ApiResponseStatus {
+  status: string;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export interface DisruptionCausesResponse {
+  catalog: Array<{
+    id: string;
+    label: string;
+    added_delay_mins: number;
+    freight_penalty_mins: number;
+    rain_mm_hr: number;
+    message: string;
+  }>;
+  active_causes: string[];
+}
+
+export interface ApplyCausesResponse {
+  status: string;
+  active_causes: string[];
+  new_delay_mins: number;
+}
+
+export interface LiveOvertakeResponse {
+  status: string;
+  hold_station_code: string;
+  hold_station_name: string;
+  hold_km: number;
+  dhauli_km: number;
+  vande_km: number;
+}
+
+export async function injectTrainDelay(trainNo: string, addedDelayMins: number): Promise<ApiResponseStatus> {
   const res = await fetch(`${API_BASE}/demo/inject-delay`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -78,7 +112,7 @@ export async function injectTrainDelay(trainNo: string, addedDelayMins: number):
   return await res.json();
 }
 
-export async function startDemoScenario(name = 'DHAULI_CASCADE', speed = 1): Promise<any> {
+export async function startDemoScenario(name = 'DHAULI_CASCADE', speed = 1): Promise<ApiResponseStatus> {
   const res = await fetch(`${API_BASE}/demo/scenario/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -87,7 +121,7 @@ export async function startDemoScenario(name = 'DHAULI_CASCADE', speed = 1): Pro
   return await res.json();
 }
 
-export async function setSpeedMultiplier(multiplier: number): Promise<any> {
+export async function setSpeedMultiplier(multiplier: number): Promise<ApiResponseStatus> {
   const res = await fetch(`${API_BASE}/demo/speed`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -100,7 +134,7 @@ export async function injectFreightShadow(
   blockId = 'DN_CTC_BRAG',
   penaltyMins = 20.0,
   confidence = 0.88
-): Promise<any> {
+): Promise<ApiResponseStatus> {
   const res = await fetch(`${API_BASE}/demo/inject-freight`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -132,16 +166,13 @@ export async function resetCorridor(): Promise<any> {
   return await res.json();
 }
 
-export async function fetchDisruptionCauses(trainNo: string): Promise<{
-  catalog: Array<{ id: string; label: string; added_delay_mins: number; freight_penalty_mins: number; rain_mm_hr: number; message: string }>;
-  active_causes: string[];
-}> {
+export async function fetchDisruptionCauses(trainNo: string): Promise<DisruptionCausesResponse> {
   const res = await fetch(`${API_BASE}/demo/causes?train_no=${encodeURIComponent(trainNo)}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
 
-export async function applyDisruptionCauses(trainNo: string, causes: string[]): Promise<any> {
+export async function applyDisruptionCauses(trainNo: string, causes: string[]): Promise<ApplyCausesResponse> {
   const res = await fetch(`${API_BASE}/demo/apply-causes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -151,14 +182,7 @@ export async function applyDisruptionCauses(trainNo: string, causes: string[]): 
   return await res.json();
 }
 
-export async function triggerLiveOvertake(): Promise<{
-  status: string;
-  hold_station_code: string;
-  hold_station_name: string;
-  hold_km: number;
-  dhauli_km: number;
-  vande_km: number;
-}> {
+export async function triggerLiveOvertake(): Promise<LiveOvertakeResponse> {
   const res = await fetch(`${API_BASE}/demo/trigger-overtake`, {
     method: 'POST',
   });
@@ -166,7 +190,7 @@ export async function triggerLiveOvertake(): Promise<{
   return await res.json();
 }
 
-export async function injectULIPFreight(): Promise<any> {
+export async function injectULIPFreight(): Promise<ApiResponseStatus> {
   const res = await fetch(`${API_BASE}/webhooks/ulip-fois`, {
     method: 'POST',
     headers: {
@@ -183,3 +207,46 @@ export async function injectULIPFreight(): Promise<any> {
   });
   return await res.json();
 }
+
+export async function listCorridors(): Promise<CorridorSummary[]> {
+  try {
+    const res = await fetch(`${API_BASE}/corridor/list`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Failed to fetch corridors list, using fallback', err);
+    return [
+      {
+        id: 'ECoR_BHC_PURI',
+        name: 'East Coast Trunk Line',
+        section: 'Bhadrak – Cuttack – Bhubaneswar – Puri',
+        length_km: 206.0,
+        stations_count: 9,
+        primary_highway: 'NH-16 / NH-316',
+        region: 'East Coast Railway (ECoR)',
+        is_active: true,
+      },
+      {
+        id: 'SER_HWH_KGP',
+        name: 'Kolkata Trunk Line',
+        section: 'Howrah – Santragachi – Mecheda – Kharagpur',
+        length_km: 115.0,
+        stations_count: 8,
+        primary_highway: 'NH-16 / Kona Expressway',
+        region: 'South Eastern Railway (SER)',
+        is_active: false,
+      },
+    ];
+  }
+}
+
+export async function switchCorridorApi(corridorId: string, speedMultiplier = 1): Promise<any> {
+  const res = await fetch(`${API_BASE}/corridor/switch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ corridor_id: corridorId, speed_multiplier: speedMultiplier }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+

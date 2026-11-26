@@ -145,7 +145,9 @@ def evaluate_connection_rescue(
 
     # 1. Evaluate Train Arrival at Final Destination
     dest_arrival = next((a for a in timeline if a.station_code == destination_code), None)
-    dest_km = stations_map[destination_code]["chainage_km"] if destination_code in stations_map else 143.0
+    corridor_stations = topology.get("stations", []) if topology else []
+    fallback_km = float(corridor_stations[-1]["chainage_km"]) if corridor_stations else 143.0
+    dest_km = stations_map[destination_code]["chainage_km"] if destination_code in stations_map else fallback_km
     already_reached = (
         (train_state.direction == "DN" and train_state.chainage_km >= dest_km - 0.5)
         or (train_state.direction == "UP" and train_state.chainage_km <= dest_km + 0.5)

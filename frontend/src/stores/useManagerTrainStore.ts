@@ -49,18 +49,38 @@ const INITIAL_TRAINS: ManagerTrain[] = [
     currentDelayMins: 5,
     isCustom: false,
   },
+  {
+    no: '12822',
+    name: 'Dhauli Exp UP',
+    priority: 'Express',
+    direction: 'UP',
+    from: 'PURI',
+    to: 'HWH',
+    currentStation: 'BCK',
+    currentDelayMins: 4,
+    isCustom: false,
+  },
 ];
 
 const STATION_COORDS: Record<string, { lat: number; lon: number; km: number }> = {
-  BHC: { lat: 21.0583, lon: 86.4950, km: 0.0 },
-  JJKR: { lat: 20.9500, lon: 86.1333, km: 44.0 },
+  BHC: { lat: 21.0573, lon: 86.4947, km: 0.0 },
+  JJKR: { lat: 20.9506, lon: 86.1384, km: 44.0 },
   JKPR: { lat: 20.9400, lon: 86.0600, km: 51.0 },
   NRG: { lat: 20.5500, lon: 85.9200, km: 106.0 },
-  CTC: { lat: 20.4625, lon: 85.8829, km: 115.0 },
+  CTC: { lat: 20.4631, lon: 85.8828, km: 115.0 },
   BRAG: { lat: 20.4000, lon: 85.8300, km: 128.0 },
-  BBS: { lat: 20.2667, lon: 85.8333, km: 143.0 },
-  KUR: { lat: 20.1833, lon: 85.7333, km: 162.0 },
-  PURI: { lat: 19.8133, lon: 85.8314, km: 206.0 },
+  BBS: { lat: 20.2646, lon: 85.8394, km: 143.0 },
+  KUR: { lat: 20.1834, lon: 85.7337, km: 162.0 },
+  PURI: { lat: 19.8135, lon: 85.8312, km: 206.0 },
+  // South Eastern Railway Kolkata Trunk Line
+  HWH: { lat: 22.5830, lon: 88.3426, km: 0.0 },
+  SRC: { lat: 22.5800, lon: 88.2830, km: 7.0 },
+  ULB: { lat: 22.4700, lon: 88.1100, km: 32.0 },
+  BZN: { lat: 22.4600, lon: 87.9700, km: 45.0 },
+  MCA: { lat: 22.4200, lon: 87.8600, km: 58.0 },
+  PKU: { lat: 22.4100, lon: 87.7200, km: 71.0 },
+  BCK: { lat: 22.3700, lon: 87.5500, km: 91.0 },
+  KGP: { lat: 22.3300, lon: 87.3200, km: 115.0 },
 };
 
 const STORAGE_KEY = 'rp_manager_trains';
@@ -114,6 +134,12 @@ export const useManagerTrainStore = create<ManagerTrainStore>((set, get) => ({
     const trainNo = trainData.no.trim();
     if (!trainNo) return;
 
+    // Disallow overwriting protected system trains
+    if (INITIAL_TRAINS.some((t) => t.no === trainNo)) {
+      console.warn(`Cannot overwrite protected system train ${trainNo}`);
+      return;
+    }
+
     const newTrain: ManagerTrain = {
       ...trainData,
       no: trainNo,
@@ -129,7 +155,6 @@ export const useManagerTrainStore = create<ManagerTrainStore>((set, get) => ({
 
     // Inject into active corridor snapshot if missing so it's live on map
     const railStore = useRailStore.getState();
-    const activeSnapshot = railStore.activeSnapshot;
     const stnCode = trainData.currentStation || (trainData.direction === 'DN' ? 'JJKR' : 'BBS');
     const coord = STATION_COORDS[stnCode] || STATION_COORDS['JJKR'];
 
@@ -154,16 +179,8 @@ export const useManagerTrainStore = create<ManagerTrainStore>((set, get) => ({
       status: (newTrain.currentDelayMins ?? 0) > 10 ? 'DELAYED' : 'RUNNING_NORMAL',
     };
 
-    const currentTrains = activeSnapshot.trains || [];
-    const updatedSnapshotTrains = [
-      ...currentTrains.filter((t) => t.train_no !== newTrain.no),
-      snapshotTrain,
-    ];
-
-    railStore.updateSnapshot({
-      ...activeSnapshot,
-      trains: updatedSnapshotTrains,
-    });
+    // Strictly register custom train in useRailStore
+    railStore.addCustomTrain(snapshotTrain);
 
     // Auto-select the newly added train
     railStore.setSelectedTrain(newTrain.no);
@@ -179,13 +196,7 @@ export const useManagerTrainStore = create<ManagerTrainStore>((set, get) => ({
     set({ trains: updated });
 
     const railStore = useRailStore.getState();
-    const currentSnapshot = railStore.activeSnapshot;
-    if (currentSnapshot?.trains) {
-      railStore.updateSnapshot({
-        ...currentSnapshot,
-        trains: currentSnapshot.trains.filter((t) => t.train_no !== trainNo),
-      });
-    }
+    railStore.removeCustomTrain(trainNo);
 
     if (railStore.selectedTrain === trainNo) {
       railStore.setSelectedTrain('12821');
@@ -195,6 +206,8 @@ export const useManagerTrainStore = create<ManagerTrainStore>((set, get) => ({
   resetToDefaults: () => {
     saveTrains(INITIAL_TRAINS);
     set({ trains: INITIAL_TRAINS });
-    useRailStore.getState().setSelectedTrain('12821');
+    const railStore = useRailStore.getState();
+    railStore.clearCustomTrains();
+    railStore.setSelectedTrain('12821');
   },
 }));

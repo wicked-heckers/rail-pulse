@@ -186,6 +186,11 @@ class ULIPTelemetryPayload(BaseModel):
     timestamp_epoch: int | None = None
 
 
+class CorridorSwitchRequest(BaseModel):
+    corridor_id: str
+    speed_multiplier: float = 1.0
+
+
 class DemoScenarioStartRequest(BaseModel):
     scenario_name: str = "DHAULI_CASCADE"
     speed_multiplier: int = 1

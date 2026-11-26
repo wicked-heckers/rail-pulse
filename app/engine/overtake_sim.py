@@ -266,7 +266,9 @@ def simulate_corridor_overtakes(
         elif has_explicit_halts:
             dwell_mins = scheduled_halt.get("scheduled_dwell_m", 2) if scheduled_halt else 0
         else:
-            dwell_mins = 2 if stn.get("is_major_junction", False) and stn_km not in (0.0, 206.0) else 0
+            stations_list = topology.get("stations", [])
+            end_km = float(stations_list[-1]["chainage_km"]) if stations_list else 206.0
+            dwell_mins = 2 if stn.get("is_major_junction", False) and stn_km not in (0.0, end_km) else 0
         dep_epoch = current_sim_time + int(dwell_mins * 60)
         current_sim_time = dep_epoch
         prev_stn_km = stn_km

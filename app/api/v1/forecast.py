@@ -41,11 +41,12 @@ async def get_train_forecast(
     if not target_train:
         trains_master = {t["train_no"]: t for t in topology.get("trains", [])}
         if train_no not in trains_master:
-            raise HTTPException(status_code=404, detail=f"Train {train_no} not found on ECoR corridor")
+            raise HTTPException(status_code=404, detail=f"Train {train_no} not found on active corridor")
 
         master_info = trains_master[train_no]
         first_halt = master_info["halts"][0] if master_info.get("halts") else None
-        start_km = 0.0 if master_info.get("direction") == "DN" else 206.0
+        end_km = float(topology["stations"][-1]["chainage_km"]) if topology.get("stations") else 206.0
+        start_km = 0.0 if master_info.get("direction") == "DN" else end_km
         target_train = TrainKinematicState(
             train_no=train_no,
             train_name=master_info["train_name"],
@@ -97,7 +98,8 @@ async def get_train_forecast(
     # 3. Identify destination arrival
     dest_arr = adjusted_timeline[-1] if adjusted_timeline else None
     sched_arr_epoch = dest_arr.sched_arr_epoch if dest_arr else int(time.time() + 3600)
-    dest_km = dest_arr.chainage_km if dest_arr else (206.0 if target_train.direction == "DN" else 0.0)
+    end_km = float(topology["stations"][-1]["chainage_km"]) if topology.get("stations") else 206.0
+    dest_km = dest_arr.chainage_km if dest_arr else (end_km if target_train.direction == "DN" else 0.0)
     remaining_km = max(5.0, abs(dest_km - target_train.chainage_km))
 
     # Calculate usable recovery slack redeemed
@@ -195,11 +197,12 @@ async def predict_cascade_unified(
     if not target_train:
         trains_master = {t["train_no"]: t for t in topology.get("trains", [])}
         if train_no not in trains_master:
-            raise HTTPException(status_code=404, detail=f"Train {train_no} not found")
+            raise HTTPException(status_code=404, detail=f"Train {train_no} not found on active corridor")
 
         master_info = trains_master[train_no]
         first_halt = master_info["halts"][0] if master_info.get("halts") else None
-        start_km = 0.0 if master_info.get("direction") == "DN" else 206.0
+        end_km = float(topology["stations"][-1]["chainage_km"]) if topology.get("stations") else 206.0
+        start_km = 0.0 if master_info.get("direction") == "DN" else end_km
         target_train = TrainKinematicState(
             train_no=train_no,
             train_name=master_info["train_name"],
@@ -260,10 +263,12 @@ async def predict_cascade_unified(
     )
 
     # 3. Identify target station
+    stations_list = topology.get("stations", [])
+    default_dest_code = stations_list[-1]["station_code"] if stations_list else "BBS"
     target_stn_code = (
         request.connection_target.station_code
         if request.connection_target
-        else (adjusted_timeline[-1].station_code if adjusted_timeline else "BBS")
+        else (adjusted_timeline[-1].station_code if adjusted_timeline else default_dest_code)
     )
     target_arrival = next(
         (a for a in adjusted_timeline if a.station_code == target_stn_code),
@@ -271,7 +276,8 @@ async def predict_cascade_unified(
     )
 
     sched_arr_epoch = target_arrival.sched_arr_epoch if target_arrival else current_epoch + 3600
-    target_km = target_arrival.chainage_km if target_arrival else 143.0
+    fallback_km = float(stations_list[-1]["chainage_km"]) if stations_list else 143.0
+    target_km = target_arrival.chainage_km if target_arrival else fallback_km
     remaining_km = max(5.0, abs(target_km - target_train.chainage_km))
 
     # 4. Predict quantiles via unified 12-feature ML engine

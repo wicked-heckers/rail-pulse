@@ -37,14 +37,64 @@ class DemoSimulationProvider(CorridorDataProvider):
         speed_multiplier: float = 1.0,
         scenario_mode: bool = False,
         scenario_name: str = "DHAULI_CASCADE",
+        corridor_id: str | None = None,
     ) -> None:
         self.speed_multiplier = speed_multiplier
+        self.scenario_mode = scenario_mode
+        self.scenario_name = scenario_name
         self.sim_clock_secs = 1795067700  # 11:25:00 AM IST (2026-11-19)
         self._sim_clock_exact: float = float(self.sim_clock_secs)
-        self.topology = LocalTopologyFallback.load_topology()
+        self.corridor_id = corridor_id or LocalTopologyFallback.get_active_corridor_id()
+        self.topology = LocalTopologyFallback.load_topology(corridor_id=self.corridor_id)
         self.stations = self.topology["stations"]
 
-        if scenario_mode and scenario_name == "OVERTAKE_ONLY":
+        if scenario_mode and (
+            scenario_name in ("KOLKATA_CASCADE", "KGP_CASCADE", "SER_CASCADE")
+            or (self.corridor_id == "SER_HWH_KGP")
+        ):
+            # Kolkata Trunk Line Disruption & Loop Overtake Scenario:
+            # 12821 holds at Mecheda Junction (58 km) loop line with DN_MCA_PKU freight drag,
+            # while 22895 Vande Bharat closes at 130 km/h on mainline,
+            # triggering Kona Expressway / NH-16 road rescue back to Howrah or ahead to Kharagpur
+            self._trains = {
+                "12821": {
+                    "name": "Dhauli Express",
+                    "direction": "DN",
+                    "priority_rank": 2,
+                    "chainage_km": 58.0,
+                    "speed_kmph": 0.0,
+                    "delay_mins": 24.0,
+                    "status": "AT_STATION_HALT",
+                    "current_station": "MCA",
+                    "next_station": "PKU",
+                },
+                "22895": {
+                    "name": "Howrah-Puri Vande Bharat Express",
+                    "direction": "DN",
+                    "priority_rank": 1,
+                    "chainage_km": 32.0,
+                    "speed_kmph": 130.0,
+                    "delay_mins": 2.0,
+                    "status": "RUNNING_HIGH_SPEED",
+                    "current_station": None,
+                    "next_station": "MCA",
+                },
+                "12822": {
+                    "name": "Dhauli Express",
+                    "direction": "UP",
+                    "priority_rank": 2,
+                    "chainage_km": 91.0,
+                    "speed_kmph": 105.0,
+                    "delay_mins": 4.0,
+                    "status": "RUNNING_NORMAL",
+                    "current_station": None,
+                    "next_station": "PKU",
+                },
+            }
+            self._injected_freights = {"DN_MCA_PKU": 20.0}
+            self.rain_mm_hr = 0.0
+            self.weather_condition = "CLEAR"
+        elif scenario_mode and scenario_name == "OVERTAKE_ONLY":
             # Smooth Bhubaneswar Loop-Line Overtake: 12821 slows into BBS (143 km) and waits for fast 22895
             self._trains = {
                 "12821": {
@@ -168,44 +218,84 @@ class DemoSimulationProvider(CorridorDataProvider):
             self.weather_condition = "OVERCAST"
         else:
             # Clean "Where Is My Train" baseline: all trains running on time, clear tracks
-            self._trains = {
-                "12821": {
-                    "name": "Dhauli Express",
-                    "direction": "DN",
-                    "priority_rank": 2,
-                    "chainage_km": 115.0,  # Departing Cuttack on time
-                    "speed_kmph": 110.0,
-                    "delay_mins": 0.0,
-                    "status": "RUNNING_NORMAL",
-                    "current_station": None,
-                    "next_station": "BRAG",
-                },
-                "22895": {
-                    "name": "Howrah-Puri Vande Bharat Express",
-                    "direction": "DN",
-                    "priority_rank": 1,
-                    "chainage_km": 60.0,
-                    "speed_kmph": 130.0,
-                    "delay_mins": 0.0,
-                    "status": "RUNNING_HIGH_SPEED",
-                    "current_station": None,
-                    "next_station": "NRG",
-                },
-                "18410": {
-                    "name": "Sri Jagannath Express",
-                    "direction": "UP",
-                    "priority_rank": 3,
-                    "chainage_km": 155.0,
-                    "speed_kmph": 110.0,
-                    "delay_mins": 0.0,
-                    "status": "RUNNING_NORMAL",
-                    "current_station": None,
-                    "next_station": "BBS",
-                },
-            }
-            self._injected_freights = {}
-            self.rain_mm_hr = 0.0
-            self.weather_condition = "CLEAR"
+            if self.corridor_id == "SER_HWH_KGP":
+                self._trains = {
+                    "12821": {
+                        "name": "Dhauli Express",
+                        "direction": "DN",
+                        "priority_rank": 2,
+                        "chainage_km": 58.0,
+                        "speed_kmph": 110.0,
+                        "delay_mins": 0.0,
+                        "status": "RUNNING_NORMAL",
+                        "current_station": None,
+                        "next_station": "PKU",
+                    },
+                    "22895": {
+                        "name": "Howrah-Puri Vande Bharat Express",
+                        "direction": "DN",
+                        "priority_rank": 1,
+                        "chainage_km": 20.0,
+                        "speed_kmph": 130.0,
+                        "delay_mins": 0.0,
+                        "status": "RUNNING_HIGH_SPEED",
+                        "current_station": None,
+                        "next_station": "ULB",
+                    },
+                    "12822": {
+                        "name": "Dhauli Express",
+                        "direction": "UP",
+                        "priority_rank": 2,
+                        "chainage_km": 95.0,
+                        "speed_kmph": 110.0,
+                        "delay_mins": 0.0,
+                        "status": "RUNNING_NORMAL",
+                        "current_station": None,
+                        "next_station": "BCK",
+                    },
+                }
+                self._injected_freights = {}
+                self.rain_mm_hr = 0.0
+                self.weather_condition = "CLEAR"
+            else:
+                self._trains = {
+                    "12821": {
+                        "name": "Dhauli Express",
+                        "direction": "DN",
+                        "priority_rank": 2,
+                        "chainage_km": 115.0,  # Departing Cuttack on time
+                        "speed_kmph": 110.0,
+                        "delay_mins": 0.0,
+                        "status": "RUNNING_NORMAL",
+                        "current_station": None,
+                        "next_station": "BRAG",
+                    },
+                    "22895": {
+                        "name": "Howrah-Puri Vande Bharat Express",
+                        "direction": "DN",
+                        "priority_rank": 1,
+                        "chainage_km": 60.0,
+                        "speed_kmph": 130.0,
+                        "delay_mins": 0.0,
+                        "status": "RUNNING_HIGH_SPEED",
+                        "current_station": None,
+                        "next_station": "NRG",
+                    },
+                    "18410": {
+                        "name": "Sri Jagannath Express",
+                        "direction": "UP",
+                        "priority_rank": 3,
+                        "chainage_km": 155.0,
+                        "speed_kmph": 110.0,
+                        "delay_mins": 0.0,
+                        "status": "RUNNING_NORMAL",
+                        "current_station": None,
+                        "next_station": "BBS",
+                    },
+                }
+                self._injected_freights = {}
+                self.rain_mm_hr = 0.0
+                self.weather_condition = "CLEAR"
 
         self._baseline_delays: dict[str, float] = {
             t_no: float(t["delay_mins"]) for t_no, t in self._trains.items()
@@ -224,7 +314,11 @@ class DemoSimulationProvider(CorridorDataProvider):
         is_dhauli_cascade = bool(scenario_mode and scenario_name == "DHAULI_CASCADE")
         is_khurda_cascade = bool(scenario_mode and scenario_name in ("KHURDA_CASCADE", "KUR_CASCADE"))
         self._hold_until_overtaken: bool = bool(scenario_mode)
-        if is_khurda_cascade:
+        if is_kolkata_cascade:
+            self._overtake_target_km = 58.0
+            self._overtake_target_code = "MCA"
+            self._overtake_min_hold_secs = 720.0
+        elif is_khurda_cascade:
             self._overtake_target_km = 162.0
             self._overtake_target_code = "KUR"
             self._overtake_min_hold_secs = 720.0
@@ -282,7 +376,11 @@ class DemoSimulationProvider(CorridorDataProvider):
         is_dhauli_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name == "DHAULI_CASCADE")
         is_khurda_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name in ("KHURDA_CASCADE", "KUR_CASCADE"))
         self._hold_until_overtaken = bool(self._initial_scenario_mode)
-        if is_khurda_cascade:
+        if is_kolkata_cascade:
+            self._overtake_target_km = 58.0
+            self._overtake_target_code = "MCA"
+            self._overtake_min_hold_secs = 720.0
+        elif is_khurda_cascade:
             self._overtake_target_km = 162.0
             self._overtake_target_code = "KUR"
             self._overtake_min_hold_secs = 720.0
@@ -305,7 +403,8 @@ class DemoSimulationProvider(CorridorDataProvider):
             if not halt:
                 return 0.0
             return float(halt.get("scheduled_dwell_m", 2)) * 60.0
-        if stn.get("is_major_junction", False) and float(stn["chainage_km"]) not in (0.0, 206.0):
+        corridor_end_km = float(self.stations[-1]["chainage_km"]) if self.stations else 206.0
+        if stn.get("is_major_junction", False) and float(stn["chainage_km"]) not in (0.0, corridor_end_km):
             return 120.0
         return 0.0
 
@@ -749,10 +848,10 @@ class DemoSimulationProvider(CorridorDataProvider):
                 d == t["direction"] and lo <= t["chainage_km"] <= hi
                 for d, lo, hi in active_freight_zones
             )
-            # During active overtake at Barang, Khurda Road, or Bhubaneswar, Vande Bharat overtakes on the clear mainline
+            # During active overtake at loop line, Vande Bharat overtakes on the clear mainline
             if (
                 self._hold_until_overtaken
-                and self._overtake_target_code in ("BRAG", "KUR", "BBS")
+                and self._overtake_target_code
                 and t_no == "22895"
             ):
                 in_freight_zone = False
@@ -949,7 +1048,7 @@ class DemoSimulationProvider(CorridorDataProvider):
                     # 22895 is still > 18 km away: keep 12821 at its normal speed and advance loop target if passed
                     if t["chainage_km"] >= target_km:
                         next_loop = next(
-                            (s for s in stations_asc if float(s["chainage_km"]) > t["chainage_km"] + 0.8),
+                            (s for s in stations_asc if float(s["chainage_km"]) > t["chainage_km"] + 0.8 and s.get("passenger_loops_dn", 0) > 0),
                             None,
                         )
                         if next_loop is not None:
@@ -975,6 +1074,10 @@ class DemoSimulationProvider(CorridorDataProvider):
                     t["next_station"] = _next_stn(t["direction"], t["chainage_km"])
                 continue
 
+            corridor_end_km = float(self.stations[-1]["chainage_km"]) if self.stations else 206.0
+            dn_terminus_code = self.stations[-1]["station_code"] if self.stations else "PURI"
+            up_terminus_code = self.stations[0]["station_code"] if self.stations else "BHC"
+
             old_km = float(t["chainage_km"])
             dist_moved = t["speed_kmph"] * effective_delta_hours
             if t["direction"] == "DN":
@@ -994,11 +1097,11 @@ class DemoSimulationProvider(CorridorDataProvider):
                                 {"slowdown_start_km": round(new_km, 2), "crawl_secs": 0.0, "obs_lost_mins": 0.0},
                             )
                 t["chainage_km"] = round(new_km, 2)
-                if new_km >= 206.0:
-                    t["chainage_km"] = 206.0
+                if new_km >= corridor_end_km:
+                    t["chainage_km"] = corridor_end_km
                     t["speed_kmph"] = 0.0
                     t["status"] = "AT_TERMINUS"
-                    t["current_station"] = "PURI"
+                    t["current_station"] = dn_terminus_code
                     t["next_station"] = None
                 else:
                     nxt_code = t.get("next_station")
@@ -1039,7 +1142,7 @@ class DemoSimulationProvider(CorridorDataProvider):
                     t["chainage_km"] = 0.0
                     t["speed_kmph"] = 0.0
                     t["status"] = "AT_TERMINUS"
-                    t["current_station"] = "BHC"
+                    t["current_station"] = up_terminus_code
                     t["next_station"] = None
                 else:
                     nxt_code = t.get("next_station")
@@ -1206,24 +1309,39 @@ class DemoSimulationProvider(CorridorDataProvider):
             direction = t["direction"]
             km = float(t["chainage_km"])
             if freight_penalty_mins > 0:
+                track_blocks = self.topology.get("track_blocks", [])
                 if direction == "DN":
-                    block_id = "DN_CTC_BRAG"
-                    if km > 128.0:
+                    if any(b.get("block_id") == "DN_CTC_BRAG" for b in track_blocks):
+                        block_id = "DN_CTC_BRAG"
+                        if km > 128.0:
+                            ahead = [
+                                b for b in track_blocks
+                                if b["direction"] == "DN" and max(float(b["start_km"]), float(b["end_km"])) > km
+                            ]
+                            if ahead:
+                                block_id = ahead[0]["block_id"]
+                    else:
                         ahead = [
-                            b for b in self.topology.get("track_blocks", [])
+                            b for b in track_blocks
                             if b["direction"] == "DN" and max(float(b["start_km"]), float(b["end_km"])) > km
                         ]
-                        if ahead:
-                            block_id = ahead[0]["block_id"]
+                        block_id = ahead[0]["block_id"] if ahead else (track_blocks[0]["block_id"] if track_blocks else "DN_BLOCK_1")
                 else:
-                    block_id = "UP_KUR_BBS"
-                    if km < 143.0:
+                    if any(b.get("block_id") == "UP_KUR_BBS" for b in track_blocks):
+                        block_id = "UP_KUR_BBS"
+                        if km < 143.0:
+                            ahead = [
+                                b for b in track_blocks
+                                if b["direction"] == "UP" and min(float(b["start_km"]), float(b["end_km"])) < km
+                            ]
+                            if ahead:
+                                block_id = ahead[0]["block_id"]
+                    else:
                         ahead = [
-                            b for b in self.topology.get("track_blocks", [])
+                            b for b in track_blocks
                             if b["direction"] == "UP" and min(float(b["start_km"]), float(b["end_km"])) < km
                         ]
-                        if ahead:
-                            block_id = ahead[0]["block_id"]
+                        block_id = ahead[0]["block_id"] if ahead else (track_blocks[-1]["block_id"] if track_blocks else "UP_BLOCK_1")
                 prev_blk = self._freight_cause_blocks.get(train_no)
                 if prev_blk and prev_blk != block_id and prev_blk not in (
                     v for k, v in self._freight_cause_blocks.items() if k != train_no
@@ -1329,4 +1447,18 @@ class DemoSimulationProvider(CorridorDataProvider):
     async def tick(self) -> dict[str, Any]:
         """Convenience alias for get_corridor_snapshot."""
         return await self.get_corridor_snapshot()
+
+    def switch_corridor(self, corridor_id: str, speed_multiplier: float = 1.0) -> None:
+        """Dynamically switches active corridor, topology and resets trains for simulation."""
+        self.corridor_id = corridor_id
+        self.topology = LocalTopologyFallback.load_topology(corridor_id=corridor_id)
+        self.stations = self.topology["stations"]
+        self.speed_multiplier = speed_multiplier
+        scenario_name = "KOLKATA_CASCADE" if corridor_id == "SER_HWH_KGP" else "DHAULI_CASCADE"
+        self.__init__(
+            speed_multiplier=speed_multiplier,
+            scenario_mode=self.scenario_mode,
+            scenario_name=scenario_name,
+            corridor_id=corridor_id,
+        )
 

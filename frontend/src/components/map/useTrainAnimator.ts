@@ -26,46 +26,73 @@ interface AnimatedTrainState {
 export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
   const trainStateMap = useRef<Map<string, AnimatedTrainState>>(new Map());
   const animFrameId = useRef<number | null>(null);
+  const needsRenderRef = useRef<boolean>(true);
+  const activeCorridorId = useRailStore((state) => state.activeCorridorId);
+  const lastCorridorIdRef = useRef<string>(activeCorridorId);
 
-  // 1. Pre-populate and synchronize from activeSnapshot (for demo / fallback mode)
+  // Clear animated trains cache when corridor switches to prevent cross-corridor ghost markers
   useEffect(() => {
-    const snapshot = useRailStore.getState().activeSnapshot;
-    const now = performance.now();
+    if (lastCorridorIdRef.current !== activeCorridorId) {
+      trainStateMap.current.clear();
+      needsRenderRef.current = true;
+      lastCorridorIdRef.current = activeCorridorId;
+    }
+  }, [activeCorridorId]);
 
-    if (snapshot?.trains) {
-      for (const t of snapshot.trains) {
-        if (t.lat == null || t.lon == null) continue;
-        const [snappedLon, snappedLat] = snapPointToTrack(t.lon, t.lat);
-        if (!trainStateMap.current.has(t.train_no)) {
-          trainStateMap.current.set(t.train_no, {
-            fromLat: snappedLat,
-            fromLon: snappedLon,
-            toLat: snappedLat,
-            toLon: snappedLon,
-            startEpoch: now,
-            durationMs: 1500,
-            currentLat: snappedLat,
-            currentLon: snappedLon,
-            speedKmph: t.speed_kmph ?? 0,
-            trainNo: t.train_no,
-            trainName: t.train_name,
-            delayMins: t.current_delay_mins ?? 0,
-            currentStation: t.current_station,
-            nextStation: t.next_station,
-            status: t.status,
-          });
-        }
+  const snapshotTrains = useRailStore((state) => state.activeSnapshot?.trains);
+  const customTrains = useRailStore((state) => state.customTrains);
+
+  // 1. Pre-populate and synchronize from activeSnapshot & custom trains
+  useEffect(() => {
+    const now = performance.now();
+    const allTrains = [...(snapshotTrains || []), ...(customTrains || [])];
+
+    // Remove any trains no longer present in the active snapshot or custom trains list
+    const validTrainNos = new Set(allTrains.map((t) => t.train_no));
+    for (const key of trainStateMap.current.keys()) {
+      if (!validTrainNos.has(key)) {
+        trainStateMap.current.delete(key);
+        needsRenderRef.current = true;
       }
     }
-  }, []);
+
+    for (const t of allTrains) {
+      if (t.lat == null || t.lon == null) continue;
+      const [snappedLon, snappedLat] = snapPointToTrack(t.lon, t.lat);
+      if (!trainStateMap.current.has(t.train_no)) {
+        trainStateMap.current.set(t.train_no, {
+          fromLat: snappedLat,
+          fromLon: snappedLon,
+          toLat: snappedLat,
+          toLon: snappedLon,
+          startEpoch: now,
+          durationMs: 1500,
+          currentLat: snappedLat,
+          currentLon: snappedLon,
+          speedKmph: t.speed_kmph ?? 0,
+          trainNo: t.train_no,
+          trainName: t.train_name,
+          delayMins: t.current_delay_mins ?? 0,
+          currentStation: t.current_station,
+          nextStation: t.next_station,
+          status: t.status,
+        });
+        needsRenderRef.current = true;
+      }
+    }
+  }, [snapshotTrains, customTrains]);
 
   // 2. Subscribe to live WebSocket train coordinates
   useEffect(() => {
     const unsubscribe = wsClient.subscribeCoords((trains: TrainKinematicState[]) => {
       const now = performance.now();
 
-      // Prune departed trains from animated map
-      const activeNos = new Set(trains.map((t) => t.train_no));
+      // Prune departed trains from animated map (protect active custom trains)
+      const currentCustoms = useRailStore.getState().customTrains || [];
+      const activeNos = new Set([
+        ...trains.map((t) => t.train_no),
+        ...currentCustoms.map((t) => t.train_no),
+      ]);
       for (const key of trainStateMap.current.keys()) {
         if (!activeNos.has(key)) {
           trainStateMap.current.delete(key);
@@ -109,6 +136,7 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
           });
         }
       }
+      needsRenderRef.current = true;
     });
 
     return () => {
@@ -146,8 +174,8 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
             }
           }
 
-          // Only re-serialize GeoJSON and upload to WebGL when positions move or train selection changes
-          if (hasActiveMotion || selectedTrainChanged || !isSettled) {
+          // Only re-serialize GeoJSON and upload to WebGL when positions move, data updates, or selection changes
+          if (hasActiveMotion || selectedTrainChanged || !isSettled || needsRenderRef.current) {
             const features = [];
 
             for (const [_, state] of trainStateMap.current) {
@@ -193,6 +221,7 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
 
             lastRenderedSelectedTrain = selectedTrain;
             isSettled = !hasActiveMotion;
+            needsRenderRef.current = false;
           }
         }
       }

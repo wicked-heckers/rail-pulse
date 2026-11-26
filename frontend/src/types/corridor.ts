@@ -27,7 +27,6 @@ export interface TrackBlock {
   terminal_slack_mins: number;
   is_single_line_throat?: boolean;
 }
-
 export interface CausalCard {
   event: string;
   station_code: string;
@@ -116,6 +115,7 @@ export interface WeatherData {
 }
 
 export interface CorridorSnapshot {
+  corridor_id?: string;
   tick_utc: number;
   mode: string;
   speed_multiplier: number;
@@ -143,6 +143,17 @@ export interface ForecastResponse {
   station_timeline: StationArrival[];
   causal_cards: CausalCard[];
   overtakes_count: number;
+}
+
+export interface CorridorSummary {
+  id: string;
+  name: string;
+  section: string;
+  length_km: number;
+  stations_count: number;
+  primary_highway: string;
+  region: string;
+  is_active: boolean;
 }
 
 export interface BailoutPlan {

@@ -22,6 +22,7 @@ import {
   Database,
   CheckCircle2,
   Plus,
+  Train,
 } from 'lucide-react';
 
 const CAUSE_OPTIONS = [
@@ -40,6 +41,7 @@ export const DemoDrawer: React.FC = () => {
     setDrawerOpen,
     selectedTrain,
     setSelectedTrain,
+    activeCorridorId,
     activeSnapshot,
     updateSnapshot,
     activeCausesByTrain,
@@ -67,6 +69,18 @@ export const DemoDrawer: React.FC = () => {
       .then((data) => setTrainCauses(selectedTrain, data.active_causes))
       .catch(() => { });
   }, [drawerOpen, selectedTrain, setTrainCauses]);
+
+  // Close drawer on Escape key
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDrawerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [drawerOpen, setDrawerOpen]);
 
   if (!drawerOpen) return null;
 
@@ -281,6 +295,49 @@ export const DemoDrawer: React.FC = () => {
                     }`}
                 >
                   {s}x {s === 1 ? 'Realtime' : s === 10 ? 'Fast' : 'Demo'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 1.5 Target Train Selection */}
+          <div className="bg-[#FAF9F6] p-3.5 rounded-xl border border-[#E5E7EB] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-[#0F172A] flex items-center gap-1.5">
+                <Train className="w-4 h-4 text-indigo-600" />
+                <span>Target Monitored Train</span>
+              </span>
+              <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {selectedTrain}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {(activeCorridorId === 'SER_HWH_KGP'
+                ? [
+                    { no: '12821', name: 'Dhauli DN' },
+                    { no: '22895', name: 'Vande Bharat DN' },
+                    { no: '12822', name: 'Dhauli UP' },
+                  ]
+                : [
+                    { no: '12821', name: 'Dhauli DN' },
+                    { no: '22895', name: 'Vande Bharat DN' },
+                    { no: '18410', name: 'Jagannath UP' },
+                  ]
+              ).map((t) => (
+                <button
+                  key={t.no}
+                  onClick={() => {
+                    setSelectedTrain(t.no);
+                    triggerRefresh();
+                  }}
+                  className={`py-2 px-2.5 rounded-lg font-bold text-xs border transition-all text-left flex flex-col gap-0.5 cursor-pointer ${
+                    selectedTrain === t.no
+                      ? 'bg-[#0F172A] text-white border-[#0F172A] shadow-xs'
+                      : 'bg-white text-[#475569] border-[#CBD5E1] hover:bg-[#F1F5F9]'
+                  }`}
+                >
+                  <span className="font-mono text-xs">{t.no}</span>
+                  <span className="text-[11px] truncate opacity-80">{t.name}</span>
                 </button>
               ))}
             </div>

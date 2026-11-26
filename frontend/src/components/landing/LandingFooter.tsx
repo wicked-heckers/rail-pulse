@@ -3,11 +3,12 @@ import { useRailStore } from '../../stores/useRailStore';
 import { TRANSLATIONS } from './translations';
 
 export const LandingFooter: React.FC = () => {
-  const { language } = useRailStore();
+  const { language, activeCorridorId } = useRailStore();
   const t = TRANSLATIONS[language];
+  const isKolkata = activeCorridorId === 'SER_HWH_KGP';
 
   return (
-    <footer className="w-full border-t border-slate-200/80 bg-white/70 backdrop-blur-sm mt-14">
+    <footer className="w-full border-t border-slate-200/80 bg-white/70 backdrop-blur-sm mt-10 md:mt-14">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         {/* Upper Row */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -17,14 +18,20 @@ export const LandingFooter: React.FC = () => {
               RAIL-PULSE
             </span>
             <p className="text-xs text-slate-500 mt-0.5">
-              Traffic-aware arrival forecasts &amp; connection protection for East Coast Railway.
+              {isKolkata
+                ? 'Traffic-aware arrival forecasts & connection protection for South Eastern Railway.'
+                : 'Traffic-aware arrival forecasts & connection protection for East Coast Railway.'}
             </p>
           </div>
 
           {/* Right: Corridor Coverage Pill */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/80 border border-slate-200/70 text-xs font-medium text-slate-600 shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-            <span>Bhadrak (BHC) – Bhubaneswar (BBS) – Puri (PURI)</span>
+            <span className="whitespace-normal sm:whitespace-nowrap">
+              {isKolkata
+                ? 'Howrah (HWH) – Santragachi (SRC) – Kharagpur (KGP)'
+                : 'Bhadrak (BHC) – Bhubaneswar (BBS) – Puri (PURI)'}
+            </span>
           </div>
         </div>
 

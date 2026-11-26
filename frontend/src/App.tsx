@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef, Suspense, lazy } from 'react';
 import { useRailStore } from './stores/useRailStore';
 import { wsClient } from './services/wsClient';
 import { fetchForecast, evaluateRescue, fetchCorridorConfig } from './services/api';
@@ -8,9 +8,22 @@ import { CabModal } from './components/rescue/CabModal';
 import { AddTrainModal } from './components/layout/AddTrainModal';
 import { ArrivalConnectionCard } from './components/connection/ArrivalConnectionCard';
 import { VerticalTimeline } from './components/timeline/VerticalTimeline';
-import { CorridorMap } from './components/map/CorridorMap';
 import { LandingPage } from './components/landing/LandingPage';
 import { timeStringToMinutes } from './components/dashboard/passengerUtils';
+import { ArrowLeft, Map } from 'lucide-react';
+
+const CorridorMap = lazy(() =>
+  import('./components/map/CorridorMap').then((m) => ({ default: m.CorridorMap }))
+);
+
+const MapSkeleton = () => (
+  <div className="w-full h-full min-h-[500px] rounded-2xl bg-slate-100 animate-pulse border border-slate-200 flex items-center justify-center">
+    <div className="flex items-center gap-2 text-slate-400 font-mono text-xs">
+      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+      <span>Loading Corridor Map...</span>
+    </div>
+  </div>
+);
 
 export const App: React.FC = () => {
   const {
@@ -24,6 +37,32 @@ export const App: React.FC = () => {
     setForecast,
     setRescue,
   } = useRailStore();
+
+  const [mobileMapOpen, setMobileMapOpen] = useState(false);
+  const lastAutoDeadlineRef = useRef<string | null>(null);
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Close full-screen mobile map on Escape key
+  useEffect(() => {
+    if (!mobileMapOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileMapOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileMapOpen]);
 
   const monitoredTrain = activeSnapshot.trains?.find((t) => t.train_no === selectedTrain);
   const simBucket = Math.floor((activeSnapshot.tick_utc || 0) / 30);
@@ -64,7 +103,11 @@ export const App: React.FC = () => {
         const simMidnightIst = Math.floor((baseTick + 19800) / 86400) * 86400 - 19800;
         if (connectionTarget?.isCustom && connectionTarget.deadline_time) {
           const targetMinutes = timeStringToMinutes(connectionTarget.deadline_time) ?? 735;
-          deadlineEpoch = simMidnightIst + targetMinutes * 60;
+          let computed = simMidnightIst + targetMinutes * 60;
+          if (targetStop?.sched_arr_epoch && computed < targetStop.sched_arr_epoch - 3600) {
+            computed += 86400;
+          }
+          deadlineEpoch = computed;
         } else if (targetStop?.sched_arr_epoch) {
           // Realistic connecting departure: +15m cushion + 15m transfer buffer after scheduled arrival
           deadlineEpoch = targetStop.sched_arr_epoch + (bufferMins + 15) * 60;
@@ -72,7 +115,11 @@ export const App: React.FC = () => {
           const hh = istDate.getUTCHours().toString().padStart(2, '0');
           const mm = istDate.getUTCMinutes().toString().padStart(2, '0');
           const autoDeadline = `${hh}:${mm}`;
-          if (connectionTarget?.deadline_time !== autoDeadline) {
+          if (
+            connectionTarget?.deadline_time !== autoDeadline &&
+            lastAutoDeadlineRef.current !== autoDeadline
+          ) {
+            lastAutoDeadlineRef.current = autoDeadline;
             setConnectionTarget({ deadline_time: autoDeadline, isCustom: false });
           }
         } else {
@@ -123,10 +170,10 @@ export const App: React.FC = () => {
       {/* Top Application Header (Sticky 52px Bar) */}
       <TopHeader />
 
-      {/* Main Responsive Layout */}
-      <main className="flex flex-col md:flex-row flex-1 items-stretch md:items-start w-full max-w-[1600px] mx-auto">
-        {/* Sidebar Container (order-2 on mobile, order-1 on desktop) */}
-        <div className="w-full md:w-[38%] md:min-w-[380px] md:max-w-[460px] order-2 md:order-1 shrink-0 p-3 flex flex-col gap-3">
+      {/* Main Two-Column Layout */}
+      <main className="flex flex-1 items-start w-full max-w-[1600px] mx-auto flex-col md:flex-row">
+        {/* Left Column / Dashboard Cards (Full width on mobile, 40% on desktop) */}
+        <div className="w-full md:w-[40%] shrink-0 px-3 py-3 flex flex-col gap-3">
           {/* Section 1: Train Identity + Arrival & Connection Summary */}
           <ArrivalConnectionCard />
 
@@ -134,11 +181,60 @@ export const App: React.FC = () => {
           <VerticalTimeline />
         </div>
 
-        {/* Map Container (order-1 on mobile, order-2 on desktop) */}
-        <div className="order-1 md:order-2 w-full h-[38vh] min-h-[260px] md:sticky md:top-[52px] md:h-[calc(100vh-52px)] md:flex-1 p-3 md:pl-0 overflow-hidden">
-          <CorridorMap />
+        {/* Right Map Container (60% width, desktop only sticky full-height viewport) */}
+        <div className="hidden md:block md:w-[60%] sticky top-[52px] h-[calc(100vh-52px)] p-3 md:pl-0 overflow-hidden">
+          {isDesktop && (
+            <Suspense fallback={<MapSkeleton />}>
+              <CorridorMap />
+            </Suspense>
+          )}
         </div>
       </main>
+
+      {/* Floating Bottom-Right Map Button (Mobile < md) */}
+      <button
+        type="button"
+        onClick={() => setMobileMapOpen(true)}
+        className="md:hidden fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-900 text-white font-semibold text-xs shadow-xl hover:bg-slate-800 active:scale-95 transition-all cursor-pointer border border-slate-700/80 backdrop-blur-xs"
+        title="Open Live Corridor Map"
+        aria-label="Open Live Corridor Map"
+      >
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+        <Map className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+        <span>Map</span>
+      </button>
+
+      {/* Full-Screen Mobile Map Modal */}
+      {mobileMapOpen && (
+        <div className="fixed inset-0 z-50 bg-white flex flex-col md:hidden animate-in fade-in duration-150">
+          {/* Header Bar */}
+          <div className="h-14 px-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-[#FAF9F6]">
+            <button
+              type="button"
+              onClick={() => setMobileMapOpen(false)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Journey</span>
+            </button>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-mono font-bold text-xs text-[#0F294A] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 shrink-0">
+                {selectedTrain}
+              </span>
+              <span className="font-bold text-xs text-slate-800 truncate">
+                {monitoredTrain?.train_name || 'Corridor Train'}
+              </span>
+            </div>
+          </div>
+
+          {/* Map Container */}
+          <div className="flex-1 relative w-full h-full">
+            <Suspense fallback={<MapSkeleton />}>
+              <CorridorMap isModal={true} />
+            </Suspense>
+          </div>
+        </div>
+      )}
 
       {/* Floating Modals and Presenter Drawers */}
       <CabModal />

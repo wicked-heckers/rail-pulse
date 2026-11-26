@@ -32,6 +32,23 @@ class CorridorStateStore:
         self._injected_freights: dict[str, float] = {}
         self._goods_rakes: list[dict[str, Any]] = []
         self._last_tick_epoch: int = int(time.time())
+        self._active_corridor_id: str = "ECoR_BHC_PURI"
+
+    async def get_active_corridor(self) -> str:
+        async with self._lock:
+            return self._active_corridor_id
+
+    async def set_active_corridor(self, corridor_id: str) -> None:
+        async with self._lock:
+            self._active_corridor_id = corridor_id
+            self._trains.clear()
+            self._freight_shadows.clear()
+            self._injected_delays.clear()
+            self._cause_delays.clear()
+            self._remaining_cause_delays.clear()
+            self._remaining_loop_holds.clear()
+            self._active_causes.clear()
+            self._injected_freights.clear()
 
     async def update_trains(self, trains: list[TrainKinematicState]) -> None:
         async with self._lock:
@@ -157,6 +174,7 @@ class CorridorStateStore:
         async with self._lock:
             data_quality = "LIVE_SIM" if self._provider_mode == "DEMO_SIMULATION" else "LIVE_FEED"
             return {
+                "corridor_id": self._active_corridor_id,
                 "tick_utc": self._last_tick_epoch,
                 "mode": self._provider_mode,
                 "data_quality": data_quality,
