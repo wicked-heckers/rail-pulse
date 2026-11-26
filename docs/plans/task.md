@@ -52,6 +52,8 @@
 | **048** | Branch Integration & Frontend Audit | Task 19.1: Pull, Review & Audit 'arpita/frontend' Branch | Completed | Merged 'arpita/frontend' (utility landing page, TrainDropdown, AddTrainModal, ArrivalConnectionCard, MapLibre 60 FPS enhancements), audited backend contracts (no backend breaking changes), mounted /fonts & root static assets in app/main.py, rebuilt dist assets, and verified with 41 passing pytest tests & TestClient checks |
 | **049** | Branch Integration & Dead Code Cleanup | Task 19.2: Merge 'arpita/frontend' Dead Code Refactoring | Completed | Merged upstream commit f34fd21 (dead component cleanup of ConnectionGuard/RescueBanner/EtaRangeBar superseded by ArrivalConnectionCard, removed unused fonts and legacy API stubs), rebuilt production dist assets, verified with 41 passing pytest tests, and pushed to origin/main |
 | **050** | Branch Integration & System Audit | Task 20.1: Pull, Review & Audit 'Sahil' Branch | Completed | Merged 'origin/Sahil' (incorporating swadhin 120s Redis poller + replay failover and Sahil live digital clock, multi-cause disruption catalog, and overtake simulation), audited backend & ML contracts, fixed test duplication & import order, verified 53 passing pytest tests, clean ruff check, frontend build, and live server endpoints |
+| **051** | Branch Integration & Responsive UI | Task 21.1: Merge 'arpita/frontend' Mobile & Layout Polish | Completed | Merged upstream commit c966447 (responsive single-viewport landing page, interactive P10/P50/P90 quantile selector, floating search popover, locked height connection box, full-width footer), fixed TypeScript null checks in passengerUtils, rebuilt dist assets, verified with 53 passing pytest tests & live server checks, and pushed to origin/main |
+
 
 
 

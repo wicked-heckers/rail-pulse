@@ -7,21 +7,28 @@ export const HowItWorks: React.FC = () => {
   const t = TRANSLATIONS[language].steps;
 
   const steps = [
-    { title: t.s1Title, body: t.s1Body },
-    { title: t.s2Title, body: t.s2Body },
-    { title: t.s3Title, body: t.s3Body },
+    { badge: t.s1Badge, title: t.s1Title, desc: t.s1Desc },
+    { badge: t.s2Badge, title: t.s2Title, desc: t.s2Desc },
+    { badge: t.s3Badge, title: t.s3Title, desc: t.s3Desc },
   ];
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+    <div className="w-full max-w-3xl mx-auto px-4 sm:px-6">
+      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-0 md:divide-x md:divide-slate-200 pt-1">
         {steps.map((step, i) => (
           <div
             key={i}
-            className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 sm:py-3"
+            className="md:px-7 first:md:pl-0 last:md:pr-0 flex flex-col"
           >
-            <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-0.5">{step.title}</p>
-            <p className="text-xs text-slate-500 leading-normal">{step.body}</p>
+            <span className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+              {step.badge}
+            </span>
+            <h4 className="text-sm font-semibold text-slate-900 mt-1 leading-snug">
+              {step.title}
+            </h4>
+            <p className="text-[13px] leading-relaxed text-slate-500 mt-1.5">
+              {step.desc}
+            </p>
           </div>
         ))}
       </div>
