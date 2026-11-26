@@ -81,9 +81,19 @@ const NH16_HIGHWAY_WAYPOINTS: [number, number][] = [
   [85.8333, 20.2667], // Master Canteen / Bhubaneswar Station
 ];
 
+// NH-16 Highway bailout alignment (Khurda Road to Bhubaneswar)
+const NH16_KUR_HIGHWAY_WAYPOINTS: [number, number][] = [
+  [85.7333, 20.1833], // Khurda Road Junction Station
+  [85.7500, 20.2000], // Jatni Gate
+  [85.7750, 20.2200], // Pitapalli Junction NH-16
+  [85.8050, 20.2450], // Khandagiri Square
+  [85.8333, 20.2667], // Bhubaneswar Station
+];
+
 // High-resolution smooth Catmull-Rom geometries
 export const SMOOTH_TRACK_COORDS = catmullRomSpline(ECOR_STATION_WAYPOINTS, 8);
 export const SMOOTH_NH16_COORDS = catmullRomSpline(NH16_HIGHWAY_WAYPOINTS, 8);
+export const SMOOTH_NH16_KUR_COORDS = catmullRomSpline(NH16_KUR_HIGHWAY_WAYPOINTS, 8);
 
 // Active Delay Ahead: Cuttack (CTC) down to Barang (BRAG) & Mancheswar
 // Physically ahead of southbound train 12821 towards Bhubaneswar

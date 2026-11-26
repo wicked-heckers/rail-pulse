@@ -54,6 +54,7 @@ const INITIAL_TRAINS: ManagerTrain[] = [
 const STATION_COORDS: Record<string, { lat: number; lon: number; km: number }> = {
   BHC: { lat: 21.0573, lon: 86.4947, km: 0.0 },
   JJKR: { lat: 20.9506, lon: 86.1384, km: 44.0 },
+  JKPR: { lat: 20.9400, lon: 86.0600, km: 51.0 },
   CTC: { lat: 20.4631, lon: 85.8828, km: 115.0 },
   BBS: { lat: 20.2646, lon: 85.8394, km: 143.0 },
   KUR: { lat: 20.1834, lon: 85.7337, km: 162.0 },

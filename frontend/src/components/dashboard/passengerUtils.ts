@@ -429,7 +429,14 @@ export function getDelayCauses(
       tagType: c.event.includes('OVERTAKE') ? 'projected' : 'confirmed',
       explanation: c.human_message,
       locationName: `${c.station_name} (${c.station_code})`,
-      coordinates: c.station_code === 'CTC' ? [85.8829, 20.4625] : [85.856, 20.431],
+      coordinates:
+        c.station_code === 'CTC'
+          ? [85.8829, 20.4625]
+          : c.station_code === 'KUR'
+          ? [85.7333, 20.1833]
+          : c.station_code === 'JKPR'
+          ? [86.06, 20.94]
+          : [85.856, 20.431],
       popupTitle: titleMap[c.event] || c.event,
       popupMessage: c.human_message,
       highlightType: c.event.includes('FREIGHT')
@@ -581,6 +588,14 @@ export function getStationRelevance(
       roleBadge: 'NH-16 Road Rescue Transfer Point',
       roleTone: 'amber',
       relevanceExplanation: 'Recommended early-deboard station: take NH-16 highway cab here to save ~21 mins to Bhubaneswar.',
+    };
+  }
+
+  if (stationCode === 'KUR' && isRescueActive) {
+    return {
+      roleBadge: 'NH-16 Road Rescue Transfer Point',
+      roleTone: 'amber',
+      relevanceExplanation: 'Recommended early-deboard station: take NH-16 highway cab here to save ~22 mins to Bhubaneswar/Airport.',
     };
   }
 
