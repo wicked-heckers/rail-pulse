@@ -39,7 +39,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onNavigateToSearch
 
   return (
     <>
-      <footer className="w-full bg-transparent border-t border-slate-300/60 mt-16">
+      <footer className="w-full border-t border-slate-200/80 bg-white/70 backdrop-blur-sm mt-16">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-10 pb-8 md:pt-12 md:pb-10">
           {/* Asymmetrical 3-Column Editorial Grid */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-10">
