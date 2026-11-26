@@ -14,11 +14,11 @@ export const HowItWorks: React.FC = () => {
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4">
-      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-0 md:divide-x md:divide-slate-200/80 pt-1">
+      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-0 md:divide-x md:divide-slate-200 pt-1">
         {steps.map((step, i) => (
           <div
             key={i}
-            className="md:px-6 first:md:pl-0 last:md:pr-0 flex flex-col"
+            className="md:px-7 first:md:pl-0 last:md:pr-0 flex flex-col"
           >
             <span className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
               {step.badge}
@@ -26,7 +26,7 @@ export const HowItWorks: React.FC = () => {
             <h4 className="text-sm font-semibold text-slate-900 mt-1 leading-snug">
               {step.title}
             </h4>
-            <p className="text-xs text-slate-500 leading-relaxed mt-1">
+            <p className="text-[13px] leading-relaxed text-slate-500 mt-1.5">
               {step.desc}
             </p>
           </div>

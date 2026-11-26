@@ -14,19 +14,26 @@ export const LandingPage: React.FC = () => {
       <LandingBackground />
 
       {/* Content Container */}
-      <div className="relative z-10 flex flex-col min-h-screen justify-between">
+      <div className="relative z-10 flex flex-col min-h-screen">
         <LandingNav />
 
-        <main className="flex-1 flex flex-col justify-center px-4 py-6">
-          <div className="w-full max-w-3xl mx-auto flex flex-col gap-5">
-            <HeroSection />
+        <main className="flex-1 px-4 pt-10 pb-8 flex flex-col">
+          <div className="w-full max-w-3xl mx-auto flex flex-col">
+            <div className="mb-8">
+              <HeroSection />
+            </div>
             <SearchCard />
-            <ValueComparison />
-            <HowItWorks />
+            <div className="mt-8">
+              <ValueComparison />
+            </div>
+            <div className="mt-9">
+              <HowItWorks />
+            </div>
+            <div className="mt-12">
+              <LandingFooter />
+            </div>
           </div>
         </main>
-
-        <LandingFooter />
       </div>
     </div>
   );
