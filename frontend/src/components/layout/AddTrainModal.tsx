@@ -66,6 +66,15 @@ const STATIONS = [
   { code: 'BBS', name: 'Bhubaneswar (143 km)' },
   { code: 'KUR', name: 'Khurda Road (162 km)' },
   { code: 'PURI', name: 'Puri Terminal (206 km)' },
+  // Kolkata SER Line
+  { code: 'HWH', name: 'Howrah Junction (0 km)' },
+  { code: 'SRC', name: 'Santragachi Junction (7 km)' },
+  { code: 'ULB', name: 'Uluberia (32 km)' },
+  { code: 'BZN', name: 'Bagnan (45 km)' },
+  { code: 'MCA', name: 'Mecheda Junction (58 km)' },
+  { code: 'PKU', name: 'Panskura Junction (71 km)' },
+  { code: 'BCK', name: 'Balichak (91 km)' },
+  { code: 'KGP', name: 'Kharagpur Junction (115 km)' },
 ];
 
 export const AddTrainModal: React.FC = () => {

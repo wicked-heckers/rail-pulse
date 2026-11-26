@@ -1,4 +1,5 @@
 import type {
+  CorridorSummary,
   ForecastResponse,
   RescueEvaluationResponse,
 } from '../types/corridor';
@@ -167,3 +168,46 @@ export async function injectULIPFreight(): Promise<any> {
   });
   return await res.json();
 }
+
+export async function listCorridors(): Promise<CorridorSummary[]> {
+  try {
+    const res = await fetch(`${API_BASE}/corridor/list`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Failed to fetch corridors list, using fallback', err);
+    return [
+      {
+        id: 'ECoR_BHC_PURI',
+        name: 'East Coast Trunk Line',
+        section: 'Bhadrak – Cuttack – Bhubaneswar – Puri',
+        length_km: 206.0,
+        stations_count: 9,
+        primary_highway: 'NH-16 / NH-316',
+        region: 'East Coast Railway (ECoR)',
+        is_active: true,
+      },
+      {
+        id: 'SER_HWH_KGP',
+        name: 'Kolkata Trunk Line',
+        section: 'Howrah – Santragachi – Mecheda – Kharagpur',
+        length_km: 115.0,
+        stations_count: 8,
+        primary_highway: 'NH-16 / Kona Expressway',
+        region: 'South Eastern Railway (SER)',
+        is_active: false,
+      },
+    ];
+  }
+}
+
+export async function switchCorridorApi(corridorId: string, speedMultiplier = 1): Promise<any> {
+  const res = await fetch(`${API_BASE}/corridor/switch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ corridor_id: corridorId, speed_multiplier: speedMultiplier }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+

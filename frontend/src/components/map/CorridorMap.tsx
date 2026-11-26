@@ -10,6 +10,9 @@ import {
   SMOOTH_NH16_COORDS,
   SMOOTH_NH16_KUR_COORDS,
   SMOOTH_CONGESTION_AHEAD_COORDS,
+  SMOOTH_HWH_KGP_TRACK_COORDS,
+  SMOOTH_KONA_EXPRESSWAY_COORDS,
+  SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS,
   snapPointToTrack,
 } from '../../services/corridorData';
 import {
@@ -40,6 +43,18 @@ const STATIONS = [
   { code: 'BBS', name: 'Bhubaneswar', km: 143.0, coords: [85.8333, 20.2667] as [number, number] },
   { code: 'KUR', name: 'Khurda Rd Jn', km: 162.0, coords: [85.7333, 20.1833] as [number, number] },
   { code: 'PURI', name: 'Puri', km: 206.0, coords: [85.8314, 19.8133] as [number, number] },
+];
+
+// Verified South Eastern Railway Kolkata Trunk Line Stations
+const SER_STATIONS = [
+  { code: 'HWH', name: 'Howrah Jn', km: 0.0, coords: [88.3426, 22.5830] as [number, number] },
+  { code: 'SRC', name: 'Santragachi Jn', km: 7.0, coords: [88.2830, 22.5800] as [number, number] },
+  { code: 'ULB', name: 'Uluberia', km: 32.0, coords: [88.1100, 22.4700] as [number, number] },
+  { code: 'BZN', name: 'Bagnan', km: 45.0, coords: [87.9700, 22.4600] as [number, number] },
+  { code: 'MCA', name: 'Mecheda Jn', km: 58.0, coords: [87.8600, 22.4200] as [number, number] },
+  { code: 'PKU', name: 'Panskura Jn', km: 71.0, coords: [87.7200, 22.4100] as [number, number] },
+  { code: 'BCK', name: 'Balichak', km: 91.0, coords: [87.5500, 22.3700] as [number, number] },
+  { code: 'KGP', name: 'Kharagpur Jn', km: 115.0, coords: [87.3200, 22.3300] as [number, number] },
 ];
 
 function createBaseMapStyle(mapboxToken?: string | null): any {
@@ -76,6 +91,7 @@ export const CorridorMap: React.FC = () => {
   const activePopupRef = useRef<MapLibrePopup | null>(null);
 
   const {
+    activeCorridorId,
     selectedTrain,
     setSelectedTrain,
     activeSnapshot,
@@ -88,6 +104,11 @@ export const CorridorMap: React.FC = () => {
     setSelectedDelayId,
     connectionTarget,
   } = useRailStore();
+
+  const isKolkata = activeCorridorId === 'SER_HWH_KGP';
+  const activeStations = isKolkata ? SER_STATIONS : STATIONS;
+  const activeTrackCoords = isKolkata ? SMOOTH_HWH_KGP_TRACK_COORDS : SMOOTH_TRACK_COORDS;
+  const activeCongestionCoords = isKolkata ? SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS : SMOOTH_CONGESTION_AHEAD_COORDS;
 
   // Synchronize 60 FPS GPU vector animator
   useTrainAnimator(mapRef);
@@ -121,22 +142,23 @@ export const CorridorMap: React.FC = () => {
 
   // Split route coordinates: Completed (muted) vs Remaining (prominent navy)
   const { completedCoords, remainingCoords } = useMemo(() => {
-    const totalKm = 206.0;
+    const totalKm = isKolkata ? 115.0 : 206.0;
+    const track = activeTrackCoords;
     const progressRatio = Math.min(1, Math.max(0, trainKm / totalKm));
-    const splitIndex = Math.floor(progressRatio * (SMOOTH_TRACK_COORDS.length - 1));
+    const splitIndex = Math.floor(progressRatio * (track.length - 1));
 
     if (currentTrain?.direction === 'UP') {
       return {
-        completedCoords: SMOOTH_TRACK_COORDS.slice(splitIndex),
-        remainingCoords: SMOOTH_TRACK_COORDS.slice(0, splitIndex + 1),
+        completedCoords: track.slice(splitIndex),
+        remainingCoords: track.slice(0, splitIndex + 1),
       };
     }
 
     return {
-      completedCoords: SMOOTH_TRACK_COORDS.slice(0, splitIndex + 1),
-      remainingCoords: SMOOTH_TRACK_COORDS.slice(splitIndex),
+      completedCoords: track.slice(0, splitIndex + 1),
+      remainingCoords: track.slice(splitIndex),
     };
-  }, [trainKm, currentTrain?.direction]);
+  }, [trainKm, currentTrain?.direction, isKolkata, activeTrackCoords]);
 
   // Clean close any active popup
   const closeActivePopup = useCallback(() => {
@@ -161,14 +183,20 @@ export const CorridorMap: React.FC = () => {
 
       <!-- Row 2: Full-width Title -->
       <h4 class="font-bold text-[15px] leading-snug text-slate-900 pt-0.5">
-        Goods Train Ahead
+        ${isKolkata ? 'Freight Drag Merging Ahead' : 'Goods Train Ahead'}
       </h4>
 
       <!-- Row 3: Location + Plain Description -->
       <div class="pt-1.5 border-t border-slate-100">
-        <div class="text-xs font-semibold text-slate-500 mb-1">Between Cuttack & Barang</div>
+        <div class="text-xs font-semibold text-slate-500 mb-1">
+          ${isKolkata ? 'Mecheda – Panskura Branch Junction' : 'Between Cuttack & Barang'}
+        </div>
         <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">
-          A slow goods train is ahead of you toward Bhubaneswar, adding about 14 mins to your journey.
+          ${
+            isKolkata
+              ? 'A slow Haldia port freight rake is occupying the branch chord ahead, adding about 14 mins to your journey.'
+              : 'A slow goods train is ahead of you toward Bhubaneswar, adding about 14 mins to your journey.'
+          }
         </p>
       </div>
     </div>
@@ -178,19 +206,20 @@ export const CorridorMap: React.FC = () => {
   const openGoodsTrainPopup = useCallback(
     (map: MapLibreMap) => {
       closeActivePopup();
+      const popupCoords: [number, number] = isKolkata ? [87.86, 22.42] : [85.856, 20.431];
       const popup = new maplibregl.Popup({
         anchor: 'right',
         offset: [-16, 0],
         closeButton: true,
         maxWidth: '320px',
       })
-        .setLngLat([85.856, 20.431])
+        .setLngLat(popupCoords)
         .setHTML(getGoodsTrainPopupHtml())
         .addTo(map);
 
       activePopupRef.current = popup;
     },
-    [closeActivePopup]
+    [closeActivePopup, isKolkata]
   );
 
   // Direct camera view handler triggered on button click or track click
@@ -204,18 +233,28 @@ export const CorridorMap: React.FC = () => {
 
       if (view === 'my_train') {
         setSelectedDelayId(null);
-        map.fitBounds(
-          [
-            [85.80, 20.24], // SW: Bhubaneswar
-            [85.92, 20.50], // NE: Cuttack
-          ],
-          { padding: 50, duration: 800 }
-        );
+        if (isKolkata) {
+          map.fitBounds(
+            [
+              [87.30, 22.30], // SW: Kharagpur
+              [88.38, 22.62], // NE: Howrah
+            ],
+            { padding: 50, duration: 800 }
+          );
+        } else {
+          map.fitBounds(
+            [
+              [85.80, 20.24], // SW: Bhubaneswar
+              [85.92, 20.50], // NE: Cuttack
+            ],
+            { padding: 50, duration: 800 }
+          );
+        }
       } else if (view === 'delays_ahead') {
         setSelectedDelayId('cause-2');
         // Smoothly zoom in on the delay zone ahead of the train
         map.flyTo({
-          center: [85.856, 20.431],
+          center: isKolkata ? [87.86, 22.42] : [85.856, 20.431],
           zoom: 12.2,
           speed: 1.2,
           duration: 800,
@@ -233,7 +272,15 @@ export const CorridorMap: React.FC = () => {
         if (map.getLayer('nh16-highway-badge')) {
           map.setLayoutProperty('nh16-highway-badge', 'visibility', 'visible');
         }
-        if (rescue?.bailout_plan?.deboard_station_code === 'KUR') {
+        if (isKolkata) {
+          map.fitBounds(
+            [
+              [88.26, 22.54], // SW: Santragachi
+              [88.36, 22.60], // NE: Howrah
+            ],
+            { padding: 50, duration: 800 }
+          );
+        } else if (rescue?.bailout_plan?.deboard_station_code === 'KUR') {
           map.fitBounds(
             rescue.bailout_plan.destination_station_code === 'PURI'
               ? [
@@ -257,16 +304,26 @@ export const CorridorMap: React.FC = () => {
         }
       } else if (view === 'full_journey') {
         setSelectedDelayId(null);
-        map.fitBounds(
-          [
-            [85.55, 19.75], // SW (Puri)
-            [86.60, 21.15], // NE (Bhadrak)
-          ],
-          { padding: 40, duration: 800 }
-        );
+        if (isKolkata) {
+          map.fitBounds(
+            [
+              [87.25, 22.25], // SW (Kharagpur)
+              [88.42, 22.65], // NE (Howrah)
+            ],
+            { padding: 40, duration: 800 }
+          );
+        } else {
+          map.fitBounds(
+            [
+              [85.55, 19.75], // SW (Puri)
+              [86.60, 21.15], // NE (Bhadrak)
+            ],
+            { padding: 40, duration: 800 }
+          );
+        }
       }
     },
-    [closeActivePopup, openGoodsTrainPopup, setActiveMapView, setSelectedDelayId]
+    [closeActivePopup, openGoodsTrainPopup, setActiveMapView, setSelectedDelayId, isKolkata, rescue]
   );
 
   // Map Initialization
@@ -314,22 +371,32 @@ export const CorridorMap: React.FC = () => {
             }
           }
 
-          // Default initial view: Focus on active rescue action corridor (Cuttack to Bhubaneswar)
-          map.fitBounds(
-            [
-              [85.80, 20.24], // SW: South of Bhubaneswar
-              [85.92, 20.50], // NE: North of Cuttack
-            ],
-            { padding: 50, duration: 600 }
-          );
+          // Default initial view: Focus on active rescue action corridor
+          if (isKolkata) {
+            map.fitBounds(
+              [
+                [87.30, 22.30], // SW: Kharagpur
+                [88.38, 22.62], // NE: Howrah
+              ],
+              { padding: 50, duration: 600 }
+            );
+          } else {
+            map.fitBounds(
+              [
+                [85.80, 20.24], // SW: South of Bhubaneswar
+                [85.92, 20.50], // NE: North of Cuttack
+              ],
+              { padding: 50, duration: 600 }
+            );
+          }
 
           // 1. Natural Railway Track (Casing)
           map.addSource('railway-track-casing-source', {
             type: 'geojson',
             data: {
               type: 'Feature',
-              properties: { name: 'ECoR Trunk Line' },
-              geometry: { type: 'LineString', coordinates: SMOOTH_TRACK_COORDS },
+              properties: { name: isKolkata ? 'SER Trunk Line' : 'ECoR Trunk Line' },
+              geometry: { type: 'LineString', coordinates: activeTrackCoords },
             },
           });
 
@@ -405,13 +472,13 @@ export const CorridorMap: React.FC = () => {
             },
           });
 
-          // 4. Affected Delay Section (Ahead of train: Cuttack toward Barang / Bhubaneswar)
+          // 4. Affected Delay Section (Ahead of train)
           map.addSource('freight-hazard-source', {
             type: 'geojson',
             data: {
               type: 'Feature',
               properties: { name: 'Delay Section Ahead' },
-              geometry: { type: 'LineString', coordinates: SMOOTH_CONGESTION_AHEAD_COORDS },
+              geometry: { type: 'LineString', coordinates: activeCongestionCoords },
             },
           });
 
@@ -437,15 +504,19 @@ export const CorridorMap: React.FC = () => {
             },
           });
 
-          // Delay badge: Plain passenger copy "Goods Train Ahead (~14m delay)"
+          // Delay badge: Plain passenger copy
           map.addSource('freight-badge-source', {
             type: 'geojson',
             data: {
               type: 'Feature',
-              properties: { label: '⚠ Goods Train Ahead (~14m delay)' },
+              properties: {
+                label: isKolkata
+                  ? '⚠ Suburban Freight Drag Ahead (~14m delay)'
+                  : '⚠ Goods Train Ahead (~14m delay)',
+              },
               geometry: {
                 type: 'Point',
-                coordinates: [85.856, 20.431], // Midpoint Cuttack to Barang
+                coordinates: isKolkata ? [87.86, 22.42] : [85.856, 20.431],
               },
             },
           });
@@ -467,13 +538,20 @@ export const CorridorMap: React.FC = () => {
             },
           });
 
-          // 5. Dashed Emerald NH-16 Rescue Route (CTC ➔ BBS)
+          // 5. Dashed Emerald Highway Rescue Route
           map.addSource('nh16-highway', {
             type: 'geojson',
             data: {
               type: 'Feature',
-              properties: { name: 'NH-16 Expressway Rescue Corridor' },
-              geometry: { type: 'LineString', coordinates: SMOOTH_NH16_COORDS },
+              properties: {
+                name: isKolkata
+                  ? 'Kona Expressway Rescue Corridor'
+                  : 'NH-16 Expressway Rescue Corridor',
+              },
+              geometry: {
+                type: 'LineString',
+                coordinates: isKolkata ? SMOOTH_KONA_EXPRESSWAY_COORDS : SMOOTH_NH16_COORDS,
+              },
             },
           });
 
@@ -491,15 +569,19 @@ export const CorridorMap: React.FC = () => {
             },
           });
 
-          // NH-16 Rescue Pill Badge
+          // Highway Rescue Pill Badge
           map.addSource('nh16-badge-source', {
             type: 'geojson',
             data: {
               type: 'Feature',
-              properties: { label: 'Cab from Cuttack • 21 mins faster' },
+              properties: {
+                label: isKolkata
+                  ? 'Cab from Santragachi • 24 mins faster'
+                  : 'Cab from Cuttack • 21 mins faster',
+              },
               geometry: {
                 type: 'Point',
-                coordinates: [85.875, 20.370],
+                coordinates: isKolkata ? [88.31, 22.57] : [85.875, 20.370],
               },
             },
           });
@@ -527,7 +609,7 @@ export const CorridorMap: React.FC = () => {
             type: 'geojson',
             data: {
               type: 'FeatureCollection',
-              features: STATIONS.map((stn) => {
+              features: activeStations.map((stn) => {
                 const isPassed = trainKm > stn.km + 4;
                 const isCurrent = Math.abs(stn.km - trainKm) <= 6;
                 const relevance = getStationRelevance(
@@ -538,14 +620,15 @@ export const CorridorMap: React.FC = () => {
                   isCurrent
                 );
 
-                const rescueDeboardStn = rescue?.bailout_plan?.deboard_station_code || 'CTC';
+                const rescueDeboardStn =
+                  rescue?.bailout_plan?.deboard_station_code || (isKolkata ? 'SRC' : 'CTC');
                 return {
                   type: 'Feature',
                   properties: {
                     code: stn.code,
                     name: stn.name,
                     km: stn.km,
-                    is_destination: stn.code === 'BBS',
+                    is_destination: stn.code === (isKolkata ? 'HWH' : 'BBS'),
                     is_rescue_transfer: stn.code === rescueDeboardStn,
                     is_current: isCurrent,
                     is_passed: isPassed,
@@ -921,14 +1004,26 @@ export const CorridorMap: React.FC = () => {
     }
 
     const isKhurdaRescue = rescue?.bailout_plan?.deboard_station_code === 'KUR';
+    const isKolkataRescue =
+      isKolkata ||
+      rescue?.bailout_plan?.deboard_station_code === 'SRC' ||
+      rescue?.bailout_plan?.deboard_station_code === 'MCA';
     const highwaySource = map.getSource('nh16-highway') as any;
     if (highwaySource && typeof highwaySource.setData === 'function') {
       highwaySource.setData({
         type: 'Feature',
-        properties: { name: 'NH-16 Expressway Rescue Corridor' },
+        properties: {
+          name: isKolkataRescue
+            ? 'Kona Expressway Rescue Corridor'
+            : 'NH-16 Expressway Rescue Corridor',
+        },
         geometry: {
           type: 'LineString',
-          coordinates: isKhurdaRescue ? SMOOTH_NH16_KUR_COORDS : SMOOTH_NH16_COORDS,
+          coordinates: isKolkataRescue
+            ? SMOOTH_KONA_EXPRESSWAY_COORDS
+            : isKhurdaRescue
+            ? SMOOTH_NH16_KUR_COORDS
+            : SMOOTH_NH16_COORDS,
         },
       });
     }
@@ -937,8 +1032,23 @@ export const CorridorMap: React.FC = () => {
     if (badgeSource && typeof badgeSource.setData === 'function') {
       const minsSaved = rescue?.bailout_plan?.minutes_saved
         ? Math.round(rescue.bailout_plan.minutes_saved)
-        : (isKhurdaRescue ? 22 : 21);
-      const deboardLabel = isKhurdaRescue ? 'Khurda Rd' : 'Cuttack';
+        : isKolkataRescue
+        ? 24
+        : isKhurdaRescue
+        ? 22
+        : 21;
+      const deboardLabel = isKolkataRescue
+        ? rescue?.bailout_plan?.deboard_station_code === 'MCA'
+          ? 'Mecheda'
+          : 'Santragachi'
+        : isKhurdaRescue
+        ? 'Khurda Rd'
+        : 'Cuttack';
+      const badgeCoords: [number, number] = isKolkataRescue
+        ? [88.31, 22.57]
+        : isKhurdaRescue
+        ? [85.775, 20.22]
+        : [85.875, 20.37];
       badgeSource.setData({
         type: 'Feature',
         properties: {
@@ -946,11 +1056,111 @@ export const CorridorMap: React.FC = () => {
         },
         geometry: {
           type: 'Point',
-          coordinates: isKhurdaRescue ? [85.775, 20.22] : [85.875, 20.37],
+          coordinates: badgeCoords,
         },
       });
     }
-  }, [isRescueAvailable, activeMapView, rescue]);
+  }, [isRescueAvailable, activeMapView, rescue, isKolkata]);
+
+  // Synchronize entire corridor layers and camera when activeCorridorId changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    // 1. Update track casing
+    const casingSource = map.getSource('railway-track-casing-source') as any;
+    if (casingSource && typeof casingSource.setData === 'function') {
+      casingSource.setData({
+        type: 'Feature',
+        properties: { name: isKolkata ? 'SER Trunk Line' : 'ECoR Trunk Line' },
+        geometry: { type: 'LineString', coordinates: activeTrackCoords },
+      });
+    }
+
+    // 2. Update station nodes
+    const stationSource = map.getSource('station-nodes') as any;
+    if (stationSource && typeof stationSource.setData === 'function') {
+      stationSource.setData({
+        type: 'FeatureCollection',
+        features: activeStations.map((stn) => {
+          const isPassed = trainKm > stn.km + 4;
+          const isCurrent = Math.abs(stn.km - trainKm) <= 6;
+          const relevance = getStationRelevance(
+            stn.code,
+            selectedTrain,
+            isRescueAvailable,
+            isPassed,
+            isCurrent
+          );
+          const rescueDeboardStn =
+            rescue?.bailout_plan?.deboard_station_code || (isKolkata ? 'SRC' : 'CTC');
+          return {
+            type: 'Feature',
+            properties: {
+              code: stn.code,
+              name: stn.name,
+              km: stn.km,
+              is_destination: stn.code === (isKolkata ? 'HWH' : 'BBS'),
+              is_rescue_transfer: stn.code === rescueDeboardStn,
+              is_current: isCurrent,
+              is_passed: isPassed,
+              role_badge: relevance.roleBadge,
+              explanation: relevance.relevanceExplanation,
+            },
+            geometry: {
+              type: 'Point',
+              coordinates: stn.coords,
+            },
+          };
+        }),
+      });
+    }
+
+    // 3. Update delay section ahead
+    const hazardSource = map.getSource('freight-hazard-source') as any;
+    if (hazardSource && typeof hazardSource.setData === 'function') {
+      hazardSource.setData({
+        type: 'Feature',
+        properties: { name: 'Delay Section Ahead' },
+        geometry: { type: 'LineString', coordinates: activeCongestionCoords },
+      });
+    }
+
+    const freightBadgeSource = map.getSource('freight-badge-source') as any;
+    if (freightBadgeSource && typeof freightBadgeSource.setData === 'function') {
+      freightBadgeSource.setData({
+        type: 'Feature',
+        properties: {
+          label: isKolkata
+            ? '⚠ Suburban Freight Drag Ahead (~14m delay)'
+            : '⚠ Goods Train Ahead (~14m delay)',
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: isKolkata ? [87.86, 22.42] : [85.856, 20.431],
+        },
+      });
+    }
+
+    // 4. Reset camera bounds to the new corridor
+    if (isKolkata) {
+      map.fitBounds(
+        [
+          [87.25, 22.25], // SW: Kharagpur
+          [88.40, 22.65], // NE: Howrah
+        ],
+        { padding: 60, duration: 800 }
+      );
+    } else {
+      map.fitBounds(
+        [
+          [85.75, 20.20], // SW: Bhubaneswar
+          [85.95, 20.52], // NE: Cuttack
+        ],
+        { padding: 60, duration: 800 }
+      );
+    }
+  }, [activeCorridorId, isKolkata, activeTrackCoords, activeStations, activeCongestionCoords, trainKm, selectedTrain, isRescueAvailable, rescue]);
 
   // Synchronize phantom freight slow-zone visibility
   useEffect(() => {

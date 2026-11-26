@@ -26,6 +26,16 @@ interface AnimatedTrainState {
 export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
   const trainStateMap = useRef<Map<string, AnimatedTrainState>>(new Map());
   const animFrameId = useRef<number | null>(null);
+  const activeCorridorId = useRailStore((state) => state.activeCorridorId);
+  const lastCorridorIdRef = useRef<string>(activeCorridorId);
+
+  // Clear animated trains cache when corridor switches to prevent cross-corridor ghost markers
+  useEffect(() => {
+    if (lastCorridorIdRef.current !== activeCorridorId) {
+      trainStateMap.current.clear();
+      lastCorridorIdRef.current = activeCorridorId;
+    }
+  }, [activeCorridorId]);
 
   // 1. Pre-populate and synchronize from activeSnapshot (for demo / fallback mode)
   useEffect(() => {

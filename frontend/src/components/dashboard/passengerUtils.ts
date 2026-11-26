@@ -411,6 +411,15 @@ export const STATION_COORDINATES_MAP: Record<string, [number, number]> = {
   BBS: [85.8333, 20.2667],
   KUR: [85.7333, 20.1833],
   PURI: [85.8314, 19.8133],
+  // South Eastern Railway Kolkata Trunk Line
+  HWH: [88.3426, 22.5830],
+  SRC: [88.2830, 22.5800],
+  ULB: [88.1100, 22.4700],
+  BZN: [87.9700, 22.4600],
+  MCA: [87.8600, 22.4200],
+  PKU: [87.7200, 22.4100],
+  BCK: [87.5500, 22.3700],
+  KGP: [87.3200, 22.3300],
 };
 
 /**

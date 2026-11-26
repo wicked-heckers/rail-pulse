@@ -1,0 +1,412 @@
+{
+  "corridor": {
+    "name": "SER_HWH_KGP",
+    "description": "South Eastern Railway Howrah-Santragachi-Mecheda-Kharagpur Trunk Line",
+    "start_km": 0.0,
+    "end_km": 115.0
+  },
+  "stations": [
+    {
+      "station_code": "HWH",
+      "station_name": "Howrah Junction",
+      "chainage_km": 0.0,
+      "lat": 22.5830,
+      "lon": 88.3426,
+      "has_750m_goods_loop": false,
+      "passenger_loops_dn": 6,
+      "passenger_loops_up": 6,
+      "is_major_junction": true,
+      "road_exit_penalty_m": 15
+    },
+    {
+      "station_code": "SRC",
+      "station_name": "Santragachi Junction",
+      "chainage_km": 7.0,
+      "lat": 22.5800,
+      "lon": 88.2830,
+      "has_750m_goods_loop": true,
+      "passenger_loops_dn": 3,
+      "passenger_loops_up": 3,
+      "is_major_junction": true,
+      "road_exit_penalty_m": 8
+    },
+    {
+      "station_code": "ULB",
+      "station_name": "Uluberia",
+      "chainage_km": 32.0,
+      "lat": 22.4700,
+      "lon": 88.1100,
+      "has_750m_goods_loop": true,
+      "passenger_loops_dn": 2,
+      "passenger_loops_up": 2,
+      "is_major_junction": false,
+      "road_exit_penalty_m": 8
+    },
+    {
+      "station_code": "BZN",
+      "station_name": "Bagnan",
+      "chainage_km": 45.0,
+      "lat": 22.4600,
+      "lon": 87.9700,
+      "has_750m_goods_loop": false,
+      "passenger_loops_dn": 1,
+      "passenger_loops_up": 1,
+      "is_major_junction": false,
+      "road_exit_penalty_m": 6
+    },
+    {
+      "station_code": "MCA",
+      "station_name": "Mecheda Junction",
+      "chainage_km": 58.0,
+      "lat": 22.4200,
+      "lon": 87.8600,
+      "has_750m_goods_loop": true,
+      "passenger_loops_dn": 3,
+      "passenger_loops_up": 3,
+      "is_major_junction": true,
+      "road_exit_penalty_m": 10
+    },
+    {
+      "station_code": "PKU",
+      "station_name": "Panskura Junction",
+      "chainage_km": 71.0,
+      "lat": 22.4100,
+      "lon": 87.7200,
+      "has_750m_goods_loop": true,
+      "passenger_loops_dn": 3,
+      "passenger_loops_up": 3,
+      "is_major_junction": true,
+      "road_exit_penalty_m": 8
+    },
+    {
+      "station_code": "BCK",
+      "station_name": "Balichak",
+      "chainage_km": 91.0,
+      "lat": 22.3700,
+      "lon": 87.5500,
+      "has_750m_goods_loop": false,
+      "passenger_loops_dn": 1,
+      "passenger_loops_up": 1,
+      "is_major_junction": false,
+      "road_exit_penalty_m": 6
+    },
+    {
+      "station_code": "KGP",
+      "station_name": "Kharagpur Junction",
+      "chainage_km": 115.0,
+      "lat": 22.3300,
+      "lon": 87.3200,
+      "has_750m_goods_loop": true,
+      "passenger_loops_dn": 5,
+      "passenger_loops_up": 5,
+      "is_major_junction": true,
+      "road_exit_penalty_m": 12
+    }
+  ],
+  "track_blocks": [
+    {
+      "block_id": "DN_HWH_SRC",
+      "direction": "DN",
+      "from_station": "HWH",
+      "to_station": "SRC",
+      "start_km": 0.0,
+      "end_km": 7.0,
+      "length_km": 7.0,
+      "mps_kmph": 110,
+      "free_flow_mins": 3.8,
+      "freight_injection_weight": 0.15,
+      "terminal_slack_mins": 0.0
+    },
+    {
+      "block_id": "DN_SRC_ULB",
+      "direction": "DN",
+      "from_station": "SRC",
+      "to_station": "ULB",
+      "start_km": 7.0,
+      "end_km": 32.0,
+      "length_km": 25.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 11.5,
+      "freight_injection_weight": 0.20,
+      "terminal_slack_mins": 0.0
+    },
+    {
+      "block_id": "DN_ULB_BZN",
+      "direction": "DN",
+      "from_station": "ULB",
+      "to_station": "BZN",
+      "start_km": 32.0,
+      "end_km": 45.0,
+      "length_km": 13.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 6.0,
+      "freight_injection_weight": 0.15,
+      "terminal_slack_mins": 0.0
+    },
+    {
+      "block_id": "DN_BZN_MCA",
+      "direction": "DN",
+      "from_station": "BZN",
+      "to_station": "MCA",
+      "start_km": 45.0,
+      "end_km": 58.0,
+      "length_km": 13.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 6.0,
+      "freight_injection_weight": 0.20,
+      "terminal_slack_mins": 0.0
+    },
+    {
+      "block_id": "DN_MCA_PKU",
+      "direction": "DN",
+      "from_station": "MCA",
+      "to_station": "PKU",
+      "start_km": 58.0,
+      "end_km": 71.0,
+      "length_km": 13.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 6.0,
+      "freight_injection_weight": 0.35,
+      "terminal_slack_mins": 0.0,
+      "is_single_line_throat": true
+    },
+    {
+      "block_id": "DN_PKU_BCK",
+      "direction": "DN",
+      "from_station": "PKU",
+      "to_station": "BCK",
+      "start_km": 71.0,
+      "end_km": 91.0,
+      "length_km": 20.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 9.2,
+      "freight_injection_weight": 0.15,
+      "terminal_slack_mins": 0.0
+    },
+    {
+      "block_id": "DN_BCK_KGP",
+      "direction": "DN",
+      "from_station": "BCK",
+      "to_station": "KGP",
+      "start_km": 91.0,
+      "end_km": 115.0,
+      "length_km": 24.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 11.0,
+      "freight_injection_weight": 0.25,
+      "terminal_slack_mins": 6.0
+    },
+    {
+      "block_id": "UP_KGP_BCK",
+      "direction": "UP",
+      "from_station": "KGP",
+      "to_station": "BCK",
+      "start_km": 115.0,
+      "end_km": 91.0,
+      "length_km": 24.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 11.0,
+      "freight_injection_weight": 0.20,
+      "terminal_slack_mins": 0.0
+    },
+    {
+      "block_id": "UP_BCK_PKU",
+      "direction": "UP",
+      "from_station": "BCK",
+      "to_station": "PKU",
+      "start_km": 91.0,
+      "end_km": 71.0,
+      "length_km": 20.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 9.2,
+      "freight_injection_weight": 0.15,
+      "terminal_slack_mins": 0.0
+    },
+    {
+      "block_id": "UP_PKU_MCA",
+      "direction": "UP",
+      "from_station": "PKU",
+      "to_station": "MCA",
+      "start_km": 71.0,
+      "end_km": 58.0,
+      "length_km": 13.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 6.0,
+      "freight_injection_weight": 0.35,
+      "terminal_slack_mins": 0.0,
+      "is_single_line_throat": true
+    },
+    {
+      "block_id": "UP_MCA_BZN",
+      "direction": "UP",
+      "from_station": "MCA",
+      "to_station": "BZN",
+      "start_km": 58.0,
+      "end_km": 45.0,
+      "length_km": 13.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 6.0,
+      "freight_injection_weight": 0.20,
+      "terminal_slack_mins": 0.0
+    },
+    {
+      "block_id": "UP_BZN_ULB",
+      "direction": "UP",
+      "from_station": "BZN",
+      "to_station": "ULB",
+      "start_km": 45.0,
+      "end_km": 32.0,
+      "length_km": 13.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 6.0,
+      "freight_injection_weight": 0.15,
+      "terminal_slack_mins": 0.0
+    },
+    {
+      "block_id": "UP_ULB_SRC",
+      "direction": "UP",
+      "from_station": "ULB",
+      "to_station": "SRC",
+      "start_km": 32.0,
+      "end_km": 7.0,
+      "length_km": 25.0,
+      "mps_kmph": 130,
+      "free_flow_mins": 11.5,
+      "freight_injection_weight": 0.20,
+      "terminal_slack_mins": 0.0
+    },
+    {
+      "block_id": "UP_SRC_HWH",
+      "direction": "UP",
+      "from_station": "SRC",
+      "to_station": "HWH",
+      "start_km": 7.0,
+      "end_km": 0.0,
+      "length_km": 7.0,
+      "mps_kmph": 110,
+      "free_flow_mins": 3.8,
+      "freight_injection_weight": 0.15,
+      "terminal_slack_mins": 8.0
+    }
+  ],
+  "trains": [
+    {
+      "train_no": "12821",
+      "train_name": "Dhauli Express",
+      "train_class": "Express",
+      "priority_rank": 2,
+      "direction": "DN",
+      "max_speed_kmph": 110,
+      "halts": [
+        {
+          "station_code": "HWH",
+          "stop_sequence": 1,
+          "sched_arr_min_day": 555,
+          "sched_dep_min_day": 555,
+          "is_commercial_halt": true,
+          "scheduled_dwell_m": 0
+        },
+        {
+          "station_code": "SRC",
+          "stop_sequence": 2,
+          "sched_arr_min_day": 567,
+          "sched_dep_min_day": 569,
+          "is_commercial_halt": true,
+          "scheduled_dwell_m": 2
+        },
+        {
+          "station_code": "MCA",
+          "stop_sequence": 3,
+          "sched_arr_min_day": 612,
+          "sched_dep_min_day": 614,
+          "is_commercial_halt": true,
+          "scheduled_dwell_m": 2
+        },
+        {
+          "station_code": "KGP",
+          "stop_sequence": 4,
+          "sched_arr_min_day": 655,
+          "sched_dep_min_day": 660,
+          "is_commercial_halt": true,
+          "scheduled_dwell_m": 5
+        }
+      ]
+    },
+    {
+      "train_no": "22895",
+      "train_name": "Howrah-Puri Vande Bharat Express",
+      "train_class": "Vande Bharat",
+      "priority_rank": 1,
+      "direction": "DN",
+      "max_speed_kmph": 130,
+      "halts": [
+        {
+          "station_code": "HWH",
+          "stop_sequence": 1,
+          "sched_arr_min_day": 370,
+          "sched_dep_min_day": 370,
+          "is_commercial_halt": true,
+          "scheduled_dwell_m": 0
+        },
+        {
+          "station_code": "SRC",
+          "stop_sequence": 2,
+          "sched_arr_min_day": 379,
+          "sched_dep_min_day": 381,
+          "is_commercial_halt": false,
+          "scheduled_dwell_m": 0
+        },
+        {
+          "station_code": "KGP",
+          "stop_sequence": 3,
+          "sched_arr_min_day": 456,
+          "sched_dep_min_day": 458,
+          "is_commercial_halt": true,
+          "scheduled_dwell_m": 2
+        }
+      ]
+    },
+    {
+      "train_no": "12822",
+      "train_name": "Dhauli Express",
+      "train_class": "Express",
+      "priority_rank": 2,
+      "direction": "UP",
+      "max_speed_kmph": 110,
+      "halts": [
+        {
+          "station_code": "KGP",
+          "stop_sequence": 1,
+          "sched_arr_min_day": 1065,
+          "sched_dep_min_day": 1070,
+          "is_commercial_halt": true,
+          "scheduled_dwell_m": 5
+        },
+        {
+          "station_code": "MCA",
+          "stop_sequence": 2,
+          "sched_arr_min_day": 1110,
+          "sched_dep_min_day": 1112,
+          "is_commercial_halt": true,
+          "scheduled_dwell_m": 2
+        },
+        {
+          "station_code": "SRC",
+          "stop_sequence": 3,
+          "sched_arr_min_day": 1152,
+          "sched_dep_min_day": 1154,
+          "is_commercial_halt": true,
+          "scheduled_dwell_m": 2
+        },
+        {
+          "station_code": "HWH",
+          "stop_sequence": 4,
+          "sched_arr_min_day": 1170,
+          "sched_dep_min_day": 1170,
+          "is_commercial_halt": true,
+          "scheduled_dwell_m": 0
+        }
+      ]
+    }
+  ]
+}

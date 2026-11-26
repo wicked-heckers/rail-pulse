@@ -3,6 +3,7 @@ import { useRailStore } from '../../stores/useRailStore';
 import { setSpeedMultiplier } from '../../services/api';
 import { Shield, Navigation, ArrowLeft, Settings, Clock } from 'lucide-react';
 import { TrainDropdown } from './TrainDropdown';
+import { CorridorSwitcher } from './CorridorSwitcher';
 
 function formatEpochClockIST(epochSecs: number): string {
   const istSecs = (Math.floor(epochSecs) + 19800) % 86400;
@@ -19,7 +20,6 @@ function formatEpochClockIST(epochSecs: number): string {
 
 export const TopHeader: React.FC = () => {
   const {
-    selectedTrain,
     activeSnapshot,
     updateSnapshot,
     passengerStatus,
@@ -29,7 +29,6 @@ export const TopHeader: React.FC = () => {
     setCurrentView,
   } = useRailStore();
 
-  const activeTrain = activeSnapshot.trains?.find((t) => t.train_no === selectedTrain);
   const simSpeed = activeSnapshot.speed_multiplier || 1;
   const clockAnchorRef = useRef<{ tickUtc: number; syncedAtMs: number; speed: number }>({
     tickUtc: activeSnapshot.tick_utc || 1795067700,
@@ -105,14 +104,7 @@ export const TopHeader: React.FC = () => {
           </span>
         </button>
 
-        <span
-          className="hidden sm:inline-flex text-xs font-mono px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-bold select-none cursor-default"
-          title="East Coast Railway Trunk Corridor"
-        >
-          {activeTrain?.direction === 'UP' || selectedTrain === '18410'
-            ? 'PURI → BHC'
-            : 'BHC → PURI'}
-        </span>
+        <CorridorSwitcher />
       </div>
 
       {/* Active Monitored Train Selector (Hidden on < md since active train is prominent in arrival card) */}

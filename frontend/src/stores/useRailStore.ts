@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import type {
   CorridorSnapshot,
+  CorridorSummary,
   ForecastResponse,
   RescueEvaluationResponse,
 } from '../types/corridor';
 import { MOCK_SNAPSHOT } from '../services/mockFallback';
+import { listCorridors, switchCorridorApi } from '../services/api';
 
 interface ConnectionTargetState {
   station_code: string;
@@ -24,6 +26,8 @@ interface RailStore {
   cabModalOpen: boolean;
 
   // Real-Time Corridor Data
+  activeCorridorId: string;
+  availableCorridors: CorridorSummary[];
   activeSnapshot: CorridorSnapshot;
   forecast: ForecastResponse | null;
   rescue: RescueEvaluationResponse | null;
@@ -40,6 +44,8 @@ interface RailStore {
   activeCausesByTrain: Record<string, string[]>;
 
   // Actions
+  fetchCorridors: () => Promise<void>;
+  switchCorridor: (corridorId: string) => Promise<void>;
   setCurrentView: (view: 'landing' | 'dashboard') => void;
   setLanguage: (lang: 'EN' | 'HI' | 'OR') => void;
   navigateToDashboardWithTrain: (trainNo?: string) => void;
@@ -69,6 +75,30 @@ export const useRailStore = create<RailStore>((set, get) => ({
   drawerOpen: false,
   cabModalOpen: false,
 
+  activeCorridorId: 'ECoR_BHC_PURI',
+  availableCorridors: [
+    {
+      id: 'ECoR_BHC_PURI',
+      name: 'East Coast Trunk Line',
+      section: 'Bhadrak – Cuttack – Bhubaneswar – Puri',
+      length_km: 206.0,
+      stations_count: 9,
+      primary_highway: 'NH-16 / NH-316',
+      region: 'East Coast Railway (ECoR)',
+      is_active: true,
+    },
+    {
+      id: 'SER_HWH_KGP',
+      name: 'Kolkata Trunk Line',
+      section: 'Howrah – Santragachi – Mecheda – Kharagpur',
+      length_km: 115.0,
+      stations_count: 8,
+      primary_highway: 'NH-16 / Kona Expressway',
+      region: 'South Eastern Railway (SER)',
+      is_active: false,
+    },
+  ],
+
   activeMapView: 'my_train',
   selectedDelayId: null,
 
@@ -85,6 +115,44 @@ export const useRailStore = create<RailStore>((set, get) => ({
   wsStatusText: 'Connecting...',
   refreshNonce: 0,
   activeCausesByTrain: {},
+
+  fetchCorridors: async () => {
+    try {
+      const list = await listCorridors();
+      if (list && list.length > 0) {
+        const active = list.find((c) => c.is_active)?.id || get().activeCorridorId;
+        set({ availableCorridors: list, activeCorridorId: active });
+      }
+    } catch (err) {
+      console.warn('fetchCorridors failed', err);
+    }
+  },
+
+  switchCorridor: async (corridorId: string) => {
+    try {
+      const currentSpeed = get().activeSnapshot.speed_multiplier || 1;
+      const newSnap = await switchCorridorApi(corridorId, currentSpeed);
+      const isKolkata = corridorId === 'SER_HWH_KGP';
+      set((state) => ({
+        activeCorridorId: corridorId,
+        availableCorridors: state.availableCorridors.map((c) => ({
+          ...c,
+          is_active: c.id === corridorId,
+        })),
+        activeSnapshot: newSnap,
+        selectedTrain: '12821',
+        connectionTarget: {
+          station_code: isKolkata ? 'HWH' : 'BBS',
+          deadline_time: isKolkata ? '11:45' : '12:15',
+          transfer_buffer_mins: 15,
+          isCustom: false,
+        },
+        refreshNonce: state.refreshNonce + 1,
+      }));
+    } catch (err) {
+      console.warn('switchCorridor failed', err);
+    }
+  },
 
   setCurrentView: (view) => set({ currentView: view }),
   setLanguage: (lang) => set({ language: lang }),
@@ -109,19 +177,22 @@ export const useRailStore = create<RailStore>((set, get) => ({
   setActiveMapView: (view) => set({ activeMapView: view }),
   setSelectedDelayId: (id) => set({ selectedDelayId: id }),
   updateSnapshot: (snapshot) => {
+    // Sync active corridor id if snapshot has it
+    const activeCorridorId = snapshot.corridor_id || get().activeCorridorId;
     // Preserve custom trains that were injected into the client-side snapshot
     const currentCustom = get().activeSnapshot?.trains?.filter(
       (t) => !snapshot.trains?.some((st) => st.train_no === t.train_no)
     );
     if (currentCustom && currentCustom.length > 0) {
       set({
+        activeCorridorId,
         activeSnapshot: {
           ...snapshot,
           trains: [...snapshot.trains, ...currentCustom],
         },
       });
     } else {
-      set({ activeSnapshot: snapshot });
+      set({ activeCorridorId, activeSnapshot: snapshot });
     }
   },
   setForecast: (forecast) => set({ forecast }),

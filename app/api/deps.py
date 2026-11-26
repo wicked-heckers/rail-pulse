@@ -12,16 +12,9 @@ demo_provider = DemoSimulationProvider()
 live_provider = LiveFeedProvider()
 replay_provider = ReplayProvider()
 
-# Cached corridor topology
-_cached_topology: dict[str, Any] | None = None
-
-
 def get_topology() -> dict[str, Any]:
-    """Returns cached corridor topology dictionary."""
-    global _cached_topology
-    if _cached_topology is None:
-        _cached_topology = LocalTopologyFallback.load_topology()
-    return _cached_topology
+    """Returns the topology dictionary for the currently active corridor."""
+    return LocalTopologyFallback.load_topology()
 
 
 def get_state_store() -> CorridorStateStore:
