@@ -31,10 +31,13 @@ export interface T {
     rpDesc: string;
   };
   steps: {
+    s1Badge: string;
     s1Title: string;
     s1Desc: string;
+    s2Badge: string;
     s2Title: string;
     s2Desc: string;
+    s3Badge: string;
     s3Title: string;
     s3Desc: string;
   };
@@ -70,16 +73,18 @@ export const TRANSLATIONS: Record<Lang, T> = {
       rpLabel: 'RAIL-PULSE',
       rpTitle: 'Realistic arrival window',
       rpDesc:
-        'Watches goods trains and express overtakes ahead—and warns you early if a connection is tight.',
+        'Watches goods trains and overtakes ahead—warning you early if a connection is tight.',
     },
     steps: {
+      s1Badge: 'STEP 1',
       s1Title: 'Pick your train',
-      s1Desc: 'Search by station pair or train number in seconds.',
-      s2Title: 'See live track traffic',
-      s2Desc: 'Spot slow freight trains and overtakes before they delay you.',
-      s3Title: 'Protect your connection',
-      s3Desc:
-        'Get an early heads-up and a faster cab route if time gets tight.',
+      s1Desc: 'Enter a train number or pick your stations in seconds.',
+      s2Badge: 'STEP 2',
+      s2Title: 'See track traffic',
+      s2Desc: 'Spot slow goods trains and overtakes ahead in real time.',
+      s3Badge: 'STEP 3',
+      s3Title: 'Protect connections',
+      s3Desc: 'Get an early alert and a faster cab route if time gets tight.',
     },
     footer:
       'Predictions can change. Rail-Pulse is not an official Indian Railways service.',
@@ -113,15 +118,18 @@ export const TRANSLATIONS: Record<Lang, T> = {
       rpLabel: 'RAIL-PULSE',
       rpTitle: 'वास्तविक आगमन समय सीमा',
       rpDesc:
-        'आगे चल रही मालगाड़ियों और ओवरटेक पर नज़र रखता है—और समय कम होने पर पहले ही चेतावनी देता है।',
+        'आगे चल रही मालगाड़ियों और ओवरटेक पर नज़र रखता है—समय कम होने पर पहले ही चेतावनी देता है।',
     },
     steps: {
+      s1Badge: 'चरण 1',
       s1Title: 'अपनी ट्रेन चुनें',
-      s1Desc: 'स्टेशनों के जोड़े या ट्रेन नंबर से चंद सेकंड में खोजें।',
-      s2Title: 'लाइव ट्रैक ट्रैफ़िक देखें',
-      s2Desc: 'धीमी मालगाड़ियों और ओवरटेक को पहले ही पहचानें।',
-      s3Title: 'अपनी कनेक्टिंग ट्रेन सुरक्षित करें',
-      s3Desc: 'समय कम होने पर पहले से अलर्ट और तेज़ कैब विकल्प पाएं।',
+      s1Desc: 'ट्रेन नंबर डालें या स्टेशनों को चंद सेकंड में चुनें।',
+      s2Badge: 'चरण 2',
+      s2Title: 'ट्रैक ट्रैफ़िक देखें',
+      s2Desc: 'धीमी मालगाड़ियों और ओवरटेक को रीयल-टाइम में पहचानें।',
+      s3Badge: 'चरण 3',
+      s3Title: 'कनेक्शन सुरक्षित करें',
+      s3Desc: 'समय कम होने पर त्वरित अलर्ट और तेज़ कैब विकल्प पाएं।',
     },
     footer:
       'अनुमान बदल सकते हैं। Rail-Pulse भारतीय रेलवे की आधिकारिक सेवा नहीं है।',
@@ -158,11 +166,14 @@ export const TRANSLATIONS: Record<Lang, T> = {
         'ଆଗରେ ଥିବା ମାଲଗାଡ଼ି ଓ ଓଭରଟେକ ଉପରେ ନଜର ରଖେ—କନେକ୍ସନ ଟାଇଟ୍ ହେଲେ ଆଗୁଆ ସତର୍କ କରେ।',
     },
     steps: {
+      s1Badge: 'ପଦକ୍ଷେପ ୧',
       s1Title: 'ଆପଣଙ୍କ ଟ୍ରେନ୍ ବାଛନ୍ତୁ',
-      s1Desc: 'ଷ୍ଟେସନ ଯୋଡ଼ି ବା ଟ୍ରେନ ନମ୍ବର ଦ୍ୱାରା ସେକେଣ୍ଡରେ ଖୋଜନ୍ତୁ।',
-      s2Title: 'ଲାଇଭ୍ ଟ୍ରାକ ଟ୍ରାଫିକ ଦେଖନ୍ତୁ',
-      s2Desc: 'ଧୀମା ମାଲଗାଡ଼ି ଓ ଓଭରଟେକ ହେବା ପୂର୍ବରୁ ଜାଣନ୍ତୁ।',
-      s3Title: 'କନେକ୍ଟିଂ ଟ୍ରେନ୍ ସୁରକ୍ଷିତ ରଖନ୍ତୁ',
+      s1Desc: 'ଟ୍ରେନ୍ ନମ୍ବର ଦିଅନ୍ତୁ ବା ସେକେଣ୍ଡରେ ଷ୍ଟେସନ ବାଛନ୍ତୁ।',
+      s2Badge: 'ପଦକ୍ଷେପ ୨',
+      s2Title: 'ଟ୍ରାକ ଟ୍ରାଫିକ ଦେଖନ୍ତୁ',
+      s2Desc: 'ଧୀମା ମାଲଗାଡ଼ି ଓ ଓଭରଟେକ ରିଅଲ-ଟାଇମରେ ଜାଣନ୍ତୁ।',
+      s3Badge: 'ପଦକ୍ଷେପ ୩',
+      s3Title: 'କନେକ୍ସନ ସୁରକ୍ଷିତ ରଖନ୍ତୁ',
       s3Desc: 'ସମୟ କମ ଥିଲେ ଆଗୁଆ ସତର୍କତା ଓ ଦ୍ରୁତ କ୍ୟାବ ବିକଳ୍ପ ପାଆନ୍ତୁ।',
     },
     footer:
