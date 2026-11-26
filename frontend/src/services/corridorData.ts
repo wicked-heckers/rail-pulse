@@ -194,4 +194,81 @@ export function snapPointToTrack(
   return bestPoint;
 }
 
+const STATION_WAYPOINT_INDEX: Record<string, number> = {
+  BHC: 0,
+  JJKR: 4,
+  JKPR: 5,
+  NRG: 10,
+  CTC: 12,
+  BRAG: 14,
+  BBS: 17,
+  KUR: 20,
+  PURI: 26,
+};
+
+export const STATION_NAMES_MAP: Record<string, string> = {
+  BHC: 'Bhadrak',
+  JJKR: 'Jajpur Keonjhar Rd',
+  JKPR: 'Jakhapura Jn',
+  NRG: 'Nergundi Jn',
+  CTC: 'Cuttack Jn',
+  BRAG: 'Barang Jn',
+  BBS: 'Bhubaneswar',
+  KUR: 'Khurda Road Jn',
+  PURI: 'Puri',
+};
+
+/**
+ * Extracts the exact smooth railway polyline slice and midpoint for any block ID (e.g. DN_CTC_BRAG, UP_KUR_BBS).
+ */
+export function getTrackSliceForBlock(blockId?: string | null): {
+  coords: [number, number][];
+  midpoint: [number, number];
+  fromCode: string;
+  toCode: string;
+  fromName: string;
+  toName: string;
+} {
+  if (!blockId || !blockId.includes('_')) {
+    return {
+      coords: SMOOTH_CONGESTION_AHEAD_COORDS,
+      midpoint: [85.856, 20.431],
+      fromCode: 'CTC',
+      toCode: 'BRAG',
+      fromName: 'Cuttack Jn',
+      toName: 'Barang Jn',
+    };
+  }
+  const parts = blockId.split('_');
+  const fromCode = parts[1] || 'CTC';
+  const toCode = parts[2] || 'BRAG';
+  const idxA = STATION_WAYPOINT_INDEX[fromCode];
+  const idxB = STATION_WAYPOINT_INDEX[toCode];
+
+  if (idxA === undefined || idxB === undefined) {
+    return {
+      coords: SMOOTH_CONGESTION_AHEAD_COORDS,
+      midpoint: [85.856, 20.431],
+      fromCode,
+      toCode,
+      fromName: STATION_NAMES_MAP[fromCode] || fromCode,
+      toName: STATION_NAMES_MAP[toCode] || toCode,
+    };
+  }
+
+  const startIdx = Math.min(idxA, idxB) * 8;
+  const endIdx = Math.min(SMOOTH_TRACK_COORDS.length - 1, Math.max(idxA, idxB) * 8);
+  const coords = SMOOTH_TRACK_COORDS.slice(startIdx, endIdx + 1);
+  const midpoint = coords[Math.floor(coords.length / 2)] || [85.856, 20.431];
+
+  return {
+    coords: coords.length >= 2 ? coords : SMOOTH_CONGESTION_AHEAD_COORDS,
+    midpoint,
+    fromCode,
+    toCode,
+    fromName: STATION_NAMES_MAP[fromCode] || fromCode,
+    toName: STATION_NAMES_MAP[toCode] || toCode,
+  };
+}
+
 

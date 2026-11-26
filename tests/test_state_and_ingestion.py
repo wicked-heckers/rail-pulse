@@ -430,6 +430,59 @@ async def test_eta_does_not_jump_drastically_after_clearing_barang_freight_or_ca
 
 
 @pytest.mark.asyncio
+async def test_random_goods_train_slows_predicts_accuracy_and_adds_delay_only_after_prediction():
+    """
+    Verify random hidden goods train lifecycle:
+    1. Placed randomly on track -> 0 delay, no phantom freight prediction before train arrives.
+    2. Train reaches goods train -> slows down automatically (28 km/h) -> still 0 delay during AI analysis.
+    3. AI model completes STR + Bayesian prediction -> accuracy predicted, phantom freight emitted, delay added.
+    4. Once goods train clears into loop -> passenger train restores cruise speed with steady delay.
+    """
+    provider = DemoSimulationProvider(speed_multiplier=10.0)
+    spawned = provider.spawn_random_goods_train(target_train_no="12821", seed=42)
+    assert spawned["block_id"].startswith("DN_")
+
+    snap0 = await provider.get_corridor_snapshot()
+    dhauli0 = next(t for t in snap0["trains"] if t.train_no == "12821")
+    assert snap0["phantom_freights"] == []
+    assert dhauli0.current_delay_mins == 0.0
+    assert dhauli0.speed_kmph == 110.0
+
+    # Place 12821 just outside the 3 km slowdown zone first: stays full speed, 0 delay
+    g = provider._hidden_goods_trains[0]
+    provider._trains["12821"]["chainage_km"] = round(g["chainage_km"] - 4.5, 2)
+    await provider.advance_simulation(elapsed_wall_seconds=0.3)
+    snap_before = await provider.get_corridor_snapshot()
+    dhauli_before = next(t for t in snap_before["trains"] if t.train_no == "12821")
+    assert dhauli_before.speed_kmph == 110.0
+    assert dhauli_before.current_delay_mins == 0.0
+    assert snap_before["phantom_freights"] == []
+
+    # Move 12821 into the 2 km slowdown zone behind goods train: slows down, AI analyzing (< 12s) -> STILL 0 delay!
+    provider._trains["12821"]["chainage_km"] = round(g["chainage_km"] - 1.5, 2)
+    await provider.advance_simulation(elapsed_wall_seconds=0.6)  # 6 sim secs at 10x (< 12s)
+    snap_slowing = await provider.get_corridor_snapshot()
+    dhauli_slowing = next(t for t in snap_slowing["trains"] if t.train_no == "12821")
+    assert dhauli_slowing.speed_kmph == 28.0
+    assert dhauli_slowing.status == "UNSCHEDULED_SLOWDOWN"
+    assert dhauli_slowing.current_delay_mins == 0.0
+    assert snap_slowing["phantom_freights"] == []
+
+    # Advance past 12s observation threshold: AI model completes prediction -> delay & shadow added!
+    await provider.advance_simulation(elapsed_wall_seconds=0.8)  # +8 sim secs -> 14s total
+    snap_predicted = await provider.get_corridor_snapshot()
+    dhauli_predicted = next(t for t in snap_predicted["trains"] if t.train_no == "12821")
+    assert dhauli_predicted.status == "CRAWLING_FREIGHT_DRAG"
+    assert dhauli_predicted.current_delay_mins > 0.0
+    assert len(snap_predicted["phantom_freights"]) == 1
+    shadow = snap_predicted["phantom_freights"][0]
+    assert shadow.block_id == g["block_id"]
+    assert 0.55 <= shadow.freight_probability <= 1.0
+    assert shadow.str_value >= 1.5
+    assert shadow.added_delay_mins > 0.0
+
+
+@pytest.mark.asyncio
 async def test_high_speed_warp_interval_station_halt_detection():
     """Verify train halts at scheduled station even when advancing at 30x/60x speed multiplier."""
     provider = DemoSimulationProvider(speed_multiplier=60.0)

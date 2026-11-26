@@ -41,7 +41,8 @@ export const VerticalTimeline: React.FC = () => {
   const delayCauses = getDelayCauses(
     selectedTrain,
     forecast,
-    currentTrain?.current_station
+    currentTrain?.current_station,
+    activeSnapshot
   );
 
   // Filter active delays (excludes clear route)

@@ -30,6 +30,7 @@ class CorridorStateStore:
         self._remaining_loop_holds: dict[str, float | None] = {}
         self._active_causes: dict[str, list[str]] = {}
         self._injected_freights: dict[str, float] = {}
+        self._goods_rakes: list[dict[str, Any]] = []
         self._last_tick_epoch: int = int(time.time())
         self._active_corridor_id: str = "ECoR_BHC_PURI"
 
@@ -62,6 +63,10 @@ class CorridorStateStore:
     async def update_freight_shadows(self, shadows: list[FreightInferenceResult]) -> None:
         async with self._lock:
             self._freight_shadows = {s.block_id: s for s in shadows}
+
+    async def update_goods_rakes(self, goods_rakes: list[dict[str, Any]]) -> None:
+        async with self._lock:
+            self._goods_rakes = copy.deepcopy(goods_rakes)
 
     async def update_weather(self, weather_data: dict[str, Any]) -> None:
         async with self._lock:
@@ -157,8 +162,11 @@ class CorridorStateStore:
             penalties: dict[str, float] = dict(self._injected_freights)
             for block_id, shadow in self._freight_shadows.items():
                 if shadow.status in ("PHANTOM_FREIGHT_SHADOW", "ULIP_FOIS_CONFIRMED"):
-                    clearance = float(shadow.clearance_eta_mins) if shadow.clearance_eta_mins else 20.0
-                    penalties[block_id] = penalties.get(block_id, clearance)
+                    if shadow.block_penalty_mins is not None:
+                        penalties[block_id] = float(shadow.block_penalty_mins)
+                    else:
+                        clearance = float(shadow.clearance_eta_mins) if shadow.clearance_eta_mins else 20.0
+                        penalties[block_id] = penalties.get(block_id, clearance)
             return penalties
 
 
@@ -173,6 +181,7 @@ class CorridorStateStore:
                 "speed_multiplier": self._speed_multiplier,
                 "trains": [t.model_dump() for t in self._trains.values()],
                 "phantom_freights": [f.model_dump() for f in self._freight_shadows.values()],
+                "goods_rakes": copy.deepcopy(self._goods_rakes),
                 "weather": copy.deepcopy(self._weather),
             }
 
@@ -186,6 +195,7 @@ class CorridorStateStore:
             self._remaining_loop_holds.clear()
             self._active_causes.clear()
             self._injected_freights.clear()
+            self._goods_rakes.clear()
             self._speed_multiplier = 1.0
 
 
