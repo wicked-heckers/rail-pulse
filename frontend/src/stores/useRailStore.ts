@@ -142,8 +142,8 @@ export const useRailStore = create<RailStore>((set, get) => ({
         activeSnapshot: newSnap,
         selectedTrain: '12821',
         connectionTarget: {
-          station_code: isKolkata ? 'HWH' : 'BBS',
-          deadline_time: isKolkata ? '11:45' : '12:15',
+          station_code: isKolkata ? 'KGP' : 'BBS',
+          deadline_time: isKolkata ? '11:15' : '12:15',
           transfer_buffer_mins: 15,
           isCustom: false,
         },

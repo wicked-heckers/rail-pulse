@@ -352,7 +352,7 @@
           "station_code": "SRC",
           "stop_sequence": 2,
           "sched_arr_min_day": 379,
-          "sched_dep_min_day": 381,
+          "sched_dep_min_day": 379,
           "is_commercial_halt": false,
           "scheduled_dwell_m": 0
         },

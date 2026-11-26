@@ -400,7 +400,8 @@ class DemoSimulationProvider(CorridorDataProvider):
             if not halt:
                 return 0.0
             return float(halt.get("scheduled_dwell_m", 2)) * 60.0
-        if stn.get("is_major_junction", False) and float(stn["chainage_km"]) not in (0.0, 206.0):
+        corridor_end_km = float(self.stations[-1]["chainage_km"]) if self.stations else 206.0
+        if stn.get("is_major_junction", False) and float(stn["chainage_km"]) not in (0.0, corridor_end_km):
             return 120.0
         return 0.0
 
@@ -517,10 +518,10 @@ class DemoSimulationProvider(CorridorDataProvider):
                 d == t["direction"] and lo <= t["chainage_km"] <= hi
                 for d, lo, hi in active_freight_zones
             )
-            # During active overtake at Barang, Khurda Road, or Bhubaneswar, Vande Bharat overtakes on the clear mainline
+            # During active overtake at loop line, Vande Bharat overtakes on the clear mainline
             if (
                 self._hold_until_overtaken
-                and self._overtake_target_code in ("BRAG", "KUR", "BBS")
+                and self._overtake_target_code
                 and t_no == "22895"
             ):
                 in_freight_zone = False
@@ -671,7 +672,7 @@ class DemoSimulationProvider(CorridorDataProvider):
                     # 22895 is still > 18 km away: keep 12821 at its normal speed and advance loop target if passed
                     if t["chainage_km"] >= target_km:
                         next_loop = next(
-                            (s for s in stations_asc if float(s["chainage_km"]) > t["chainage_km"] + 0.8),
+                            (s for s in stations_asc if float(s["chainage_km"]) > t["chainage_km"] + 0.8 and s.get("passenger_loops_dn", 0) > 0),
                             None,
                         )
                         if next_loop is not None:
@@ -878,24 +879,39 @@ class DemoSimulationProvider(CorridorDataProvider):
             direction = t["direction"]
             km = float(t["chainage_km"])
             if freight_penalty_mins > 0:
+                track_blocks = self.topology.get("track_blocks", [])
                 if direction == "DN":
-                    block_id = "DN_CTC_BRAG"
-                    if km > 128.0:
+                    if any(b.get("block_id") == "DN_CTC_BRAG" for b in track_blocks):
+                        block_id = "DN_CTC_BRAG"
+                        if km > 128.0:
+                            ahead = [
+                                b for b in track_blocks
+                                if b["direction"] == "DN" and max(float(b["start_km"]), float(b["end_km"])) > km
+                            ]
+                            if ahead:
+                                block_id = ahead[0]["block_id"]
+                    else:
                         ahead = [
-                            b for b in self.topology.get("track_blocks", [])
+                            b for b in track_blocks
                             if b["direction"] == "DN" and max(float(b["start_km"]), float(b["end_km"])) > km
                         ]
-                        if ahead:
-                            block_id = ahead[0]["block_id"]
+                        block_id = ahead[0]["block_id"] if ahead else (track_blocks[0]["block_id"] if track_blocks else "DN_BLOCK_1")
                 else:
-                    block_id = "UP_KUR_BBS"
-                    if km < 143.0:
+                    if any(b.get("block_id") == "UP_KUR_BBS" for b in track_blocks):
+                        block_id = "UP_KUR_BBS"
+                        if km < 143.0:
+                            ahead = [
+                                b for b in track_blocks
+                                if b["direction"] == "UP" and min(float(b["start_km"]), float(b["end_km"])) < km
+                            ]
+                            if ahead:
+                                block_id = ahead[0]["block_id"]
+                    else:
                         ahead = [
-                            b for b in self.topology.get("track_blocks", [])
+                            b for b in track_blocks
                             if b["direction"] == "UP" and min(float(b["start_km"]), float(b["end_km"])) < km
                         ]
-                        if ahead:
-                            block_id = ahead[0]["block_id"]
+                        block_id = ahead[0]["block_id"] if ahead else (track_blocks[-1]["block_id"] if track_blocks else "UP_BLOCK_1")
                 prev_blk = self._freight_cause_blocks.get(train_no)
                 if prev_blk and prev_blk != block_id and prev_blk not in (
                     v for k, v in self._freight_cause_blocks.items() if k != train_no

@@ -30,7 +30,12 @@ export const ArrivalConnectionCard: React.FC = () => {
     passengerStatus,
     setCabModalOpen,
     setActiveMapView,
+    activeCorridorId,
   } = useRailStore();
+
+  const isKolkata = activeCorridorId === 'SER_HWH_KGP';
+  const deboardStation = isKolkata ? 'Santragachi' : 'Cuttack';
+  const highwayName = isKolkata ? 'Kona Expressway' : 'NH-16';
 
   const [quantile, setQuantile] = useState<'p10' | 'p50' | 'p90'>('p50');
   const [showModelInfo, setShowModelInfo] = useState(false);
@@ -334,7 +339,7 @@ export const ArrivalConnectionCard: React.FC = () => {
                 <h3 className="font-bold text-xs sm:text-[13px] text-slate-900">
                   {isConnectionTightOrMissed
                     ? passengerStatus === 'ON_BOARD'
-                      ? 'Get off at Cuttack & take a cab'
+                      ? `Get off at ${deboardStation} & take a cab`
                       : "Don't board this train for your connection"
                     : "Stay on the train — you're good to go"}
                 </h3>
@@ -360,9 +365,9 @@ export const ArrivalConnectionCard: React.FC = () => {
             <p className="text-xs sm:text-[13px] text-slate-600 font-medium leading-snug">
               {isConnectionTightOrMissed
                 ? passengerStatus === 'ON_BOARD'
-                  ? `Train reaches at ${selectedArrivalTime}. A cab via NH-16 gets you to Bhubaneswar by 11:54 AM — in time for your ${connectionDeadlineFormatted} train.`
-                  : `It won't reach Bhubaneswar in time for your ${connectionDeadlineFormatted} Rajdhani. Take a cab or earlier train instead.`
-                : `You'll reach Bhubaneswar at ${selectedArrivalTime}, with plenty of time for your ${connectionDeadlineFormatted} train.`}
+                  ? `Train reaches at ${selectedArrivalTime}. A cab via ${highwayName} gets you to ${prediction.destinationName || 'destination'} in time for your ${connectionDeadlineFormatted} train.`
+                  : `It won't reach ${prediction.destinationName || 'destination'} in time for your ${connectionDeadlineFormatted} connection. Take a cab or earlier train instead.`
+                : `You'll reach ${prediction.destinationName || 'destination'} at ${selectedArrivalTime}, with plenty of time for your ${connectionDeadlineFormatted} train.`}
             </p>
           </div>
 
