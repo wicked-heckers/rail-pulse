@@ -25,7 +25,7 @@ export const MapLegend: React.FC = () => {
         </button>
 
         {(!collapsed || typeof window === 'undefined') && (
-          <div className="flex items-center flex-wrap justify-center gap-x-3 gap-y-1 text-xs">
+          <div className="flex items-center gap-3.5 flex-wrap sm:flex-nowrap">
             {/* 1. Passenger Train */}
             <div className="flex items-center gap-1.5" title="Your selected journey train">
               <span className="w-3 h-3 rounded-full bg-orange-600 ring-3 ring-orange-300 animate-pulse" />

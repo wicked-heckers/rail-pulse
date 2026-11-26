@@ -1052,15 +1052,15 @@ export const CorridorMap: React.FC = () => {
   }, [selectedDelayId, selectedTrain, forecast, currentTrain?.current_station, closeActivePopup, openGoodsTrainPopup]);
 
   return (
-    <div className="relative w-full h-full min-h-[260px] md:min-h-[500px] bg-[#FAF9F6] rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-xs">
+    <div className="relative w-full h-full min-h-[500px] bg-[#FAF9F6] rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-xs">
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
       {/* ======================================================== */}
       {/* Top-Right: Simplified Passenger Map Controls (Section 6) */}
       {/* ======================================================== */}
-      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex flex-col gap-2 pointer-events-auto items-end max-w-[calc(100%-24px)]">
+      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 pointer-events-auto items-end">
         {/* Mode Switcher */}
-        <div className="backdrop-blur-md bg-white/95 p-1 rounded-xl border border-[#E2E8F0] shadow-md flex items-center gap-1 max-w-[calc(100vw-24px)] overflow-x-auto">
+        <div className="backdrop-blur-md bg-white/95 p-1 rounded-xl border border-[#E2E8F0] shadow-md flex items-center gap-1">
           <button
             type="button"
             onClick={() => handleCameraView('my_train')}

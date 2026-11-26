@@ -17,6 +17,7 @@ export const App: React.FC = () => {
     currentView,
     selectedTrain,
     passengerStatus,
+    mobileTab,
     connectionTarget,
     setForecast,
     setRescue,
@@ -78,10 +79,14 @@ export const App: React.FC = () => {
       {/* Top Application Header (Sticky 52px Bar) */}
       <TopHeader />
 
-      {/* Main Responsive Layout */}
-      <main className="flex flex-col md:flex-row flex-1 items-stretch md:items-start w-full max-w-[1600px] mx-auto">
-        {/* Sidebar Container (order-2 on mobile, order-1 on desktop) */}
-        <div className="w-full md:w-[38%] md:min-w-[380px] md:max-w-[460px] order-2 md:order-1 shrink-0 p-3 flex flex-col gap-3">
+      {/* Main Two-Column Layout */}
+      <main className="flex flex-1 items-start w-full max-w-[1600px] mx-auto flex-col lg:flex-row">
+        {/* Left Sidebar Container (40% width, auto-expanding) */}
+        <div
+          className={`w-full lg:w-[40%] shrink-0 p-3 flex flex-col gap-3 ${
+            mobileTab === 'radar' ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
           {/* Section 1: Train Identity + Arrival & Connection Summary */}
           <ArrivalConnectionCard />
 
@@ -89,8 +94,12 @@ export const App: React.FC = () => {
           <VerticalTimeline />
         </div>
 
-        {/* Map Container (order-1 on mobile, order-2 on desktop) */}
-        <div className="order-1 md:order-2 w-full h-[38vh] min-h-[260px] md:sticky md:top-[52px] md:h-[calc(100vh-52px)] md:flex-1 p-3 md:pl-0 overflow-hidden">
+        {/* Right Map Container (60% width, sticky full-height viewport) */}
+        <div
+          className={`w-full lg:w-[60%] sticky top-[52px] h-[calc(100vh-52px)] p-3 lg:pl-0 overflow-hidden ${
+            mobileTab === 'timeline' ? 'hidden lg:block' : 'block'
+          }`}
+        >
           <CorridorMap />
         </div>
       </main>

@@ -11,6 +11,8 @@ export const TopHeader: React.FC = () => {
     setPassengerStatus,
     drawerOpen,
     setDrawerOpen,
+    mobileTab,
+    setMobileTab,
     setCurrentView,
   } = useRailStore();
 
@@ -61,13 +63,36 @@ export const TopHeader: React.FC = () => {
         </span>
       </div>
 
-      {/* Active Monitored Train Selector (Hidden on < md since active train is prominent in arrival card) */}
-      <div className="hidden md:flex items-center justify-center px-1 sm:px-2">
+      {/* Active Monitored Train Selector */}
+      <div className="flex items-center justify-center px-1 sm:px-2">
         <TrainDropdown />
       </div>
 
       {/* Right Controls: Safe-Boarding Toggle + Demo Button */}
       <div className="flex items-center gap-2.5 shrink-0">
+        {/* Mobile View Toggle (Timeline vs Radar) */}
+        <div className="flex lg:hidden items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+          <button
+            onClick={() => setMobileTab('timeline')}
+            className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${
+              mobileTab === 'timeline'
+                ? 'bg-white text-[#0F294A] shadow-2xs font-bold'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Timeline
+          </button>
+          <button
+            onClick={() => setMobileTab('radar')}
+            className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${
+              mobileTab === 'radar'
+                ? 'bg-white text-[#0F294A] shadow-2xs font-bold'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Radar
+          </button>
+        </div>
 
         {/* At Home | On Board Toggle */}
         <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">

@@ -13,12 +13,12 @@ export const HowItWorks: React.FC = () => {
   ];
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 sm:px-6">
-      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-0 md:divide-x md:divide-slate-200 pt-1">
+    <div className="w-full max-w-3xl mx-auto px-4">
+      <div className="w-full grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200 pt-1">
         {steps.map((step, i) => (
           <div
             key={i}
-            className="md:px-7 first:md:pl-0 last:md:pr-0 flex flex-col"
+            className="py-4 first:pt-0 last:pb-0 md:py-0 md:px-7 first:md:pl-0 last:md:pr-0 flex flex-col"
           >
             <span className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
               {step.badge}

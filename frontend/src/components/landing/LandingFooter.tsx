@@ -7,7 +7,7 @@ export const LandingFooter: React.FC = () => {
   const t = TRANSLATIONS[language];
 
   return (
-    <footer className="w-full border-t border-slate-200/80 bg-white/70 backdrop-blur-sm mt-14">
+    <footer className="w-full border-t border-slate-200/80 bg-white/70 backdrop-blur-sm mt-10 md:mt-14">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         {/* Upper Row */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -24,7 +24,7 @@ export const LandingFooter: React.FC = () => {
           {/* Right: Corridor Coverage Pill */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/80 border border-slate-200/70 text-xs font-medium text-slate-600 shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-            <span>Bhadrak (BHC) – Bhubaneswar (BBS) – Puri (PURI)</span>
+            <span className="whitespace-normal sm:whitespace-nowrap">Bhadrak (BHC) – Bhubaneswar (BBS) – Puri (PURI)</span>
           </div>
         </div>
 
