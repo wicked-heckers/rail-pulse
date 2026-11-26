@@ -17,16 +17,16 @@ export const LandingPage: React.FC = () => {
       <div className="relative z-10 min-h-screen flex flex-col justify-between">
         <LandingNav />
 
-        <main className="flex-1 px-4 pt-10 pb-8 flex flex-col">
+        <main className="flex-1 px-4 sm:px-6 pt-8 md:pt-10 pb-8 flex flex-col">
           <div className="w-full max-w-3xl mx-auto flex flex-col">
-            <div className="mb-8">
+            <div className="mb-6 md:mb-8">
               <HeroSection />
             </div>
             <SearchCard />
-            <div className="mt-8">
+            <div className="mt-6 md:mt-8">
               <ValueComparison />
             </div>
-            <div className="mt-9">
+            <div className="mt-7 md:mt-9">
               <HowItWorks />
             </div>
           </div>

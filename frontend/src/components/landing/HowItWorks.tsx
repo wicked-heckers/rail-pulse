@@ -13,7 +13,7 @@ export const HowItWorks: React.FC = () => {
   ];
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4">
+    <div className="w-full max-w-3xl mx-auto px-4 sm:px-6">
       <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-0 md:divide-x md:divide-slate-200 pt-1">
         {steps.map((step, i) => (
           <div

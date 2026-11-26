@@ -99,7 +99,7 @@ export const ArrivalConnectionCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setQuantile('p10')}
-          className={`py-1.5 px-2 text-[13px] rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
+          className={`py-1.5 px-1.5 sm:px-2 text-xs sm:text-[13px] rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
             quantile === 'p10'
               ? 'bg-white text-slate-900 shadow-sm font-semibold'
               : 'text-slate-500 hover:text-slate-800 font-medium'
@@ -110,7 +110,7 @@ export const ArrivalConnectionCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setQuantile('p50')}
-          className={`py-1.5 px-2 text-[13px] rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
+          className={`py-1.5 px-1.5 sm:px-2 text-xs sm:text-[13px] rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
             quantile === 'p50'
               ? 'bg-white text-slate-900 shadow-sm font-semibold'
               : 'text-slate-500 hover:text-slate-800 font-medium'
@@ -121,7 +121,7 @@ export const ArrivalConnectionCard: React.FC = () => {
         <button
           type="button"
           onClick={() => setQuantile('p90')}
-          className={`py-1.5 px-2 text-[13px] rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
+          className={`py-1.5 px-1.5 sm:px-2 text-xs sm:text-[13px] rounded-lg transition-all text-center cursor-pointer whitespace-nowrap truncate ${
             quantile === 'p90'
               ? 'bg-white text-slate-900 shadow-sm font-semibold'
               : 'text-slate-500 hover:text-slate-800 font-medium'
@@ -221,7 +221,7 @@ export const ArrivalConnectionCard: React.FC = () => {
         </div>
 
         {/* Primary Arrival Clock */}
-        <div className="flex items-baseline gap-2.5 whitespace-nowrap">
+        <div className="flex items-baseline gap-2 sm:gap-2.5 flex-wrap sm:whitespace-nowrap">
           <span className="font-mono text-3xl sm:text-4xl font-extrabold tracking-tight text-[#0F294A] tabular-nums">
             {selectedArrivalTime}
           </span>
@@ -231,7 +231,7 @@ export const ArrivalConnectionCard: React.FC = () => {
         </div>
 
         {/* Subtext Line Below Clock */}
-        <p className="text-[13px] sm:text-sm text-slate-500 font-medium whitespace-nowrap truncate min-h-[20px] leading-5">
+        <p className="text-[13px] sm:text-sm text-slate-500 font-medium sm:whitespace-nowrap min-h-[20px] leading-5">
           {quantile === 'p10' && 'Earliest arrival if the track stays clear'}
           {quantile === 'p50' && (
             <>
@@ -308,9 +308,9 @@ export const ArrivalConnectionCard: React.FC = () => {
           </div>
         )}
 
-        {/* Connection & Action Box - Locked uniform h-[136px] container */}
+        {/* Connection & Action Box - Flexible min-h-[136px] container */}
         <div
-          className={`rounded-xl p-3 sm:p-3.5 border h-[136px] flex flex-col justify-between transition-colors ${
+          className={`rounded-xl p-3 sm:p-3.5 border min-h-[136px] h-auto flex flex-col justify-between transition-colors ${
             isConnectionTightOrMissed
               ? passengerStatus === 'ON_BOARD'
                 ? 'bg-amber-50/80 border-amber-200'
@@ -320,18 +320,18 @@ export const ArrivalConnectionCard: React.FC = () => {
         >
           {/* Top Section: Icon + Direct Command Headline + Badge & Subtext */}
           <div className="flex flex-col gap-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 {isConnectionTightOrMissed ? (
                   passengerStatus === 'ON_BOARD' ? (
-                    <Car className="w-4 h-4 text-amber-600 shrink-0" />
+                    <Car className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
                   ) : (
-                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
                   )
                 ) : (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
                 )}
-                <h3 className="font-bold text-xs sm:text-[13px] text-slate-900 truncate">
+                <h3 className="font-bold text-xs sm:text-[13px] text-slate-900">
                   {isConnectionTightOrMissed
                     ? passengerStatus === 'ON_BOARD'
                       ? 'Get off at Cuttack & take a cab'
@@ -357,7 +357,7 @@ export const ArrivalConnectionCard: React.FC = () => {
               </span>
             </div>
 
-            <p className="text-xs sm:text-[13px] text-slate-600 font-medium leading-snug line-clamp-2">
+            <p className="text-xs sm:text-[13px] text-slate-600 font-medium leading-snug">
               {isConnectionTightOrMissed
                 ? passengerStatus === 'ON_BOARD'
                   ? `Train reaches at ${selectedArrivalTime}. A cab via NH-16 gets you to Bhubaneswar by 11:54 AM — in time for your ${connectionDeadlineFormatted} train.`

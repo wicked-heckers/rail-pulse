@@ -313,9 +313,9 @@ export const SearchCard: React.FC = () => {
             /* ── Find Trains ── */
             <div className="space-y-3.5 flex flex-col justify-between flex-1">
               <div className="relative">
-                <div className="flex items-center gap-2 sm:gap-3">
+                <div className="flex flex-col md:flex-row md:items-end gap-2.5">
                   {/* From Station */}
-                  <div className="relative flex-1 min-w-0">
+                  <div className="relative w-full min-w-0 md:flex-1">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 pl-0.5">
                       FROM
                     </label>
@@ -323,7 +323,7 @@ export const SearchCard: React.FC = () => {
                       <select
                         value={fromStation}
                         onChange={(e) => handleFromChange(e.target.value)}
-                        className="w-full appearance-none pl-3.5 pr-8 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all cursor-pointer truncate shadow-2xs"
+                        className="w-full appearance-none pl-3.5 pr-8 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all cursor-pointer truncate shadow-2xs h-11"
                       >
                         <option value="" disabled>
                           {t.fromPlaceholder}
@@ -339,12 +339,12 @@ export const SearchCard: React.FC = () => {
                   </div>
 
                   {/* Swap Stations Button */}
-                  <div className="shrink-0 pt-4">
+                  <div className="shrink-0 self-center -my-1 md:my-0 md:self-auto">
                     <button
                       type="button"
                       onClick={handleSwap}
                       aria-label="Swap stations"
-                      className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-500 transition-all active:scale-90 cursor-pointer shadow-2xs"
+                      className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-500 transition-all active:scale-90 cursor-pointer shadow-2xs rotate-90 md:rotate-0"
                       title="Swap Origin & Destination"
                     >
                       <ArrowLeftRight className="w-4 h-4" />
@@ -352,7 +352,7 @@ export const SearchCard: React.FC = () => {
                   </div>
 
                   {/* To Station */}
-                  <div className="relative flex-1 min-w-0">
+                  <div className="relative w-full min-w-0 md:flex-1">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 pl-0.5">
                       TO
                     </label>
@@ -360,7 +360,7 @@ export const SearchCard: React.FC = () => {
                       <select
                         value={toStation}
                         onChange={(e) => handleToChange(e.target.value)}
-                        className="w-full appearance-none pl-3.5 pr-8 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all cursor-pointer truncate shadow-2xs"
+                        className="w-full appearance-none pl-3.5 pr-8 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all cursor-pointer truncate shadow-2xs h-11"
                       >
                         <option value="" disabled>
                           {t.toPlaceholder}
@@ -376,13 +376,13 @@ export const SearchCard: React.FC = () => {
                   </div>
 
                   {/* Search Button */}
-                  <div className="shrink-0 pt-4">
+                  <div className="shrink-0 w-full md:w-auto">
                     <button
                       ref={searchButtonRef}
                       type="button"
                       onClick={handleSearch}
                       disabled={searchDisabled}
-                      className="px-5 sm:px-6 py-2.5 rounded-xl bg-[#0F294A] text-white text-xs sm:text-sm font-bold hover:bg-[#1a3a60] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap cursor-pointer shadow-xs"
+                      className="w-full md:w-auto h-11 px-5 sm:px-6 py-2.5 rounded-xl bg-[#0F294A] text-white text-xs sm:text-sm font-bold hover:bg-[#1a3a60] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap cursor-pointer shadow-xs flex items-center justify-center"
                     >
                       {t.btnSearch}
                     </button>
@@ -472,7 +472,7 @@ export const SearchCard: React.FC = () => {
               </div>
 
               {/* Single horizontal strip with route pills and subtle Clear link - ALWAYS stays in place without shifting card */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500 flex-wrap">
                 <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                   <span className="text-xs font-semibold text-slate-400 shrink-0">Recent:</span>
                   {recent.length === 0 ? (
@@ -483,7 +483,7 @@ export const SearchCard: React.FC = () => {
                         key={item.id}
                         type="button"
                         onClick={() => handleRecentClick(item)}
-                        className="recent-route-pill px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer truncate max-w-[240px] sm:max-w-none"
+                        className="recent-route-pill px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer truncate max-w-full sm:max-w-none"
                       >
                         {item.label}
                       </button>
@@ -509,7 +509,7 @@ export const SearchCard: React.FC = () => {
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 pl-0.5">
                   TRAIN NUMBER OR NAME
                 </label>
-                <div className="relative flex items-center gap-2 sm:gap-3">
+                <div className="relative flex flex-col sm:flex-row gap-2.5">
                   <input
                     type="text"
                     value={trainQuery}
@@ -521,14 +521,14 @@ export const SearchCard: React.FC = () => {
                     onFocus={() => setShowAutocomplete(true)}
                     onKeyDown={(e) => e.key === 'Enter' && handleTrackSubmit()}
                     placeholder="Enter train no. or name (e.g. 12821, Vande Bharat)"
-                    className="flex-1 min-w-0 px-4 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all shadow-2xs"
+                    className="w-full sm:flex-1 min-w-0 h-11 px-4 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-slate-50 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0F294A]/20 focus:border-[#0F294A] transition-all shadow-2xs"
                   />
 
                   <button
                     type="button"
                     onClick={handleTrackSubmit}
                     disabled={!trainQuery.trim()}
-                    className="shrink-0 px-5 sm:px-6 py-2.5 rounded-xl bg-[#0F294A] text-white text-xs sm:text-sm font-bold hover:bg-[#1a3a60] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap cursor-pointer shadow-xs"
+                    className="w-full sm:w-auto h-11 shrink-0 px-5 sm:px-6 py-2.5 rounded-xl bg-[#0F294A] text-white text-xs sm:text-sm font-bold hover:bg-[#1a3a60] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap cursor-pointer shadow-xs flex items-center justify-center"
                   >
                     {t.btnTrack}
                   </button>
