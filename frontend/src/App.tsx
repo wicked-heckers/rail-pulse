@@ -29,9 +29,8 @@ export const App: React.FC = () => {
   const simBucket = Math.floor((activeSnapshot.tick_utc || 0) / 30);
   const trainPhaseKey = `${monitoredTrain?.status ?? ''}|${Math.round(
     monitoredTrain?.current_delay_mins ?? 0
-  )}|${monitoredTrain?.current_station ?? ''}|${monitoredTrain?.next_station ?? ''}|${
-    activeSnapshot.phantom_freights?.length ?? 0
-  }`;
+  )}|${monitoredTrain?.current_station ?? ''}|${monitoredTrain?.next_station ?? ''}|${activeSnapshot.phantom_freights?.length ?? 0
+    }`;
 
   // Initialize WebSocket stream and load initial corridor state in background
   useEffect(() => {
@@ -80,7 +79,6 @@ export const App: React.FC = () => {
           const targetMinutes = timeStringToMinutes(connectionTarget?.deadline_time || '12:15') ?? 735;
           deadlineEpoch = simMidnightIst + targetMinutes * 60;
         }
-
         const res = await evaluateRescue({
           train_no: selectedTrain,
           destination_code: destCode,

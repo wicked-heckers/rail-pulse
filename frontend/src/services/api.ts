@@ -109,6 +109,22 @@ export async function injectFreightShadow(
   return await res.json();
 }
 
+export async function spawnRandomGoodsTrain(
+  targetTrainNo?: string,
+  blockId?: string
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/demo/random-freight`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      target_train_no: targetTrainNo ?? null,
+      block_id: blockId ?? null,
+    }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
 export async function resetCorridor(): Promise<any> {
   const res = await fetch(`${API_BASE}/demo/reset`, {
     method: 'POST',

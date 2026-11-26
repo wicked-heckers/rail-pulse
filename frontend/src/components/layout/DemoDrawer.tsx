@@ -5,6 +5,7 @@ import {
   startDemoScenario,
   setSpeedMultiplier,
   injectFreightShadow,
+  spawnRandomGoodsTrain,
   resetCorridor,
   injectULIPFreight,
   fetchDisruptionCauses,
@@ -202,6 +203,23 @@ export const DemoDrawer: React.FC = () => {
     }
   };
 
+  const handleSpawnRandomGoods = async (forSelectedOnly = false) => {
+    setIsInjecting(true);
+    try {
+      const res = await spawnRandomGoodsTrain(forSelectedOnly ? selectedTrain : undefined);
+      triggerRefresh();
+      setStatusMessage(
+        `Placed hidden goods rake ${res.rake_id} randomly on ${res.block_id} @ km ${res.chainage_km} (0m delay until train reaches it & AI predicts accuracy).`
+      );
+    } catch {
+      setStatusMessage('Failed to place random goods train.');
+    } finally {
+      setIsInjecting(false);
+    }
+  };
+
+  const activeGoodsRakes = activeSnapshot.goods_rakes ?? [];
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
@@ -373,6 +391,83 @@ export const DemoDrawer: React.FC = () => {
                 {selectedTrain}.
               </p>
             )}
+          </div>
+
+          {/* 2c. Autonomous Random Goods Train & AI Prediction */}
+          <div className="bg-[#FAF9F6] p-3.5 rounded-xl border border-[#E5E7EB] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-[#0F172A]">Autonomous Goods Train & AI Detector</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">
+                STR + Bayesian AI
+              </span>
+            </div>
+
+            {activeGoodsRakes.length > 0 ? (
+              <div className="space-y-2">
+                {activeGoodsRakes.map((g) => (
+                  <div
+                    key={g.rake_id}
+                    className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1 text-[11px]"
+                  >
+                    <div className="flex items-center justify-between font-mono">
+                      <span className="font-bold text-[#0F172A]">
+                        {g.rake_id} ({g.block_id})
+                      </span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded font-bold ${
+                          g.status_phase === 'PREDICTED_DELAY_ADDED'
+                            ? 'bg-amber-100 text-amber-900'
+                            : g.status_phase === 'SLOWDOWN_ANALYZING'
+                            ? 'bg-blue-100 text-blue-900'
+                            : g.status_phase === 'CLEARED_TO_LOOP'
+                            ? 'bg-emerald-100 text-emerald-900'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {g.status_phase === 'HIDDEN_ON_TRACK' && 'Hidden • 0m Delay'}
+                        {g.status_phase === 'SLOWDOWN_ANALYZING' && 'Slowed • AI Analyzing'}
+                        {g.status_phase === 'PREDICTED_DELAY_ADDED' &&
+                          `${Math.round((g.predicted_accuracy ?? 0) * 100)}% Acc • +${g.predicted_delay_mins}m`}
+                        {g.status_phase === 'CLEARED_TO_LOOP' && `Cleared @ ${g.clearance_station}`}
+                      </span>
+                    </div>
+                    <div className="text-[#64748B]">
+                      km {g.chainage_km.toFixed(1)} ({g.speed_kmph} km/h) → Clears at{' '}
+                      <strong className="text-[#0F172A]">{g.clearance_station}</strong>
+                      {g.detected && g.str_value ? (
+                        <span className="ml-1.5 text-indigo-700 font-semibold">
+                          • Train {g.detected_by_train} detected STR {g.str_value.toFixed(2)}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-[#64748B]">
+                No hidden goods train currently on track. Place one randomly — train slows on arrival, AI predicts
+                accuracy, and delay is added only once predicted.
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleSpawnRandomGoods(true)}
+                disabled={isInjecting}
+                className="py-2 px-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold text-[11px] transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Place Ahead of {selectedTrain}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSpawnRandomGoods(false)}
+                disabled={isInjecting}
+                className="py-2 px-2.5 bg-white hover:bg-slate-100 text-[#0F172A] border border-[#CBD5E1] rounded-lg font-semibold text-[11px] transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Random Anywhere
+              </button>
+            </div>
           </div>
 
           {/* 3. Disruption Scenarios Presets */}

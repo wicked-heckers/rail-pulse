@@ -340,3 +340,25 @@ async def test_delay_injection_no_double_counting():
         f_after = (await client.get("/api/v1/trains/12821/forecast")).json()
         assert f_after["current_delay_mins"] == pytest.approx(base_delay + 15.0, abs=1.0)
 
+
+@pytest.mark.asyncio
+async def test_random_goods_train_endpoint():
+    """Verify /demo/random-freight places an undetected goods rake on track with zero immediate delay."""
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        await client.post("/api/v1/demo/reset")
+        resp = await client.post(
+            "/api/v1/demo/random-freight",
+            json={"target_train_no": "12821", "seed": 7},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "RANDOM_GOODS_TRAIN_PLACED"
+        assert data["block_id"].startswith("DN_")
+
+        st = (await client.get("/api/v1/corridor/state")).json()
+        assert len(st.get("goods_rakes", [])) == 1
+        assert st["goods_rakes"][0]["detected"] is False
+        assert st["goods_rakes"][0]["status_phase"] == "HIDDEN_ON_TRACK"
+        # No phantom freight or delay added yet before train reaches it and AI predicts
+        assert st["phantom_freights"] == []
+

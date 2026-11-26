@@ -91,6 +91,11 @@ class FreightInferenceResult(BaseModel):
     ]
     clearance_station: str | None = None
     clearance_eta_mins: float | None = None
+    detected_by_train: str | None = None
+    rake_id: str | None = None
+    human_message: str | None = None
+    block_penalty_mins: float | None = None
+    added_delay_mins: float | None = None
 
 
 class CausalCard(BaseModel):
@@ -195,6 +200,12 @@ class DemoFreightInjectRequest(BaseModel):
     block_id: str = "DN_CTC_BRAG"
     penalty_mins: float = 20.0
     confidence: float = 0.88
+
+
+class DemoRandomFreightRequest(BaseModel):
+    target_train_no: str | None = None
+    block_id: str | None = None
+    seed: int | None = None
 
 
 class DemoSpeedRequest(BaseModel):

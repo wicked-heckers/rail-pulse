@@ -11,6 +11,7 @@ import {
   SMOOTH_NH16_KUR_COORDS,
   SMOOTH_CONGESTION_AHEAD_COORDS,
   snapPointToTrack,
+  getTrackSliceForBlock,
 } from '../../services/corridorData';
 import {
   getDelayCauses,
@@ -138,6 +139,17 @@ export const CorridorMap: React.FC = () => {
     };
   }, [trainKm, currentTrain?.direction]);
 
+  const activeFreightShadow = useMemo(() => {
+    const freights = activeSnapshot.phantom_freights ?? [];
+    if (freights.length === 0) return null;
+    const sameDir = freights.find((f) => f.direction === currentTrain?.direction);
+    return sameDir ?? freights[0];
+  }, [activeSnapshot.phantom_freights, currentTrain?.direction]);
+
+  const activeFreightGeom = useMemo(() => {
+    return getTrackSliceForBlock(activeFreightShadow?.block_id);
+  }, [activeFreightShadow?.block_id]);
+
   // Clean close any active popup
   const closeActivePopup = useCallback(() => {
     if (activePopupRef.current) {
@@ -147,14 +159,25 @@ export const CorridorMap: React.FC = () => {
   }, []);
 
   // Passenger-friendly Goods Train Ahead popup HTML
-  const getGoodsTrainPopupHtml = () => `
-    <div class="w-[300px] p-3.5 text-sm space-y-2 font-sans">
-      <!-- Row 1: Orange status dot + soft amber badge (clean space on right for × close button) -->
-      <div class="flex items-center justify-between pr-6">
-        <div class="flex items-center gap-1.5">
+  const getGoodsTrainPopupHtml = useCallback(() => {
+    const shadow = activeFreightShadow;
+    const accPct = shadow ? Math.round((shadow.freight_probability ?? 0.88) * 100) : 88;
+    const delayMins = Math.round(
+      shadow?.added_delay_mins ?? shadow?.clearance_eta_mins ?? 14
+    );
+    const strVal = shadow?.str_value ? shadow.str_value.toFixed(2) : '1.85';
+    const clrStn = shadow?.clearance_station || activeFreightGeom.toCode;
+    return `
+    <div class="w-[305px] p-3.5 text-sm space-y-2 font-sans">
+      <!-- Row 1: Orange status dot + AI confidence + delay badge -->
+      <div class="flex items-center justify-between pr-6 gap-1.5">
+        <div class="flex items-center gap-1.5 flex-wrap">
           <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">
-            ~14 min delay
+          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">
+            +${delayMins} min delay
+          </span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 whitespace-nowrap">
+            ${accPct}% AI Acc
           </span>
         </div>
       </div>
@@ -166,13 +189,14 @@ export const CorridorMap: React.FC = () => {
 
       <!-- Row 3: Location + Plain Description -->
       <div class="pt-1.5 border-t border-slate-100">
-        <div class="text-xs font-semibold text-slate-500 mb-1">Between Cuttack & Barang</div>
+        <div class="text-xs font-semibold text-slate-500 mb-1">Between ${activeFreightGeom.fromName} & ${activeFreightGeom.toName} • STR ${strVal}</div>
         <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">
-          A slow goods train is ahead of you toward Bhubaneswar, adding about 14 mins to your journey.
+          AI detected a slow goods rake ahead (${accPct}% accuracy). Adding +${delayMins} mins until it clears into ${clrStn} Loop.
         </p>
       </div>
     </div>
   `;
+  }, [activeFreightShadow, activeFreightGeom]);
 
   // Anchors popup to the left (west) of the track so the train marker is never blocked
   const openGoodsTrainPopup = useCallback(
@@ -184,13 +208,13 @@ export const CorridorMap: React.FC = () => {
         closeButton: true,
         maxWidth: '320px',
       })
-        .setLngLat([85.856, 20.431])
+        .setLngLat(activeFreightGeom.midpoint)
         .setHTML(getGoodsTrainPopupHtml())
         .addTo(map);
 
       activePopupRef.current = popup;
     },
-    [closeActivePopup]
+    [closeActivePopup, activeFreightGeom.midpoint, getGoodsTrainPopupHtml]
   );
 
   // Direct camera view handler triggered on button click or track click
@@ -213,10 +237,10 @@ export const CorridorMap: React.FC = () => {
         );
       } else if (view === 'delays_ahead') {
         setSelectedDelayId('cause-2');
-        // Smoothly zoom in on the delay zone ahead of the train
+        // Smoothly zoom in on the dynamic delay zone ahead of the train
         map.flyTo({
-          center: [85.856, 20.431],
-          zoom: 12.2,
+          center: activeFreightGeom.midpoint,
+          zoom: 12.0,
           speed: 1.2,
           duration: 800,
         });
@@ -266,7 +290,7 @@ export const CorridorMap: React.FC = () => {
         );
       }
     },
-    [closeActivePopup, openGoodsTrainPopup, setActiveMapView, setSelectedDelayId]
+    [closeActivePopup, openGoodsTrainPopup, setActiveMapView, setSelectedDelayId, activeFreightGeom.midpoint]
   );
 
   // Map Initialization
@@ -952,7 +976,7 @@ export const CorridorMap: React.FC = () => {
     }
   }, [isRescueAvailable, activeMapView, rescue]);
 
-  // Synchronize phantom freight slow-zone visibility
+  // Synchronize phantom freight slow-zone visibility & dynamic geometry/accuracy badge
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -966,7 +990,36 @@ export const CorridorMap: React.FC = () => {
         map.setLayoutProperty(layerId, 'visibility', visibility);
       }
     }
-  }, [activeSnapshot.phantom_freights, activeMapView]);
+
+    const hazardSource = map.getSource('freight-hazard-source') as any;
+    if (hazardSource && typeof hazardSource.setData === 'function') {
+      hazardSource.setData({
+        type: 'Feature',
+        properties: { name: 'Delay Section Ahead' },
+        geometry: { type: 'LineString', coordinates: activeFreightGeom.coords },
+      });
+    }
+
+    const badgeSource = map.getSource('freight-badge-source') as any;
+    if (badgeSource && typeof badgeSource.setData === 'function') {
+      const shadow = activeFreightShadow;
+      const accPct = shadow ? Math.round((shadow.freight_probability ?? 0.88) * 100) : 88;
+      const delayMins = Math.round(
+        shadow?.added_delay_mins ?? shadow?.clearance_eta_mins ?? 14
+      );
+      const label = shadow
+        ? `⚠ Goods Train (${accPct}% acc • +${delayMins}m delay)`
+        : '⚠ Clear / No Active Freight Ahead';
+      badgeSource.setData({
+        type: 'Feature',
+        properties: { label },
+        geometry: {
+          type: 'Point',
+          coordinates: activeFreightGeom.midpoint,
+        },
+      });
+    }
+  }, [activeSnapshot.phantom_freights, activeMapView, activeFreightShadow, activeFreightGeom]);
 
   // Keep latest train coordinates in a ref so 1.5s WebSocket ticks never hijack manual user zoom/pan
   const currentTrainRef = useRef(currentTrain);
