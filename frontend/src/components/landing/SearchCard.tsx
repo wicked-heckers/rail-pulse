@@ -547,7 +547,7 @@ export const SearchCard: React.FC = () => {
                   <div className="flex items-start gap-2">
                     <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-slate-700 leading-relaxed">
-                      Live telemetry is currently active for the <strong>Bhadrak–Puri pilot corridor</strong>. Choose one of the 3 live trains below:
+                      Live telemetry is currently active for the <strong>Bhadrak–Puri pilot corridor</strong>. Choose one of the {allCorridorTrains.length} live trains below:
                     </p>
                   </div>
 

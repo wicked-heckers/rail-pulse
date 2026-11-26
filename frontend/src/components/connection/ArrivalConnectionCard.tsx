@@ -120,6 +120,7 @@ export const ArrivalConnectionCard: React.FC = () => {
 
   let marginMins = 0;
   let isConnectionTightOrMissed = false;
+  const transferBuffer = connectionTarget?.transfer_buffer_mins ?? 15;
 
   if (arrivalMin !== null && deadlineMin !== null) {
     let dMin = deadlineMin;
@@ -131,14 +132,19 @@ export const ArrivalConnectionCard: React.FC = () => {
     }
     marginMins = dMin - aMin;
 
-    // Case A (Missed/Tight on P50/P90 of 12821) vs Case B (Enough time on P10 or other corridor trains)
-    isConnectionTightOrMissed =
-      selectedTrain === '12821'
-        ? quantile !== 'p10'
-        : marginMins < 10;
+    // If custom connection deadline is set, evaluate strictly against the user's required buffer.
+    // For default 12821 demo connection (12:15 PM), P10 (12:05 PM) has 10m margin (safe), while P50/P90 have < 10m.
+    if (connectionTarget?.isCustom) {
+      isConnectionTightOrMissed = marginMins < transferBuffer;
+    } else {
+      isConnectionTightOrMissed =
+        selectedTrain === '12821'
+          ? quantile !== 'p10' && marginMins < 10
+          : marginMins < 10;
+    }
   } else {
     // If arrival time or connection deadline is missing / invalid, avoid triggering false cab alarm
-    isConnectionTightOrMissed = selectedTrain === '12821' && quantile !== 'p10';
+    isConnectionTightOrMissed = false;
   }
 
   const handleSaveConnection = () => {

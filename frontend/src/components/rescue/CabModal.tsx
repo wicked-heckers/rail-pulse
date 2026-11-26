@@ -4,7 +4,7 @@ import { Car, X, Check, MapPin, Navigation } from 'lucide-react';
 import { formatEpochTo12Hour } from '../dashboard/passengerUtils';
 
 export const CabModal: React.FC = () => {
-  const { cabModalOpen, setCabModalOpen, rescue } = useRailStore();
+  const { cabModalOpen, setCabModalOpen, rescue, activeSnapshot } = useRailStore();
   const [isBooked, setIsBooked] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
 
@@ -23,9 +23,10 @@ export const CabModal: React.FC = () => {
 
   if (!cabModalOpen) return null;
 
+  const defaultRoadEpoch = (activeSnapshot.tick_utc || 1795067700) + 38 * 60;
   const roadArrival = rescue?.bailout_plan?.final_road_arrival_epoch
     ? formatEpochTo12Hour(rescue.bailout_plan.final_road_arrival_epoch)
-    : '12:02 PM';
+    : formatEpochTo12Hour(defaultRoadEpoch);
   const minsSaved = rescue?.bailout_plan?.minutes_saved ?? 21;
 
   const handleConfirm = () => {

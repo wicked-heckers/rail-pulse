@@ -44,6 +44,14 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const activePopupRef = useRef<MapLibrePopup | null>(null);
+  const popupTimeoutRef = useRef<number | null>(null);
+
+  const clearPopupTimeout = useCallback(() => {
+    if (popupTimeoutRef.current) {
+      clearTimeout(popupTimeoutRef.current);
+      popupTimeoutRef.current = null;
+    }
+  }, []);
 
   // Trigger map resize on mount and after render frame for modal transitions
   useEffect(() => {
@@ -125,11 +133,12 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
 
   // Clean close any active popup
   const closeActivePopup = useCallback(() => {
+    clearPopupTimeout();
     if (activePopupRef.current) {
       activePopupRef.current.remove();
       activePopupRef.current = null;
     }
-  }, []);
+  }, [clearPopupTimeout]);
 
   // Anchors popup to the left (west) of the track so the train marker is never blocked
   const openGoodsTrainPopup = useCallback(
@@ -163,7 +172,8 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
       if (view === 'delays_ahead') {
         setSelectedDelayId('cause-2');
         map.fitBounds(preset.bounds, { padding: preset.padding, duration: preset.duration });
-        setTimeout(() => {
+        clearPopupTimeout();
+        popupTimeoutRef.current = window.setTimeout(() => {
           if (!mapRef.current) return;
           openGoodsTrainPopup(mapRef.current);
         }, 200);
@@ -186,6 +196,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   useEffect(() => {
     if (!mapContainerRef.current) return;
     let isCancelled = false;
+    let resizeObserver: ResizeObserver | null = null;
 
     fetchCorridorConfig()
       .then((cfg) => {
@@ -203,7 +214,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         mapRef.current = map;
 
         // Auto-resize observer
-        const resizeObserver = new ResizeObserver(() => {
+        resizeObserver = new ResizeObserver(() => {
           map.resize();
         });
         if (mapContainerRef.current) {
@@ -312,8 +323,9 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
             activePopupRef.current = popup;
 
             // Wire up "Track this train" button inside popup
+            const safeTrainId = String(props.train_no).replace(/[^a-zA-Z0-9_-]/g, '');
             setTimeout(() => {
-              const btn = document.getElementById(`btn-track-${props.train_no}`);
+              const btn = document.getElementById(`btn-track-${safeTrainId}`);
               if (btn) {
                 btn.onclick = () => {
                   setSelectedTrain(props.train_no);
@@ -384,6 +396,8 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
 
     return () => {
       isCancelled = true;
+      clearPopupTimeout();
+      resizeObserver?.disconnect();
       closeActivePopup();
       if (mapRef.current) {
         mapRef.current.remove();
@@ -480,7 +494,8 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         duration: 800,
       });
 
-      setTimeout(() => {
+      clearPopupTimeout();
+      popupTimeoutRef.current = window.setTimeout(() => {
         if (!mapRef.current) return;
         openGoodsTrainPopup(mapRef.current);
       }, 250);
@@ -509,7 +524,8 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         displayMessage
       );
 
-      setTimeout(() => {
+      clearPopupTimeout();
+      popupTimeoutRef.current = window.setTimeout(() => {
         if (!mapRef.current) return;
         const popup = new maplibregl.Popup({
           anchor: 'right',
