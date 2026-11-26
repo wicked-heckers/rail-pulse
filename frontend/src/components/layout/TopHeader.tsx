@@ -127,9 +127,9 @@ export const TopHeader: React.FC = () => {
           title="Current Time (IST)"
         >
           <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span className="font-mono font-bold text-xs tracking-tight tabular-nums whitespace-nowrap">
+          <span className="font-mono font-bold text-xs sm:text-[13px] tracking-tight tabular-nums whitespace-nowrap">
             {formatCurrentTimeIST(now)}
-            <span className="hidden xl:inline text-slate-300 text-[10px] ml-1">IST</span>
+            <span className="hidden xl:inline text-slate-300 text-[11px] ml-1">IST</span>
           </span>
           <div className="hidden xl:flex items-center gap-0.5 ml-1 pl-1.5 border-l border-slate-600">
             {[1, 10, 30].map((s) => (
@@ -137,7 +137,7 @@ export const TopHeader: React.FC = () => {
                 key={s}
                 type="button"
                 onClick={() => handleQuickSpeed(s)}
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 ${
+                className={`px-1.5 py-0.5 rounded text-[11px] font-mono font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 ${
                   simSpeed === s
                     ? 'bg-emerald-500 text-slate-950'
                     : 'text-slate-300 hover:text-white hover:bg-slate-700'

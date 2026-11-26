@@ -20,13 +20,13 @@ export const HowItWorks: React.FC = () => {
             key={i}
             className="py-4 first:pt-0 last:pb-0 md:py-0 md:px-7 first:md:pl-0 last:md:pr-0 flex flex-col"
           >
-            <span className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+            <span className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
               {step.badge}
             </span>
-            <h4 className="text-sm font-semibold text-slate-900 mt-1 leading-snug">
+            <h4 className="text-[15px] font-semibold text-slate-900 mt-1 leading-snug">
               {step.title}
             </h4>
-            <p className="text-[13px] leading-relaxed text-slate-500 mt-1.5">
+            <p className="text-sm leading-relaxed text-slate-600 mt-1.5">
               {step.desc}
             </p>
           </div>

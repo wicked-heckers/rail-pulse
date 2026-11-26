@@ -64,14 +64,14 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onNavigateToSearch
                 timely cab alternative when onward connections are at risk.
               </p>
 
-              <p className="text-xs text-slate-500 mt-3">
+              <p className="text-[13px] text-slate-600 mt-3 font-medium">
                 Active Corridor: Bhadrak (BHC) – Jajpur – Cuttack – Bhubaneswar – Khurda Rd – Puri (PURI)
               </p>
             </div>
 
             {/* Column 2: Quick Navigation */}
             <div className="md:col-span-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
+              <h3 className="text-[13px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
                 EXPLORE
               </h3>
               <div className="flex flex-col items-start gap-2.5">
@@ -101,7 +101,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onNavigateToSearch
 
             {/* Column 3: Help & Contact */}
             <div className="md:col-span-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
+              <h3 className="text-[13px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
                 HELP &amp; CONTACT
               </h3>
               <div className="flex flex-col items-start gap-2.5">
@@ -130,12 +130,12 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onNavigateToSearch
           </div>
 
           {/* Bottom Legal Row */}
-          <div className="mt-10 pt-5 border-t border-slate-300/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-500">
+          <div className="mt-10 pt-5 border-t border-slate-300/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[13px] text-slate-600">
             <p>
               Independent passenger transit project. Arrival windows are live estimates and may shift
               with railway signaling. Not affiliated with Indian Railways or IRCTC.
             </p>
-            <p className="whitespace-nowrap shrink-0">&copy; 2026 Rail-Pulse</p>
+            <p className="whitespace-nowrap shrink-0 font-medium">&copy; 2026 Rail-Pulse</p>
           </div>
         </div>
       </footer>

@@ -185,7 +185,7 @@ export const ArrivalConnectionCard: React.FC = () => {
               }`}
             >
               <span className="font-bold text-slate-900">P10 • Best Case</span>
-              <span className="text-[11px] text-slate-500">Earliest arrival if clear</span>
+              <span className="text-xs text-slate-500">Earliest arrival if clear</span>
             </button>
             <button
               type="button"
@@ -200,7 +200,7 @@ export const ArrivalConnectionCard: React.FC = () => {
               }`}
             >
               <span className="font-bold text-slate-900">P50 • Most Likely</span>
-              <span className="text-[11px] text-slate-500">Expected arrival</span>
+              <span className="text-xs text-slate-500">Expected arrival</span>
             </button>
             <button
               type="button"
@@ -215,7 +215,7 @@ export const ArrivalConnectionCard: React.FC = () => {
               }`}
             >
               <span className="font-bold text-slate-900">P90 • Worst Case</span>
-              <span className="text-[11px] text-slate-500">Latest if delays hold</span>
+              <span className="text-xs text-slate-500">Latest if delays hold</span>
             </button>
           </div>
         )}
@@ -251,7 +251,7 @@ export const ArrivalConnectionCard: React.FC = () => {
               )}
 
               <span
-                className={`sm:hidden inline-flex items-center px-2 py-0.5 rounded-md border text-[11px] font-mono font-bold whitespace-nowrap ${
+                className={`sm:hidden inline-flex items-center px-2 py-0.5 rounded-md border text-xs font-mono font-bold whitespace-nowrap ${
                   isKolkata
                     ? 'bg-amber-50 text-amber-900 border-amber-300'
                     : 'bg-indigo-50 text-indigo-900 border-indigo-200'
@@ -260,7 +260,7 @@ export const ArrivalConnectionCard: React.FC = () => {
                 {isKolkata ? 'SER • HWH–KGP' : 'ECoR • BHC–PURI'}
               </span>
 
-              <span className="text-[13px] text-slate-500 font-medium">
+              <span className="text-[13px] sm:text-sm text-slate-600 font-medium">
                 {trainIdentity.locationText}
               </span>
             </div>
@@ -359,7 +359,7 @@ export const ArrivalConnectionCard: React.FC = () => {
 
       {/* 4. Connection Status (Read-Only) */}
       <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
-        <div className="text-[13px] text-slate-600 font-medium min-w-0 truncate">
+        <div className="text-sm text-slate-600 font-medium min-w-0 truncate">
           <span>Next train: </span>
           <span className="font-semibold text-slate-800">
             {connectionTrainName} • {connectionDeadlineFormatted}
@@ -399,7 +399,7 @@ export const ArrivalConnectionCard: React.FC = () => {
               </div>
 
               <span
-                className={`shrink-0 px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold border shadow-2xs whitespace-nowrap self-start ${
+                className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-bold border shadow-2xs whitespace-nowrap self-start ${
                   isConnectionTightOrMissed
                     ? passengerStatus === 'ON_BOARD'
                       ? 'bg-white text-amber-800 border-amber-300'

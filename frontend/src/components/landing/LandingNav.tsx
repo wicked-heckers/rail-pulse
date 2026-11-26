@@ -77,9 +77,9 @@ export const LandingNav: React.FC = () => {
             title="Current Time (IST)"
           >
             <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="font-mono font-semibold text-xs tracking-tight tabular-nums whitespace-nowrap">
+            <span className="font-mono font-semibold text-xs sm:text-[13px] tracking-tight tabular-nums whitespace-nowrap">
               {formatCurrentTimeIST(now)}
-              <span className="hidden sm:inline text-slate-300 text-[10px] ml-1">IST</span>
+              <span className="hidden sm:inline text-slate-300 text-[11px] ml-1">IST</span>
             </span>
           </div>
 
@@ -87,7 +87,7 @@ export const LandingNav: React.FC = () => {
           <button
             type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200/70 text-xs font-semibold text-slate-800 whitespace-nowrap transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200/70 text-[13px] font-semibold text-slate-800 whitespace-nowrap transition-colors cursor-pointer"
             aria-expanded={menuOpen}
             aria-label="Select language"
           >
@@ -112,7 +112,7 @@ export const LandingNav: React.FC = () => {
                       setLanguage(opt.code);
                       setMenuOpen(false);
                     }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                    className={`w-full text-left px-3 py-2 rounded-lg text-[13px] transition-colors flex items-center justify-between cursor-pointer ${
                       isActive
                         ? 'bg-slate-100 text-slate-900 font-semibold'
                         : 'hover:bg-slate-50 text-slate-700'

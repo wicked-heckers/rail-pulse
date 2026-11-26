@@ -81,7 +81,7 @@ export const VerticalTimeline: React.FC = () => {
         >
           <span className="truncate whitespace-nowrap">Journey Details</span>
           <span
-            className={`px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs font-mono font-bold rounded-full whitespace-nowrap shrink-0 ${
+            className={`px-1.5 sm:px-2 py-0.5 text-xs font-mono font-bold rounded-full whitespace-nowrap shrink-0 ${
               activeTab === 'journey'
                 ? 'bg-slate-100 text-slate-700 border border-slate-300'
                 : 'bg-slate-200 text-slate-600'
@@ -104,7 +104,7 @@ export const VerticalTimeline: React.FC = () => {
           <span className="truncate whitespace-nowrap">Delay Cause</span>
           {activeDelays.length > 0 ? (
             <span
-              className={`px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs font-bold rounded-full whitespace-nowrap shrink-0 ${
+              className={`px-1.5 sm:px-2 py-0.5 text-xs font-bold rounded-full whitespace-nowrap shrink-0 ${
                 activeTab === 'delay'
                   ? 'bg-amber-100 text-amber-800 border border-amber-300'
                   : 'bg-amber-200/80 text-amber-900'
@@ -114,7 +114,7 @@ export const VerticalTimeline: React.FC = () => {
             </span>
           ) : (
             <span
-              className={`px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs font-bold rounded-full whitespace-nowrap shrink-0 ${
+              className={`px-1.5 sm:px-2 py-0.5 text-xs font-bold rounded-full whitespace-nowrap shrink-0 ${
                 activeTab === 'delay'
                   ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                   : 'bg-emerald-200/80 text-emerald-900'
