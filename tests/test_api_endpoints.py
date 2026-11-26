@@ -225,13 +225,6 @@ async def test_demo_freight_inject_and_reset():
 
 
 @pytest.mark.asyncio
-async def test_multi_cause_disruption_across_trains():
-    """Verify multiple disruption causes stack accurately for Vande Bharat (22895) and UP trains (18410)."""
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        await client.post("/api/v1/demo/reset")
-
-
-@pytest.mark.asyncio
 async def test_trigger_live_overtake_does_not_teleport_trains():
     """Verify trigger-overtake preserves live coordinates while scheduling loop hold and Vande speed boost."""
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
@@ -275,26 +268,6 @@ async def test_trigger_live_overtake_does_not_teleport_trains():
         assert up_resp.status_code == 200
         assert up_resp.json()["freight_penalty_mins"] == 20.0
         assert up_resp.json()["direct_delay_mins"] == 25.0
-
-        await client.post("/api/v1/demo/reset")
-
-
-@pytest.mark.asyncio
-async def test_trigger_live_overtake_does_not_teleport_trains():
-    """Verify trigger-overtake preserves live coordinates while scheduling loop hold and Vande speed boost."""
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        await client.post("/api/v1/demo/reset")
-        before = (await client.get("/api/v1/corridor/state")).json()["trains"]
-        d_before = next(t["chainage_km"] for t in before if t["train_no"] == "12821")
-        v_before = next(t["chainage_km"] for t in before if t["train_no"] == "22895")
-
-        resp = await client.post("/api/v1/demo/trigger-overtake")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["status"] == "OVERTAKE_TRIGGERED"
-        assert data["dhauli_km"] == d_before
-        assert data["vande_km"] == v_before
-        assert data["hold_km"] >= d_before
 
         await client.post("/api/v1/demo/reset")
 

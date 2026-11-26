@@ -6,7 +6,6 @@ from app.ingestion.demo_provider import DemoSimulationProvider
 from app.ingestion.ulip_connector import ULIPFoisEnterpriseConnector
 from app.models.schemas import TrainKinematicState
 
-
 # ---------------------------------------------------------------------------
 # Original 4 tests (shared base — identical in both branches)
 # ---------------------------------------------------------------------------
@@ -428,3 +427,73 @@ async def test_eta_does_not_jump_drastically_after_clearing_barang_freight_or_ca
         await p_sc1.advance_simulation(1.5)
     assert max(etas_sc1) - min(etas_sc1) <= 240
     assert abs(p_sc1.sim_clock_secs - etas_sc1[0]) <= 240
+
+
+@pytest.mark.asyncio
+async def test_high_speed_warp_interval_station_halt_detection():
+    """Verify train halts at scheduled station even when advancing at 30x/60x speed multiplier."""
+    provider = DemoSimulationProvider(speed_multiplier=60.0)
+    # Position Vande Bharat 1.0 km before CTC (115.0 km). At 60x speed and 130 km/h,
+    # a 1.5s tick moves 3.25 km, which would skip a naive 0.8 km distance check.
+    provider._trains["22895"]["chainage_km"] = 114.0
+    provider._trains["22895"]["next_station"] = "CTC"
+    provider._trains["22895"]["speed_kmph"] = 130.0
+    provider._trains["22895"]["status"] = "RUNNING_HIGH_SPEED"
+
+    await provider.advance_simulation(elapsed_wall_seconds=1.5)
+
+    vande = provider._trains["22895"]
+    assert vande["status"] == "AT_STATION_HALT"
+    assert vande["current_station"] == "CTC"
+    assert vande["speed_kmph"] == 0.0
+    assert vande["chainage_km"] == 115.0
+
+
+@pytest.mark.asyncio
+async def test_terminus_arrival_and_automatic_cycle_turnaround():
+    """Verify trains come to a full stop at terminal stations and smoothly turnaround after dwell."""
+    provider = DemoSimulationProvider(speed_multiplier=10.0)
+    # Advance DN trains close to Puri (206 km) and UP train close to Bhadrak (0 km)
+    provider._trains["12821"]["chainage_km"] = 205.8
+    provider._trains["12821"]["next_station"] = "PURI"
+    provider._trains["22895"]["chainage_km"] = 205.8
+    provider._trains["22895"]["next_station"] = "PURI"
+    provider._trains["18410"]["chainage_km"] = 0.2
+    provider._trains["18410"]["next_station"] = "BHC"
+
+    await provider.advance_simulation(elapsed_wall_seconds=1.5)
+
+    assert provider._trains["12821"]["status"] == "AT_TERMINUS"
+    assert provider._trains["12821"]["current_station"] == "PURI"
+    assert provider._trains["12821"]["speed_kmph"] == 0.0
+
+    assert provider._trains["22895"]["status"] == "AT_TERMINUS"
+    assert provider._trains["22895"]["current_station"] == "PURI"
+    assert provider._trains["22895"]["speed_kmph"] == 0.0
+
+    assert provider._trains["18410"]["status"] == "AT_TERMINUS"
+    assert provider._trains["18410"]["current_station"] == "BHC"
+    assert provider._trains["18410"]["speed_kmph"] == 0.0
+
+    # Advance beyond 180 simulation seconds (e.g. 15 x 1.5s at 10x = 225s) to trigger cycle turnaround
+    for _ in range(15):
+        await provider.advance_simulation(elapsed_wall_seconds=1.5)
+
+    # All trains must be smoothly reset to initial scenario positions
+    assert provider._trains["12821"]["status"] != "AT_TERMINUS"
+    assert provider._trains["22895"]["status"] != "AT_TERMINUS"
+    assert provider._trains["18410"]["status"] != "AT_TERMINUS"
+
+
+@pytest.mark.asyncio
+async def test_live_overtake_delay_preservation_across_ticks():
+    """Verify live overtake delay floor (16m) is preserved monotonically and does not drop on next tick."""
+    provider = DemoSimulationProvider(speed_multiplier=1.0)
+    overtake_res = await provider.trigger_live_overtake()
+    assert overtake_res["status"] == "OVERTAKE_TRIGGERED"
+    assert provider._trains["12821"]["delay_mins"] >= 16.0
+
+    # Advance 10 ticks and ensure delay does not drop back to 0
+    for _ in range(10):
+        await provider.advance_simulation(elapsed_wall_seconds=1.5)
+        assert provider._trains["12821"]["delay_mins"] >= 16.0

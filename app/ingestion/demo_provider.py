@@ -1,3 +1,4 @@
+import copy
 import logging
 from typing import Any
 
@@ -174,9 +175,46 @@ class DemoSimulationProvider(CorridorDataProvider):
         self._overtake_target_code: str = "BRAG" if is_dhauli_cascade else "BBS"
         self._overtake_min_hold_secs: float = 960.0 if is_dhauli_cascade else 0.0
 
+        self._initial_scenario_mode = scenario_mode
+        self._initial_scenario_name = scenario_name
+        self._initial_trains = copy.deepcopy(self._trains)
+        self._initial_injected_freights = copy.deepcopy(self._injected_freights)
+        self._all_terminated_secs: float = 0.0
+
         self._trains_master = {
             t["train_no"]: t for t in self.topology.get("trains", [])
         }
+
+    def _compute_current_delay(self, t_no: str) -> float:
+        """
+        Calculates total delay for t_no across all additive components:
+        baseline timetable offset + manual injections + accrued cause penalties +
+        accrued freight crawl delay + accrued loop hold delay + remaining unexpired cause duration.
+        """
+        base = self._baseline_delays.get(t_no, 0.0)
+        manual = self._manual_delays.get(t_no, 0.0)
+        cause_accrued = self._accrued_cause_delays.get(t_no, 0.0)
+        freight_accrued = self._accrued_freight_delays.get(t_no, 0.0)
+        loop_accrued = self._accrued_loop_delays.get(t_no, 0.0)
+        cause_rem = self.get_remaining_cause_delay(t_no)
+        return round(base + manual + cause_accrued + freight_accrued + loop_accrued + cause_rem, 1)
+
+    def reset_cycle(self) -> None:
+        """Smoothly resets train coordinates and active causes to nominal initial scenario."""
+        self._all_terminated_secs = 0.0
+        self._active_causes.clear()
+        self._active_cause_effects.clear()
+        self._accrued_cause_delays.clear()
+        self._accrued_freight_delays.clear()
+        self._accrued_loop_delays.clear()
+        self._manual_delays.clear()
+        self._trains = copy.deepcopy(self._initial_trains)
+        self._injected_freights = copy.deepcopy(self._initial_injected_freights)
+        is_dhauli_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name != "OVERTAKE_ONLY")
+        self._hold_until_overtaken = bool(self._initial_scenario_mode)
+        self._overtake_target_km = 128.0 if is_dhauli_cascade else 143.0
+        self._overtake_target_code = "BRAG" if is_dhauli_cascade else "BBS"
+        self._overtake_min_hold_secs = 960.0 if is_dhauli_cascade else 0.0
 
     def _commercial_dwell_secs(self, train_no: str, stn: dict[str, Any]) -> float:
         master = self._trains_master.get(train_no)
@@ -234,8 +272,19 @@ class DemoSimulationProvider(CorridorDataProvider):
         self.sim_clock_secs = int(self._sim_clock_exact)
         delta_hours = sim_delta_secs / 3600.0
 
+        # Automatic turnaround cycle: when all active trains complete their runs,
+        # dwell at terminus for 180 simulation seconds and reset smoothly
+        if all(t.get("status") == "AT_TERMINUS" for t in self._trains.values()):
+            self._all_terminated_secs = getattr(self, "_all_terminated_secs", 0.0) + sim_delta_secs
+            if self._all_terminated_secs >= 180.0:
+                self.reset_cycle()
+            return
+        else:
+            self._all_terminated_secs = 0.0
+
         vande_km = self._trains.get("22895", {}).get("chainage_km", 0.0)
         stations_asc = sorted(self.stations, key=lambda s: float(s["chainage_km"]))
+        stn_dict = {s["station_code"]: s for s in stations_asc}
         stn_km_by_code = {s["station_code"]: float(s["chainage_km"]) for s in stations_asc}
 
         block_lookup = {
@@ -286,6 +335,10 @@ class DemoSimulationProvider(CorridorDataProvider):
             return stations_asc[0]["station_code"]
 
         for t_no, t in self._trains.items():
+            if t.get("status") == "AT_TERMINUS":
+                t["speed_kmph"] = 0.0
+                continue
+
             in_freight_zone = any(
                 d == t["direction"] and lo <= t["chainage_km"] <= hi
                 for d, lo, hi in active_freight_zones
@@ -301,6 +354,8 @@ class DemoSimulationProvider(CorridorDataProvider):
                 t.get("_cruise_override_speed") or (130.0 if t["priority_rank"] == 1 else 110.0)
             )
             base_status = "RUNNING_HIGH_SPEED" if t["priority_rank"] == 1 else "RUNNING_NORMAL"
+
+            effective_delta_hours = delta_hours
 
             # Apply active timed disruption cause physics (stop or speed drop, then auto-resume)
             effects = self._active_cause_effects.get(t_no, [])
@@ -325,15 +380,11 @@ class DemoSimulationProvider(CorridorDataProvider):
                 self._accrued_cause_delays[t_no] = (
                     self._accrued_cause_delays.get(t_no, 0.0) + budget_used
                 )
+                t["delay_mins"] = self._compute_current_delay(t_no)
 
-                t["delay_mins"] = round(
-                    self._baseline_delays.get(t_no, 0.0)
-                    + self._manual_delays.get(t_no, 0.0)
-                    + self._accrued_cause_delays.get(t_no, 0.0)
-                    + self._accrued_freight_delays.get(t_no, 0.0)
-                    + self.get_remaining_cause_delay(t_no),
-                    1,
-                )
+                if actual_speed == 0.0:
+                    held_secs = budget_used * 60.0
+                    effective_delta_hours = max(0.0, sim_delta_secs - held_secs) / 3600.0
 
                 if eff["remaining_delay_mins"] <= 0.01:
                     effects.pop(0)
@@ -377,14 +428,7 @@ class DemoSimulationProvider(CorridorDataProvider):
                     self._accrued_freight_delays[t_no] = (
                         self._accrued_freight_delays.get(t_no, 0.0) + freight_lost
                     )
-                    t["delay_mins"] = round(
-                        self._baseline_delays.get(t_no, 0.0)
-                        + self._manual_delays.get(t_no, 0.0)
-                        + self._accrued_cause_delays.get(t_no, 0.0)
-                        + self._accrued_freight_delays.get(t_no, 0.0)
-                        + self.get_remaining_cause_delay(t_no),
-                        1,
-                    )
+                    t["delay_mins"] = self._compute_current_delay(t_no)
                 elif not in_freight_zone and t["status"] in (
                     "CRAWLING_FREIGHT_DRAG",
                     "TSR_CAUTION",
@@ -424,7 +468,7 @@ class DemoSimulationProvider(CorridorDataProvider):
                     t["status"] == "AT_STATION_HALT"
                     and t.get("current_station") == target_code
                     and t["chainage_km"] >= target_km
-                ) or ((target_km - vande_km) <= 18.0):
+                ) or (0.0 <= (target_km - vande_km) <= 18.0):
                     if t["chainage_km"] >= target_km:
                         t["chainage_km"] = target_km
                         t["status"] = "AT_STATION_HALT"
@@ -434,15 +478,7 @@ class DemoSimulationProvider(CorridorDataProvider):
                         self._accrued_loop_delays[t_no] = (
                             self._accrued_loop_delays.get(t_no, 0.0) + (sim_delta_secs / 60.0)
                         )
-                        t["delay_mins"] = round(
-                            self._baseline_delays.get(t_no, 0.0)
-                            + self._manual_delays.get(t_no, 0.0)
-                            + self._accrued_cause_delays.get(t_no, 0.0)
-                            + self._accrued_freight_delays.get(t_no, 0.0)
-                            + self._accrued_loop_delays.get(t_no, 0.0)
-                            + self.get_remaining_cause_delay(t_no),
-                            1,
-                        )
+                        t["delay_mins"] = self._compute_current_delay(t_no)
                         continue
                     if not in_freight_zone and not cause_active:
                         t["speed_kmph"] = 45.0 if (target_km - t["chainage_km"]) < 3.0 else 55.0
@@ -487,53 +523,62 @@ class DemoSimulationProvider(CorridorDataProvider):
                     t["next_station"] = _next_stn(t["direction"], t["chainage_km"])
                 continue
 
-            dist_moved = t["speed_kmph"] * delta_hours
+            old_km = float(t["chainage_km"])
+            dist_moved = t["speed_kmph"] * effective_delta_hours
             if t["direction"] == "DN":
-                new_km = min(206.0, t["chainage_km"] + dist_moved)
+                new_km = min(206.0, old_km + dist_moved)
                 t["chainage_km"] = round(new_km, 2)
-                for stn in self.stations:
-                    if (
-                        abs(new_km - stn["chainage_km"]) < 0.8
-                        and t["status"] != "AT_STATION_HALT"
-                        and stn["station_code"] == t.get("next_station")
-                    ):
-                        dwell_secs = self._commercial_dwell_secs(t_no, stn)
-                        if dwell_secs > 0:
-                            t["chainage_km"] = round(float(stn["chainage_km"]), 2)
-                            t["status"] = "AT_STATION_HALT"
-                            t["current_station"] = stn["station_code"]
-                            t["speed_kmph"] = 0.0
-                            t["_halt_target_secs"] = dwell_secs
-                            t["_halt_elapsed_secs"] = 0.0
-                        break
-                next_code = t.get("next_station")
-                if t["status"] != "AT_STATION_HALT" and (
-                    not next_code or new_km >= stn_km_by_code.get(next_code, -1.0)
-                ):
-                    t["next_station"] = _next_stn("DN", new_km)
+                if new_km >= 206.0:
+                    t["chainage_km"] = 206.0
+                    t["speed_kmph"] = 0.0
+                    t["status"] = "AT_TERMINUS"
+                    t["current_station"] = "PURI"
+                    t["next_station"] = None
+                else:
+                    nxt_code = t.get("next_station")
+                    halted = False
+                    if nxt_code and nxt_code in stn_dict:
+                        nxt_stn = stn_dict[nxt_code]
+                        s_km = float(nxt_stn["chainage_km"])
+                        if old_km < s_km <= new_km or abs(new_km - s_km) <= 0.15:
+                            dwell_secs = self._commercial_dwell_secs(t_no, nxt_stn)
+                            if dwell_secs > 0:
+                                t["chainage_km"] = round(s_km, 2)
+                                t["status"] = "AT_STATION_HALT"
+                                t["current_station"] = nxt_code
+                                t["speed_kmph"] = 0.0
+                                t["_halt_target_secs"] = dwell_secs
+                                t["_halt_elapsed_secs"] = 0.0
+                                halted = True
+                    if not halted and (not nxt_code or new_km >= stn_km_by_code.get(nxt_code, -1.0)):
+                        t["next_station"] = _next_stn("DN", new_km)
             else:
-                new_km = max(0.0, t["chainage_km"] - dist_moved)
+                new_km = max(0.0, old_km - dist_moved)
                 t["chainage_km"] = round(new_km, 2)
-                for stn in self.stations:
-                    if (
-                        abs(new_km - stn["chainage_km"]) < 0.8
-                        and t["status"] != "AT_STATION_HALT"
-                        and stn["station_code"] == t.get("next_station")
-                    ):
-                        dwell_secs = self._commercial_dwell_secs(t_no, stn)
-                        if dwell_secs > 0:
-                            t["chainage_km"] = round(float(stn["chainage_km"]), 2)
-                            t["status"] = "AT_STATION_HALT"
-                            t["current_station"] = stn["station_code"]
-                            t["speed_kmph"] = 0.0
-                            t["_halt_target_secs"] = dwell_secs
-                            t["_halt_elapsed_secs"] = 0.0
-                        break
-                next_code = t.get("next_station")
-                if t["status"] != "AT_STATION_HALT" and (
-                    not next_code or new_km <= stn_km_by_code.get(next_code, 999.0)
-                ):
-                    t["next_station"] = _next_stn("UP", new_km)
+                if new_km <= 0.0:
+                    t["chainage_km"] = 0.0
+                    t["speed_kmph"] = 0.0
+                    t["status"] = "AT_TERMINUS"
+                    t["current_station"] = "BHC"
+                    t["next_station"] = None
+                else:
+                    nxt_code = t.get("next_station")
+                    halted = False
+                    if nxt_code and nxt_code in stn_dict:
+                        nxt_stn = stn_dict[nxt_code]
+                        s_km = float(nxt_stn["chainage_km"])
+                        if new_km <= s_km < old_km or abs(new_km - s_km) <= 0.15:
+                            dwell_secs = self._commercial_dwell_secs(t_no, nxt_stn)
+                            if dwell_secs > 0:
+                                t["chainage_km"] = round(s_km, 2)
+                                t["status"] = "AT_STATION_HALT"
+                                t["current_station"] = nxt_code
+                                t["speed_kmph"] = 0.0
+                                t["_halt_target_secs"] = dwell_secs
+                                t["_halt_elapsed_secs"] = 0.0
+                                halted = True
+                    if not halted and (not nxt_code or new_km <= stn_km_by_code.get(nxt_code, 999.0)):
+                        t["next_station"] = _next_stn("UP", new_km)
 
             # Immediately exit freight crawl status/speed once train crosses clear of the block
             still_in_freight = any(
@@ -648,11 +693,9 @@ class DemoSimulationProvider(CorridorDataProvider):
                 self._accrued_cause_delays[train_no] = 0.0
             self._active_cause_effects[train_no] = next_effects
 
-            base = self._baseline_delays.get(train_no, 0.0)
-            manual = self._manual_delays.get(train_no, 0.0)
-            accrued = self._accrued_cause_delays.get(train_no, 0.0)
-            rem = self.get_remaining_cause_delay(train_no)
-            t["delay_mins"] = round(base + manual + (accrued + rem if next_effects else direct_delay_mins), 1)
+            if not next_effects and direct_delay_mins > 0:
+                self._manual_delays[train_no] = self._manual_delays.get(train_no, 0.0) + direct_delay_mins
+            t["delay_mins"] = self._compute_current_delay(train_no)
 
             direction = t["direction"]
             km = float(t["chainage_km"])
@@ -743,7 +786,7 @@ class DemoSimulationProvider(CorridorDataProvider):
 
         # Slow Dhauli smoothly only if Vande Bharat is within 18 km of target loop
         dhauli["next_station"] = self._overtake_target_code
-        if (self._overtake_target_km - v_km) <= 18.0:
+        if 0.0 <= (self._overtake_target_km - v_km) <= 18.0:
             if d_km >= self._overtake_target_km:
                 dhauli["speed_kmph"] = 0.0
                 dhauli["status"] = "AT_STATION_HALT"
@@ -756,7 +799,11 @@ class DemoSimulationProvider(CorridorDataProvider):
             dhauli["speed_kmph"] = 110.0
             dhauli["status"] = "RUNNING_NORMAL"
             dhauli["current_station"] = None
-        dhauli["delay_mins"] = max(float(dhauli["delay_mins"]), 16.0)
+
+        cur_d = self._compute_current_delay("12821")
+        if cur_d < 16.0:
+            self._manual_delays["12821"] = self._manual_delays.get("12821", 0.0) + (16.0 - cur_d)
+        dhauli["delay_mins"] = self._compute_current_delay("12821")
 
         # Boost trailing Vande Bharat from its current live position (zero coordinate jump)
         vande["_cruise_override_speed"] = 180.0

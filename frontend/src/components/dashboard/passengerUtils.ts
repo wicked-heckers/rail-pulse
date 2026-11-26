@@ -24,6 +24,9 @@ export interface ArrivalPrediction {
   p10Time: string;
   p50Time: string;
   p90Time: string;
+  p10DelayMins: number;
+  p50DelayMins: number;
+  p90DelayMins: number;
 }
 
 export interface ConnectionEvaluation {
@@ -135,7 +138,15 @@ export function getTrainIdentity(
 
   // Location display
   let locationText = 'En route';
-  if (train.current_station) {
+  if (train.status === 'AT_TERMINUS') {
+    const termName =
+      train.current_station === 'PURI'
+        ? 'Puri Terminal'
+        : train.current_station === 'BHC'
+        ? 'Bhadrak'
+        : train.current_station ?? 'Terminus';
+    locationText = `Arrived at ${termName} (Terminus)`;
+  } else if (train.current_station) {
     locationText = `Stopped at ${train.current_station} station`;
     if (train.current_station === 'CTC') locationText = 'Waiting at Cuttack (CTC)';
   } else if (train.next_station) {
@@ -151,7 +162,10 @@ export function getTrainIdentity(
   let statusText = `Running • ${spd} km/h`;
   let statusTone: TrainIdentity['statusTone'] = 'emerald';
 
-  if (train.status === 'OHE_BRAKE_HOLD') {
+  if (train.status === 'AT_TERMINUS') {
+    statusText = 'Journey Complete • Terminus';
+    statusTone = 'slate';
+  } else if (train.status === 'OHE_BRAKE_HOLD') {
     statusText = `Stopped: OHE/Brake (${spd} km/h)`;
     statusTone = 'amber';
   } else if (train.status === 'PLATFORM_HOLD') {
@@ -225,6 +239,9 @@ export function getArrivalPrediction(
       p10Time: p10,
       p50Time: p50,
       p90Time: p90,
+      p10DelayMins: Math.round(forecast?.p10_delay_mins ?? 19),
+      p50DelayMins: Math.round(forecast?.p50_delay_mins ?? 28),
+      p90DelayMins: Math.round(forecast?.p90_delay_mins ?? 37),
     };
   }
 
@@ -241,6 +258,9 @@ export function getArrivalPrediction(
       p10Time: '12:04 PM',
       p50Time: '12:05 PM',
       p90Time: '12:10 PM',
+      p10DelayMins: 4,
+      p50DelayMins: 5,
+      p90DelayMins: 10,
     };
   }
 
@@ -256,6 +276,9 @@ export function getArrivalPrediction(
       p10Time: '11:53 AM',
       p50Time: '11:55 AM',
       p90Time: '12:02 PM',
+      p10DelayMins: 0,
+      p50DelayMins: 2,
+      p90DelayMins: 7,
     };
   }
 
@@ -271,6 +294,9 @@ export function getArrivalPrediction(
     p10Time: '12:05 PM',
     p50Time: '12:09 PM',
     p90Time: '12:24 PM',
+    p10DelayMins: 19,
+    p50DelayMins: 28,
+    p90DelayMins: 37,
   };
 }
 
