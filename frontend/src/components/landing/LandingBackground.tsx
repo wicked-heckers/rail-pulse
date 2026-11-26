@@ -4,7 +4,7 @@ export const LandingBackground: React.FC = () => {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none select-none absolute inset-0 overflow-hidden z-0"
+      className="fixed inset-0 z-0 pointer-events-none select-none overflow-hidden"
     >
       {/* SVG Railway Transit Vector Layer adjusted to frame the gap right below hero text and above the search card */}
       <img

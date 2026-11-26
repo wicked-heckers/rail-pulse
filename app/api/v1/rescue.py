@@ -34,8 +34,19 @@ async def evaluate_rescue(
     freight_penalties = await state_store.get_freight_penalties()
     snapshot = await state_store.get_snapshot()
     current_epoch = snapshot.get("tick_utc", int(time.time()))
+    rain_mm_hr = float(snapshot.get("weather", {}).get("rain_mm_hr", 0.0))
+    max_freight_prob = max(
+        (
+            float(shadow.get("freight_probability", 0.0))
+            for shadow in snapshot.get("phantom_freights", [])
+            if shadow.get("direction") == target_train.direction
+        ),
+        default=0.0,
+    )
 
     # Run physics simulator in worker thread
+    injected_shift = await state_store.get_injected_delay(request.train_no)
+    loop_hold_override = await state_store.get_remaining_loop_hold(request.train_no)
     sim_result = await asyncio.to_thread(
         simulate_corridor_overtakes,
         target_train_no=request.train_no,
@@ -43,9 +54,11 @@ async def evaluate_rescue(
         topology=topology,
         freight_penalties=freight_penalties,
         current_epoch=current_epoch,
+        delay_shift_mins=injected_shift,
+        loop_hold_override_mins=loop_hold_override,
     )
 
-    # Evaluate rescue decision in worker thread
+    # Evaluate rescue decision in worker thread (slack + all 12 ML features applied inside)
     result = await asyncio.to_thread(
         evaluate_connection_rescue,
         train_state=target_train,
@@ -57,6 +70,8 @@ async def evaluate_rescue(
         topology=topology,
         current_epoch=current_epoch,
         use_live_traffic=(snapshot.get("mode") == "LIVE_FEED"),
+        rain_mm_hr=rain_mm_hr,
+        freight_shadow_prob=max_freight_prob,
     )
 
 

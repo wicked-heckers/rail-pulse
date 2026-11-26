@@ -1,7 +1,7 @@
 import type { CorridorSnapshot, ForecastResponse, RescueEvaluationResponse } from '../types/corridor';
 
 export const MOCK_SNAPSHOT: CorridorSnapshot = {
-  tick_utc: 1795071480,
+  tick_utc: 1795067700,
   mode: 'DEMO_1X',
   speed_multiplier: 1.0,
   trains: [
@@ -14,10 +14,10 @@ export const MOCK_SNAPSHOT: CorridorSnapshot = {
       lat: 20.4631,
       lon: 85.8828,
       speed_kmph: 0.0,
-      current_delay_mins: 28.0,
+      current_delay_mins: 0.0,
       current_station: 'CTC',
       next_station: 'BRAG',
-      last_updated_epoch: 1795071480,
+      last_updated_epoch: 1795067700,
       status: 'AT_STATION_HALT',
     },
     {
@@ -29,10 +29,10 @@ export const MOCK_SNAPSHOT: CorridorSnapshot = {
       lat: 20.8500,
       lon: 86.0100,
       speed_kmph: 130.0,
-      current_delay_mins: 2.0,
+      current_delay_mins: 0.0,
       current_station: null,
       next_station: 'NRG',
-      last_updated_epoch: 1795071480,
+      last_updated_epoch: 1795067700,
       status: 'RUNNING_HIGH_SPEED',
     },
     {
@@ -43,29 +43,19 @@ export const MOCK_SNAPSHOT: CorridorSnapshot = {
       chainage_km: 155.0,
       lat: 20.245,
       lon: 85.812,
-      speed_kmph: 85.0,
-      current_delay_mins: 5.0,
+      speed_kmph: 110.0,
+      current_delay_mins: 0.0,
       current_station: null,
       next_station: 'BBS',
-      last_updated_epoch: 1795071480,
+      last_updated_epoch: 1795067700,
       status: 'RUNNING_NORMAL',
     },
   ],
-  phantom_freights: [
-    {
-      block_id: 'DN_CTC_BRAG',
-      direction: 'DN',
-      str_value: 1.85,
-      freight_probability: 0.88,
-      status: 'PHANTOM_FREIGHT_SHADOW',
-      clearance_station: 'BRAG',
-      clearance_eta_mins: 20.0,
-    },
-  ],
+  phantom_freights: [],
   weather: {
-    rain_mm_hr: 2.0,
-    wind_speed_kmph: 14.0,
-    condition: 'OVERCAST',
+    rain_mm_hr: 0.0,
+    wind_speed_kmph: 12.0,
+    condition: 'CLEAR',
   },
 };
 

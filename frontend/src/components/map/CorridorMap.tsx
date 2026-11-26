@@ -166,7 +166,7 @@ export const CorridorMap: React.FC = () => {
       <!-- Row 3: Location + Plain Description -->
       <div class="pt-1.5 border-t border-slate-100">
         <div class="text-xs font-semibold text-slate-500 mb-1">Between Cuttack & Barang</div>
-        <p class="text-slate-700 leading-relaxed text-xs sm:text-[13px]">
+        <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">
           A slow goods train is ahead of you toward Bhubaneswar, adding about 14 mins to your journey.
         </p>
       </div>
@@ -440,7 +440,7 @@ export const CorridorMap: React.FC = () => {
             source: 'freight-badge-source',
             layout: {
               'text-field': ['get', 'label'],
-              'text-size': 11,
+              'text-size': 12,
               'text-offset': [0, -1.4],
               'text-anchor': 'bottom',
             },
@@ -495,7 +495,7 @@ export const CorridorMap: React.FC = () => {
             layout: {
               visibility: isRescueAvailable ? 'visible' : 'none',
               'text-field': ['get', 'label'],
-              'text-size': 11,
+              'text-size': 12,
               'text-offset': [1.2, 0],
               'text-anchor': 'left',
             },
@@ -607,7 +607,7 @@ export const CorridorMap: React.FC = () => {
             source: 'station-nodes',
             layout: {
               'text-field': ['get', 'name'],
-              'text-size': 11,
+              'text-size': 12,
               'text-offset': [-1.0, 0],
               'text-anchor': 'right',
             },
@@ -711,12 +711,7 @@ export const CorridorMap: React.FC = () => {
                 ['concat', ['get', 'train_no'], ' • ', ['get', 'train_name']],
                 ['concat', ['get', 'train_no'], ' (+', ['to-string', ['get', 'delay_mins']], 'm)'],
               ],
-              'text-size': [
-                'case',
-                ['get', 'is_target'],
-                11.5,
-                10.5,
-              ],
+              'text-size': 12,
               'text-offset': [1.4, 0],
               'text-anchor': 'left',
             },
@@ -760,12 +755,12 @@ export const CorridorMap: React.FC = () => {
                   <div class="flex justify-between">
                     <span>Running Status:</span>
                     <strong class="${delay > 5 ? 'text-amber-800' : 'text-emerald-700'} font-bold">
-                      ${delay > 0 ? `+${delay}m late` : 'On Time'} • ${speed > 0 ? `${speed} km/h` : 'At Station'}
+                      ${delay > 0 ? `+${delay}m late` : 'On Time'} • ${speed > 0 ? `${speed} km/h` : props.current_station ? 'At Platform' : props.status === 'AT_TERMINUS' ? 'Terminus' : 'Halted on Block'}
                     </strong>
                   </div>
                   <div class="flex justify-between">
                     <span>Position:</span>
-                    <span class="text-slate-800 font-bold">${props.current_station ? `Platform ${props.current_station}` : `En route to ${props.next_station || 'BBS'}`}</span>
+                    <span class="text-slate-800 font-bold">${props.status === 'AT_TERMINUS' ? `Terminus ${props.current_station || 'PURI'}` : props.current_station ? `Platform ${props.current_station}` : `En route to ${props.next_station || 'BBS'}`}</span>
                   </div>
                   <div class="flex justify-between">
                     <span>Data Source:</span>
@@ -909,14 +904,35 @@ export const CorridorMap: React.FC = () => {
     }
   }, [isRescueAvailable, activeMapView]);
 
-  // Synchronize Map Camera with activeMapView when triggered externally
+  // Synchronize phantom freight slow-zone visibility
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
+    const hasActiveFreight =
+      (activeSnapshot.phantom_freights?.length ?? 0) > 0 || activeMapView === 'delays_ahead';
+    const visibility = hasActiveFreight ? 'visible' : 'none';
+
+    for (const layerId of ['freight-hazard-glow', 'freight-hazard-core', 'freight-badge-layer']) {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', visibility);
+      }
+    }
+  }, [activeSnapshot.phantom_freights, activeMapView]);
+
+  // Keep latest train coordinates in a ref so 1.5s WebSocket ticks never hijack manual user zoom/pan
+  const currentTrainRef = useRef(currentTrain);
+  currentTrainRef.current = currentTrain;
+
+  // Synchronize Map Camera with activeMapView ONLY when view mode or selected train changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const trainSnapshot = currentTrainRef.current;
     if (activeMapView === 'my_train') {
       closeActivePopup();
-      if (currentTrain && currentTrain.lon && currentTrain.lat) {
+      if (trainSnapshot && trainSnapshot.lon && trainSnapshot.lat) {
         if (selectedTrain === '12821') {
           // Smoothly fit bounds to active rescue action corridor (Cuttack to Bhubaneswar)
           map.fitBounds(
@@ -929,7 +945,7 @@ export const CorridorMap: React.FC = () => {
         } else {
           // For other trains (Vande Bharat 22895 or Sri Jagannath 18410), center camera directly on the train
           map.flyTo({
-            center: [currentTrain.lon, currentTrain.lat],
+            center: [trainSnapshot.lon, trainSnapshot.lat],
             zoom: 12.2,
             speed: 1.2,
             duration: 800,
@@ -973,7 +989,7 @@ export const CorridorMap: React.FC = () => {
         { padding: 40, duration: 800 }
       );
     }
-  }, [activeMapView, selectedTrain, currentTrain, closeActivePopup]);
+  }, [activeMapView, selectedTrain, closeActivePopup]);
 
   // Synchronize Delay Inspection between Left Dashboard and Map (Section 5)
   useEffect(() => {
@@ -1039,7 +1055,7 @@ export const CorridorMap: React.FC = () => {
           <!-- Row 3: Location + Plain Description -->
           <div class="pt-1.5 border-t border-slate-100">
             <div class="text-xs font-semibold text-slate-500 mb-1">${displayLocation}</div>
-            <p class="text-slate-700 leading-relaxed text-xs sm:text-[13px]">${displayMessage}</p>
+            <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">${displayMessage}</p>
           </div>
         </div>
       `;
@@ -1057,15 +1073,15 @@ export const CorridorMap: React.FC = () => {
   }, [selectedDelayId, selectedTrain, forecast, currentTrain?.current_station, closeActivePopup, openGoodsTrainPopup]);
 
   return (
-    <div className="relative w-full h-full min-h-[500px] bg-[#FAF9F6] rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-xs">
+    <div className="relative w-full h-full min-h-[260px] md:min-h-[500px] bg-[#FAF9F6] rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-xs">
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
       {/* ======================================================== */}
       {/* Top-Right: Simplified Passenger Map Controls (Section 6) */}
       {/* ======================================================== */}
-      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 pointer-events-auto items-end">
+      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex flex-col gap-2 pointer-events-auto items-end max-w-[calc(100%-24px)]">
         {/* Mode Switcher */}
-        <div className="backdrop-blur-md bg-white/95 p-1 rounded-xl border border-[#E2E8F0] shadow-md flex items-center gap-1">
+        <div className="backdrop-blur-md bg-white/95 p-1 rounded-xl border border-[#E2E8F0] shadow-md flex items-center gap-1 max-w-[calc(100vw-24px)] overflow-x-auto">
           <button
             type="button"
             onClick={() => handleCameraView('my_train')}

@@ -76,6 +76,11 @@ async def lifespan(app: FastAPI):
 
     # 2. Seed initial state & sync to Redis
     active_mode = await _poll_initial_state()
+    if active_mode == "DEMO_SIMULATION":
+        await state_store.set_remaining_cause_delays(
+            demo_provider.get_all_remaining_cause_delays(),
+            demo_provider.get_all_remaining_loop_holds(),
+        )
     init_snap = await state_store.get_snapshot()
     await redis_client.set_snapshot(init_snap, ttl=settings.REDIS_SNAPSHOT_TTL_SECONDS)
     logger.info(
@@ -118,6 +123,10 @@ async def lifespan(app: FastAPI):
                 else:
                     await demo_provider.advance_simulation(1.5)
                     snap = await demo_provider.tick()
+                    await state_store.set_remaining_cause_delays(
+                        demo_provider.get_all_remaining_cause_delays(),
+                        demo_provider.get_all_remaining_loop_holds(),
+                    )
                     await _apply_snapshot_to_store(snap, "DEMO_SIMULATION")
 
                 if (now - last_redis_sync) >= settings.LIVE_POLL_INTERVAL_SECONDS:

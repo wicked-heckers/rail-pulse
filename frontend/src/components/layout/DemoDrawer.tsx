@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRailStore } from '../../stores/useRailStore';
 import {
   injectTrainDelay,
   startDemoScenario,
+  setSpeedMultiplier,
   injectFreightShadow,
   resetCorridor,
   injectULIPFreight,
+  fetchDisruptionCauses,
+  applyDisruptionCauses,
+  triggerLiveOvertake,
 } from '../../services/api';
 import {
   X,
@@ -16,22 +20,91 @@ import {
   RotateCcw,
   Database,
   CheckCircle2,
+  Plus,
 } from 'lucide-react';
 
+const CAUSE_OPTIONS = [
+  { id: 'FREIGHT_BLOCKADE', label: 'Goods / Coal Rake Ahead (+20m block drag)' },
+  { id: 'MONSOON_RAIN', label: 'Heavy Monsoon Rain (28 mm/hr + 25% slack loss)' },
+  { id: 'TSR_MAINTENANCE', label: 'Track Maintenance / 30 km/h TSR (+14m)' },
+  { id: 'SIGNAL_CONGESTION', label: 'Slow Preceding Train / Double-Yellow (+12m)' },
+  { id: 'PLATFORM_HOLD', label: 'Terminal Platform / Yard Throat Hold (+10m)' },
+  { id: 'OHE_BRAKE_FAULT', label: 'OHE Traction Trip / Brake-Binding (+25m)' },
+];
+
 export const DemoDrawer: React.FC = () => {
-  const { drawerOpen, setDrawerOpen, selectedTrain } = useRailStore();
-  const [speed, setSpeed] = useState<number>(1);
+  const {
+    drawerOpen,
+    setDrawerOpen,
+    selectedTrain,
+    setSelectedTrain,
+    activeSnapshot,
+    updateSnapshot,
+    activeCausesByTrain,
+    setTrainCauses,
+    clearAllCauses,
+    triggerRefresh,
+  } = useRailStore();
+  const [speed, setSpeed] = useState<number>(activeSnapshot.speed_multiplier || 1);
   const [injectedDelay, setInjectedDelay] = useState<number>(28);
+  const [selectedCause, setSelectedCause] = useState<string>('MONSOON_RAIN');
   const [isInjecting, setIsInjecting] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
 
+  const activeCauses = activeCausesByTrain[selectedTrain] ?? [];
+
+  useEffect(() => {
+    if (activeSnapshot.speed_multiplier) {
+      setSpeed(activeSnapshot.speed_multiplier);
+    }
+  }, [activeSnapshot.speed_multiplier]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    fetchDisruptionCauses(selectedTrain)
+      .then((data) => setTrainCauses(selectedTrain, data.active_causes))
+      .catch(() => { });
+  }, [drawerOpen, selectedTrain, setTrainCauses]);
+
   if (!drawerOpen) return null;
+
+  const updateCauses = async (nextCauses: string[]) => {
+    setIsInjecting(true);
+    try {
+      const res = await applyDisruptionCauses(selectedTrain, nextCauses);
+      setTrainCauses(selectedTrain, res.active_causes ?? nextCauses);
+      triggerRefresh();
+      setStatusMessage(
+        nextCauses.length > 0
+          ? `Applied ${nextCauses.length} cause(s) to Train ${selectedTrain} — total delay ${res.new_delay_mins}m.`
+          : `Cleared disruption causes for Train ${selectedTrain}.`
+      );
+    } catch {
+      setTrainCauses(selectedTrain, nextCauses);
+      setStatusMessage(`Updated disruption causes for Train ${selectedTrain}.`);
+    } finally {
+      setIsInjecting(false);
+    }
+  };
+
+  const handleAddCause = async () => {
+    if (activeCauses.includes(selectedCause)) {
+      setStatusMessage(`Cause already active on Train ${selectedTrain}.`);
+      return;
+    }
+    await updateCauses([...activeCauses, selectedCause]);
+  };
+
+  const handleRemoveCause = async (causeId: string) => {
+    await updateCauses(activeCauses.filter((c) => c !== causeId));
+  };
 
   const handleSpeedChange = async (newSpeed: number) => {
     setSpeed(newSpeed);
+    updateSnapshot({ ...activeSnapshot, speed_multiplier: newSpeed });
     try {
-      await startDemoScenario('DHAULI_CASCADE', newSpeed);
-      setStatusMessage(`Simulation speed set to ${newSpeed}x`);
+      await setSpeedMultiplier(newSpeed);
+      setStatusMessage(`Simulation playback speed set to ${newSpeed}x`);
     } catch {
       setStatusMessage(`Speed changed to ${newSpeed}x (client mode)`);
     }
@@ -42,7 +115,8 @@ export const DemoDrawer: React.FC = () => {
     setStatusMessage(`Injecting +${injectedDelay}m delay on Train ${selectedTrain}...`);
     try {
       await injectTrainDelay(selectedTrain, injectedDelay);
-      setStatusMessage(`Successfully injected +${injectedDelay}m delay! Forecast recalibrated.`);
+      triggerRefresh();
+      setStatusMessage(`Successfully injected +${injectedDelay}m delay on ${selectedTrain}! Forecast recalibrated.`);
     } catch {
       setStatusMessage(`Delay simulated: +${injectedDelay}m applied to active corridor.`);
     } finally {
@@ -51,32 +125,63 @@ export const DemoDrawer: React.FC = () => {
   };
 
   const handleReset = async () => {
-    setStatusMessage('Resetting corridor to zero delay...');
+    setIsInjecting(true);
+    setStatusMessage('Resetting corridor to nominal dispatch...');
     try {
       await resetCorridor();
+      clearAllCauses();
+      setSpeed(1);
+      triggerRefresh();
       setStatusMessage('Corridor reset to nominal dispatch.');
     } catch {
       setStatusMessage('Corridor state reset.');
+    } finally {
+      setIsInjecting(false);
     }
   };
 
   const handleScenario1 = async () => {
+    setIsInjecting(true);
     setInjectedDelay(28);
-    await handleInjectDelay();
     try {
+      await startDemoScenario('DHAULI_CASCADE', speed);
       await injectFreightShadow('DN_CTC_BRAG', 20.0, 0.88);
-      setStatusMessage('Injected +28m delay & Barang Phantom Freight shadow (STR 1.85).');
+      setSelectedTrain('12821');
+      triggerRefresh();
+      setStatusMessage('Scenario 1 active: 12821 (+28m) + DN_CTC_BRAG Phantom Freight shadow (STR 1.85).');
     } catch {
       setStatusMessage('Dhauli cascade delay applied.');
+    } finally {
+      setIsInjecting(false);
+    }
+  };
+
+  const handleScenario2Overtake = async () => {
+    setIsInjecting(true);
+    try {
+      const res = await triggerLiveOvertake();
+      setSelectedTrain('12821');
+      triggerRefresh();
+      setStatusMessage(
+        `Live overtake active: 12821 slowing to hold at ${res.hold_station_name} (${res.hold_station_code}) for 22895 Vande Bharat (no teleport).`
+      );
+    } catch {
+      setStatusMessage('Vande Bharat overtake scenario simulated.');
+    } finally {
+      setIsInjecting(false);
     }
   };
 
   const handleULIPTrigger = async () => {
+    setIsInjecting(true);
     try {
       await injectULIPFreight();
+      triggerRefresh();
       setStatusMessage('Enterprise ULIP FOIS webhook applied: Confirmed Rake BOXN_COAL_CONFIRMED.');
     } catch {
       setStatusMessage('ULIP webhook simulated.');
+    } finally {
+      setIsInjecting(false);
     }
   };
 
@@ -135,11 +240,10 @@ export const DemoDrawer: React.FC = () => {
                 <button
                   key={s}
                   onClick={() => handleSpeedChange(s)}
-                  className={`py-2 px-3 rounded-lg font-mono font-bold text-xs border transition-all ${
-                    speed === s
-                      ? 'bg-[#0F172A] text-white border-[#0F172A] shadow-xs'
-                      : 'bg-white text-[#475569] border-[#CBD5E1] hover:bg-[#F1F5F9]'
-                  }`}
+                  className={`py-2 px-3 rounded-lg font-mono font-bold text-xs border transition-all ${speed === s
+                    ? 'bg-[#0F172A] text-white border-[#0F172A] shadow-xs'
+                    : 'bg-white text-[#475569] border-[#CBD5E1] hover:bg-[#F1F5F9]'
+                    }`}
                 >
                   {s}x {s === 1 ? 'Realtime' : s === 10 ? 'Fast' : 'Demo'}
                 </button>
@@ -178,11 +282,80 @@ export const DemoDrawer: React.FC = () => {
             <button
               onClick={handleInjectDelay}
               disabled={isInjecting}
-              className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors disabled:opacity-50"
+              className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
             >
               <Zap className="w-4 h-4" />
               <span>{isInjecting ? 'Calculating Cascades...' : `Inject +${injectedDelay}m Delay`}</span>
             </button>
+          </div>
+
+          {/* 2b. Multi-Cause Disruption Builder (All Trains) */}
+          <div className="bg-[#FAF9F6] p-3.5 rounded-xl border border-[#E5E7EB] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-[#0F172A]">Apply Disruption Causes (Train {selectedTrain})</span>
+              {activeCauses.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => updateCauses([])}
+                  disabled={isInjecting}
+                  className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 cursor-pointer"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <select
+                value={selectedCause}
+                onChange={(e) => setSelectedCause(e.target.value)}
+                className="flex-1 bg-white border border-[#CBD5E1] rounded-lg px-2.5 py-2 text-xs text-[#0F172A] focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+              >
+                {CAUSE_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleAddCause}
+                disabled={isInjecting}
+                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold flex items-center gap-1 shadow-xs transition-colors disabled:opacity-50 cursor-pointer whitespace-nowrap"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Apply</span>
+              </button>
+            </div>
+
+            {activeCauses.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {activeCauses.map((cid) => {
+                  const label = CAUSE_OPTIONS.find((o) => o.id === cid)?.label ?? cid;
+                  return (
+                    <span
+                      key={cid}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-50 text-indigo-900 border border-indigo-200 text-[11px] font-medium"
+                    >
+                      <span>{label}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCause(cid)}
+                        className="text-indigo-500 hover:text-rose-600 cursor-pointer"
+                        title="Remove cause"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-[11px] text-[#64748B]">
+                Select one or more causes from the dropdown to stack weather, freight, TSR, or signal delays on Train{' '}
+                {selectedTrain}.
+              </p>
+            )}
           </div>
 
           {/* 3. Disruption Scenarios Presets */}
@@ -191,7 +364,8 @@ export const DemoDrawer: React.FC = () => {
             <div className="space-y-2">
               <button
                 onClick={handleScenario1}
-                className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-amber-400 transition-all flex items-start gap-2.5"
+                disabled={isInjecting}
+                className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-amber-400 transition-all flex items-start gap-2.5 disabled:opacity-60 cursor-pointer"
               >
                 <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                   1
@@ -199,15 +373,16 @@ export const DemoDrawer: React.FC = () => {
                 <div>
                   <div className="font-bold text-[#0F172A]">Dhauli Phantom Freight Cascade (+28m)</div>
                   <div className="text-xs text-[#64748B]">
-                    Unscheduled iron-ore freight at Jenapur forces 12821 into double yellow restrictions, triggering Cuttack
-                    loop-line hold and early NH-16 rescue recommendation.
+                    Loads 12821 Dhauli Express (+28m) with DN_CTC_BRAG Phantom Freight shadow, triggering loop hold and
+                    NH-16 rescue.
                   </div>
                 </div>
               </button>
 
               <button
                 onClick={handleULIPTrigger}
-                className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-indigo-400 transition-all flex items-start gap-2.5"
+                disabled={isInjecting}
+                className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-indigo-400 transition-all flex items-start gap-2.5 disabled:opacity-60 cursor-pointer"
               >
                 <div className="w-6 h-6 rounded-md bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                   ULIP
@@ -221,10 +396,9 @@ export const DemoDrawer: React.FC = () => {
               </button>
 
               <button
-                onClick={() => {
-                  setStatusMessage('Vande Bharat overtake hold triggered at Cuttack Junction.');
-                }}
-                className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-purple-400 transition-all flex items-start gap-2.5"
+                onClick={handleScenario2Overtake}
+                disabled={isInjecting}
+                className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-purple-400 transition-all flex items-start gap-2.5 disabled:opacity-60 cursor-pointer"
               >
                 <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-800 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                   2
@@ -232,15 +406,16 @@ export const DemoDrawer: React.FC = () => {
                 <div>
                   <div className="font-bold text-[#0F172A]">Vande Bharat Priority Overtake Hold</div>
                   <div className="text-xs text-[#64748B]">
-                    22895 Howrah-Puri Vande Bharat overtakes on Main Line. Demonstrates multi-train dynamic loop hold
-                    calculation.
+                    Runs corridor at 10x speed as 22895 Vande Bharat closes at 130 km/h, triggering a +16m loop hold on
+                    12821.
                   </div>
                 </div>
               </button>
 
               <button
                 onClick={handleReset}
-                className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-emerald-400 transition-all flex items-start gap-2.5"
+                disabled={isInjecting}
+                className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-emerald-400 transition-all flex items-start gap-2.5 disabled:opacity-60 cursor-pointer"
               >
                 <div className="w-6 h-6 rounded-md bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                   3
@@ -274,7 +449,7 @@ export const DemoDrawer: React.FC = () => {
               </div>
               <div className="flex justify-between py-1 border-b border-gray-100">
                 <span className="text-[#64748B]">Vector Basemap:</span>
-                <span className="text-emerald-700 font-bold">OpenFreeMap Positron (Zero Key)</span>
+                <span className="text-emerald-700 font-bold">Mapbox Light + OSM Fallback</span>
               </div>
               <div className="flex justify-between py-1 border-b border-gray-100">
                 <span className="text-[#64748B]">Map Renderer:</span>

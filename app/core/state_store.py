@@ -25,6 +25,10 @@ class CorridorStateStore:
         self._provider_mode: str = "DEMO_SIMULATION"
         self._speed_multiplier: float = 1.0
         self._injected_delays: dict[str, float] = {}
+        self._cause_delays: dict[str, float] = {}
+        self._remaining_cause_delays: dict[str, float] = {}
+        self._remaining_loop_holds: dict[str, float | None] = {}
+        self._active_causes: dict[str, list[str]] = {}
         self._injected_freights: dict[str, float] = {}
         self._last_tick_epoch: int = int(time.time())
 
@@ -80,6 +84,53 @@ class CorridorStateStore:
                 clearance_eta_mins=penalty_mins,
             )
 
+    async def set_train_causes(
+        self,
+        train_no: str,
+        causes: list[str],
+        direct_delay_mins: float,
+        remaining_delay_mins: float | None = None,
+    ) -> None:
+        async with self._lock:
+            prev_delay = self._cause_delays.get(train_no, 0.0)
+            self._active_causes[train_no] = list(causes)
+            self._cause_delays[train_no] = direct_delay_mins
+            self._remaining_cause_delays[train_no] = (
+                remaining_delay_mins if remaining_delay_mins is not None else direct_delay_mins
+            )
+            if train_no in self._trains:
+                self._trains[train_no].current_delay_mins = max(
+                    0.0, self._trains[train_no].current_delay_mins - prev_delay + direct_delay_mins
+                )
+
+    async def set_remaining_cause_delays(
+        self,
+        remaining_by_train: dict[str, float],
+        loop_holds_by_train: dict[str, float | None] | None = None,
+    ) -> None:
+        """Syncs remaining unexpired timed-cause delay minutes & active loop holds so ETAs never jump."""
+        async with self._lock:
+            for t_no, rem in remaining_by_train.items():
+                self._remaining_cause_delays[t_no] = max(0.0, float(rem))
+            if loop_holds_by_train is not None:
+                for t_no, hold in loop_holds_by_train.items():
+                    self._remaining_loop_holds[t_no] = hold
+
+    async def get_remaining_loop_hold(self, train_no: str) -> float | None:
+        async with self._lock:
+            return self._remaining_loop_holds.get(train_no)
+
+    async def get_train_causes(self, train_no: str) -> list[str]:
+        async with self._lock:
+            return list(self._active_causes.get(train_no, []))
+
+    async def get_injected_delay(self, train_no: str) -> float:
+        async with self._lock:
+            rem_cause = self._remaining_cause_delays.get(
+                train_no, self._cause_delays.get(train_no, 0.0)
+            )
+            return self._injected_delays.get(train_no, 0.0) + rem_cause
+
     async def get_active_trains(self) -> list[TrainKinematicState]:
         async with self._lock:
             return [copy.deepcopy(t) for t in self._trains.values()]
@@ -112,6 +163,10 @@ class CorridorStateStore:
             self._trains.clear()
             self._freight_shadows.clear()
             self._injected_delays.clear()
+            self._cause_delays.clear()
+            self._remaining_cause_delays.clear()
+            self._remaining_loop_holds.clear()
+            self._active_causes.clear()
             self._injected_freights.clear()
             self._speed_multiplier = 1.0
 

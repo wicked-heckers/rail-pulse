@@ -8,10 +8,15 @@ import httpx
 
 from app.config import settings
 from app.core.database import LocalRoadMatrixFallback
-from app.engine.quantile_ml import QuantileMLEngine, calculate_connection_survival
+from app.engine.quantile_ml import (
+    QuantileMLEngine,
+    build_quantile_feature_vector,
+    calculate_connection_survival,
+)
+from app.engine.slack_adjuster import apply_slack_to_timeline
 from app.models.schemas import (
-    QuantileFeatureVector,
     SimulationResult,
+    StationArrival,
     TrainKinematicState,
 )
 
@@ -113,6 +118,9 @@ def evaluate_connection_rescue(
     topology: dict[str, Any] | None = None,
     current_epoch: int = 1795070000,
     use_live_traffic: bool = False,
+    rain_mm_hr: float = 0.0,
+    freight_shadow_prob: float = 0.0,
+    adjusted_timeline: list[StationArrival] | None = None,
 ) -> dict[str, Any]:
     """
     Evaluates connection survival and early-junction road bailout options.
@@ -121,19 +129,52 @@ def evaluate_connection_rescue(
     stations_map = {s["station_code"]: s for s in (topology["stations"] if topology else [])}
     cutoff_epoch = connection_deadline_epoch - (transfer_buffer_mins * 60)
 
+    # Apply timetable recovery slack if caller passed raw simulation output
+    timeline: list[StationArrival] = list(adjusted_timeline) if adjusted_timeline is not None else []
+    if not timeline and sim_result:
+        if topology and topology.get("track_blocks"):
+            timeline = apply_slack_to_timeline(
+                timeline=sim_result.timeline,
+                track_blocks=topology.get("track_blocks", []),
+                direction=train_state.direction,
+                rain_mm_hr=rain_mm_hr,
+                freight_probability=freight_shadow_prob,
+            )
+        else:
+            timeline = list(sim_result.timeline)
+
     # 1. Evaluate Train Arrival at Final Destination
-    dest_arrival = None
-    if sim_result:
-        dest_arrival = next((a for a in sim_result.timeline if a.station_code == destination_code), None)
+    dest_arrival = next((a for a in timeline if a.station_code == destination_code), None)
+    dest_km = stations_map[destination_code]["chainage_km"] if destination_code in stations_map else 143.0
+    already_reached = (
+        (train_state.direction == "DN" and train_state.chainage_km >= dest_km - 0.5)
+        or (train_state.direction == "UP" and train_state.chainage_km <= dest_km + 0.5)
+    )
 
-    sched_arr = dest_arrival.sched_arr_epoch if dest_arrival else (current_epoch + 3600)
-    p50_base = dest_arrival.net_delay_mins if dest_arrival else train_state.current_delay_mins
+    if dest_arrival is not None:
+        sched_arr = dest_arrival.sched_arr_epoch
+        remaining_km = max(0.0 if already_reached else 1.0, abs(dest_km - train_state.chainage_km))
+    elif already_reached:
+        past_km = abs(train_state.chainage_km - dest_km)
+        cruise_spd = 130.0 if train_state.priority_rank == 1 else 110.0
+        elapsed_past_secs = int((past_km / cruise_spd) * 3600) if past_km > 0.5 else 0
+        proj_dest_epoch = current_epoch - elapsed_past_secs
+        sched_arr = proj_dest_epoch - int(train_state.current_delay_mins * 60)
+        remaining_km = 0.0
+    else:
+        sched_arr = current_epoch + 3600
+        remaining_km = max(10.0, abs(dest_km - train_state.chainage_km))
 
-    # Predict quantiles using ML engine
-    feat = QuantileFeatureVector(
-        current_delay_mins=train_state.current_delay_mins,
-        p50_base_delay_mins=p50_base,
-        remaining_km=max(10.0, abs((stations_map[destination_code]["chainage_km"] if destination_code in stations_map else 143.0) - train_state.chainage_km)),
+    # Predict quantiles using unified 12-feature ML vector
+    feat = build_quantile_feature_vector(
+        train_state=train_state,
+        sim_result=sim_result,
+        adjusted_timeline=timeline,
+        target_arrival=dest_arrival,
+        remaining_km=remaining_km,
+        freight_shadow_prob=freight_shadow_prob,
+        rain_mm_hr=rain_mm_hr,
+        current_epoch=current_epoch,
     )
     quantiles = QuantileMLEngine.predict(feat, sched_arr)
 
@@ -173,7 +214,7 @@ def evaluate_connection_rescue(
         is_peak_hour = (8 <= ist_now.hour <= 11) or (17 <= ist_now.hour <= 20)
         traffic_factor = settings.PEAK_HOUR_TRAFFIC_MULTIPLIER if is_peak_hour else 1.0
 
-        for arrival in sim_result.timeline:
+        for arrival in timeline:
             stn_code = arrival.station_code
             if stn_code == destination_code:
                 break  # Rescue must occur before final destination

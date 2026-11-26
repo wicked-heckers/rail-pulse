@@ -87,6 +87,15 @@ export async function startDemoScenario(name = 'DHAULI_CASCADE', speed = 1): Pro
   return await res.json();
 }
 
+export async function setSpeedMultiplier(multiplier: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/demo/speed`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ speed_multiplier: multiplier }),
+  });
+  return await res.json();
+}
+
 export async function injectFreightShadow(
   blockId = 'DN_CTC_BRAG',
   penaltyMins = 20.0,
@@ -104,6 +113,40 @@ export async function resetCorridor(): Promise<any> {
   const res = await fetch(`${API_BASE}/demo/reset`, {
     method: 'POST',
   });
+  return await res.json();
+}
+
+export async function fetchDisruptionCauses(trainNo: string): Promise<{
+  catalog: Array<{ id: string; label: string; added_delay_mins: number; freight_penalty_mins: number; rain_mm_hr: number; message: string }>;
+  active_causes: string[];
+}> {
+  const res = await fetch(`${API_BASE}/demo/causes?train_no=${encodeURIComponent(trainNo)}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+export async function applyDisruptionCauses(trainNo: string, causes: string[]): Promise<any> {
+  const res = await fetch(`${API_BASE}/demo/apply-causes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ train_no: trainNo, causes }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+export async function triggerLiveOvertake(): Promise<{
+  status: string;
+  hold_station_code: string;
+  hold_station_name: string;
+  hold_km: number;
+  dhauli_km: number;
+  vande_km: number;
+}> {
+  const res = await fetch(`${API_BASE}/demo/trigger-overtake`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
 

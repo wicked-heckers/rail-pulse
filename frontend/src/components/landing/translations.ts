@@ -23,22 +23,23 @@ export interface T {
     recentClear: string;
   };
   comparison: {
-    otherLabel: string;
-    otherQuote: string;
-    otherSub: string;
+    standardLabel: string;
+    standardTitle: string;
+    standardDesc: string;
     rpLabel: string;
-    rpQuote: string;
-    rpQuoteP1: string;
-    rpQuoteP2: string;
-    rpSub: string;
+    rpTitle: string;
+    rpDesc: string;
   };
   steps: {
+    s1Badge: string;
     s1Title: string;
-    s1Body: string;
+    s1Desc: string;
+    s2Badge: string;
     s2Title: string;
-    s2Body: string;
+    s2Desc: string;
+    s3Badge: string;
     s3Title: string;
-    s3Body: string;
+    s3Desc: string;
   };
   footer: string;
 }
@@ -65,22 +66,25 @@ export const TRANSLATIONS: Record<Lang, T> = {
       recentClear: 'Clear',
     },
     comparison: {
-      otherLabel: 'OTHER APPS SAY',
-      otherQuote: '"Arrives before noon."',
-      otherSub: 'One time, which assumes the track ahead is empty.',
-      rpLabel: 'RAIL-PULSE SAYS',
-      rpQuote: '"Most likely ',
-      rpQuoteP1: '12:09',
-      rpQuoteP2: '12:24',
-      rpSub: 'A range that counts overtakes and goods trains.',
+      standardLabel: 'STANDARD TRACKERS',
+      standardTitle: 'One fixed arrival guess',
+      standardDesc:
+        'Assumes the track ahead is empty, so sudden delays catch you off guard.',
+      rpLabel: 'RAIL-PULSE',
+      rpTitle: 'Realistic arrival window',
+      rpDesc:
+        'Watches goods trains and overtakes ahead—warning you early if a connection is tight.',
     },
     steps: {
-      s1Title: '1. Tell us your train',
-      s1Body: 'Enter a train number, or find it by stations.',
-      s2Title: '2. We watch the whole track',
-      s2Body: 'Trains ahead and behind, overtakes and goods trains.',
-      s3Title: '3. Get a range and a backup plan',
-      s3Body: "If you\u2019re at risk, we suggest a cab or bus option.",
+      s1Badge: 'STEP 1',
+      s1Title: 'Pick your train',
+      s1Desc: 'Enter a train number or pick your stations in seconds.',
+      s2Badge: 'STEP 2',
+      s2Title: 'See track traffic',
+      s2Desc: 'Spot slow goods trains and overtakes ahead in real time.',
+      s3Badge: 'STEP 3',
+      s3Title: 'Protect connections',
+      s3Desc: 'Get an early alert and a faster cab route if time gets tight.',
     },
     footer:
       'Predictions can change. Rail-Pulse is not an official Indian Railways service.',
@@ -107,22 +111,25 @@ export const TRANSLATIONS: Record<Lang, T> = {
       recentClear: 'हटाएं',
     },
     comparison: {
-      otherLabel: 'अन्य ऐप कहते हैं',
-      otherQuote: '"दोपहर से पहले पहुंचेगी।"',
-      otherSub: 'एक समय, जो मानता है कि आगे का ट्रैक खाली है।',
-      rpLabel: 'RAIL-PULSE कहता है',
-      rpQuote: '"अधिकतम संभावना ',
-      rpQuoteP1: '12:09',
-      rpQuoteP2: '12:24',
-      rpSub: 'एक सीमा जो ओवरटेक और मालगाड़ियों को ध्यान में रखती है।',
+      standardLabel: 'साधारण ट्रैकर',
+      standardTitle: 'एक निश्चित आगमन का अनुमान',
+      standardDesc:
+        'मान लेते हैं कि आगे का ट्रैक खाली है, जिससे अचानक होने वाली देरी हैरान कर देती है।',
+      rpLabel: 'RAIL-PULSE',
+      rpTitle: 'वास्तविक आगमन समय सीमा',
+      rpDesc:
+        'आगे चल रही मालगाड़ियों और ओवरटेक पर नज़र रखता है—समय कम होने पर पहले ही चेतावनी देता है।',
     },
     steps: {
-      s1Title: '1. अपनी ट्रेन बताएं',
-      s1Body: 'ट्रेन नंबर डालें, या स्टेशन से खोजें।',
-      s2Title: '2. हम पूरे ट्रैक पर नज़र रखते हैं',
-      s2Body: 'आगे-पीछे की ट्रेनें, ओवरटेक और मालगाड़ियां।',
-      s3Title: '3. सीमा और बैकअप प्लान पाएं',
-      s3Body: 'जोखिम होने पर हम कैब या बस विकल्प सुझाते हैं।',
+      s1Badge: 'चरण 1',
+      s1Title: 'अपनी ट्रेन चुनें',
+      s1Desc: 'ट्रेन नंबर डालें या स्टेशनों को चंद सेकंड में चुनें।',
+      s2Badge: 'चरण 2',
+      s2Title: 'ट्रैक ट्रैफ़िक देखें',
+      s2Desc: 'धीमी मालगाड़ियों और ओवरटेक को रीयल-टाइम में पहचानें।',
+      s3Badge: 'चरण 3',
+      s3Title: 'कनेक्शन सुरक्षित करें',
+      s3Desc: 'समय कम होने पर त्वरित अलर्ट और तेज़ कैब विकल्प पाएं।',
     },
     footer:
       'अनुमान बदल सकते हैं। Rail-Pulse भारतीय रेलवे की आधिकारिक सेवा नहीं है।',
@@ -149,22 +156,25 @@ export const TRANSLATIONS: Record<Lang, T> = {
       recentClear: 'ସଫା',
     },
     comparison: {
-      otherLabel: 'ଅନ୍ୟ ଆପ୍ କହୁଛି',
-      otherQuote: '"ଦ୍ୱିପ୍ରହରରୁ ଆଗ ପହଞ୍ଚିବ।"',
-      otherSub: 'ଏକ ସମୟ, ଯାହା ଧରିନିଏ ଆଗ ଟ୍ରାକ ଖାଲି ଅଛି।',
-      rpLabel: 'RAIL-PULSE କହୁଛି',
-      rpQuote: '"ସବୁଠୁ ସଂଭବ ',
-      rpQuoteP1: '12:09',
-      rpQuoteP2: '12:24',
-      rpSub: 'ଏକ ସୀମା ଯାହା ଓଭର୍‌ଟେକ୍ ଓ ମାଲ ଗାଡ଼ି ଗଣ ଥାଏ।',
+      standardLabel: 'ସାଧାରଣ ଟ୍ରାକର୍',
+      standardTitle: 'ଏକ ନିର୍ଦ୍ଦିଷ୍ଟ ପହଞ୍ଚିବା ଅନୁମାନ',
+      standardDesc:
+        'ଧରିନିଏ ଯେ ଆଗ ଟ୍ରାକ ଖାଲି ଅଛି, ଯାହାଦ୍ୱାରା ହଠାତ ବିଳମ୍ବ ଅସୁବିଧାରେ ପକାଏ।',
+      rpLabel: 'RAIL-PULSE',
+      rpTitle: 'ବାସ୍ତବ ଆଗମନ ସମୟ ସୀମା',
+      rpDesc:
+        'ଆଗରେ ଥିବା ମାଲଗାଡ଼ି ଓ ଓଭରଟେକ ଉପରେ ନଜର ରଖେ—କନେକ୍ସନ ଟାଇଟ୍ ହେଲେ ଆଗୁଆ ସତର୍କ କରେ।',
     },
     steps: {
-      s1Title: '୧. ଆପଣଙ୍କ ଟ୍ରେନ୍ ଜଣାନ୍ତୁ',
-      s1Body: 'ଟ୍ରେନ୍ ନମ୍ବର ଦିଅନ୍ତୁ, ବା ଷ୍ଟେସନ ଦ୍ୱାରା ଖୋଜନ୍ତୁ।',
-      s2Title: '୨. ଆମ ସମ୍ପୂର୍ଣ ଟ୍ରାକ ଦେଖୁ',
-      s2Body: 'ଆଗ-ପଛ ଟ୍ରେନ, ଓଭର୍‌ଟେକ ଓ ମାଲ ଗାଡ଼ି।',
-      s3Title: '୩. ସୀମା ଓ ବ୍ୟାକଅପ୍ ଯୋଜନା ପାଆନ୍ତୁ',
-      s3Body: 'ଝୁଁକିରେ ଥଲେ, ଆମ କ୍ୟାବ ବା ବସ ସୁଝାଉ।',
+      s1Badge: 'ପଦକ୍ଷେପ ୧',
+      s1Title: 'ଆପଣଙ୍କ ଟ୍ରେନ୍ ବାଛନ୍ତୁ',
+      s1Desc: 'ଟ୍ରେନ୍ ନମ୍ବର ଦିଅନ୍ତୁ ବା ସେକେଣ୍ଡରେ ଷ୍ଟେସନ ବାଛନ୍ତୁ।',
+      s2Badge: 'ପଦକ୍ଷେପ ୨',
+      s2Title: 'ଟ୍ରାକ ଟ୍ରାଫିକ ଦେଖନ୍ତୁ',
+      s2Desc: 'ଧୀମା ମାଲଗାଡ଼ି ଓ ଓଭରଟେକ ରିଅଲ-ଟାଇମରେ ଜାଣନ୍ତୁ।',
+      s3Badge: 'ପଦକ୍ଷେପ ୩',
+      s3Title: 'କନେକ୍ସନ ସୁରକ୍ଷିତ ରଖନ୍ତୁ',
+      s3Desc: 'ସମୟ କମ ଥିଲେ ଆଗୁଆ ସତର୍କତା ଓ ଦ୍ରୁତ କ୍ୟାବ ବିକଳ୍ପ ପାଆନ୍ତୁ।',
     },
     footer:
       'ଅନୁମାନ ବଦଳି ପାରେ। Rail-Pulse ଭାରତୀୟ ରେଳ ର ଅଧିକୃତ ସେବା ନୁହଁ।',
