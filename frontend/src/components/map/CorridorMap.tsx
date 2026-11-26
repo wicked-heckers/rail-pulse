@@ -755,12 +755,12 @@ export const CorridorMap: React.FC = () => {
                   <div class="flex justify-between">
                     <span>Running Status:</span>
                     <strong class="${delay > 5 ? 'text-amber-800' : 'text-emerald-700'} font-bold">
-                      ${delay > 0 ? `+${delay}m late` : 'On Time'} • ${speed > 0 ? `${speed} km/h` : 'At Station'}
+                      ${delay > 0 ? `+${delay}m late` : 'On Time'} • ${speed > 0 ? `${speed} km/h` : props.current_station ? 'At Platform' : props.status === 'AT_TERMINUS' ? 'Terminus' : 'Halted on Block'}
                     </strong>
                   </div>
                   <div class="flex justify-between">
                     <span>Position:</span>
-                    <span class="text-slate-800 font-bold">${props.current_station ? `Platform ${props.current_station}` : `En route to ${props.next_station || 'BBS'}`}</span>
+                    <span class="text-slate-800 font-bold">${props.status === 'AT_TERMINUS' ? `Terminus ${props.current_station || 'PURI'}` : props.current_station ? `Platform ${props.current_station}` : `En route to ${props.next_station || 'BBS'}`}</span>
                   </div>
                   <div class="flex justify-between">
                     <span>Data Source:</span>

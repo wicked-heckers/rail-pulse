@@ -872,17 +872,26 @@ export function getStationTimeline(
   // Merge live forecast arrival/departure epochs so Journey Details matches the digital clock & Expected Arrival
   let currentAssigned = false;
   return baseStations.map((stn, idx) => {
+    const isTerminus = idx === lastIdx;
     const fcStop = forecastMap.get(stn.station_code);
     const isPassed = isUp ? stn.chainage_km > trainKm + 0.8 : stn.chainage_km < trainKm - 0.8;
 
     let status: 'passed' | 'current' | 'upcoming' = 'upcoming';
-    if (train?.current_station === stn.station_code) {
+    let isHalted = false;
+
+    if (train?.status === 'AT_TERMINUS' && isTerminus) {
       status = 'current';
+      isHalted = true;
+      currentAssigned = true;
+    } else if (train?.current_station === stn.station_code) {
+      status = 'current';
+      isHalted = (train?.speed_kmph ?? 0) === 0;
       currentAssigned = true;
     } else if (isPassed) {
       status = 'passed';
-    } else if (!currentAssigned && (train?.next_station === stn.station_code || idx === lastIdx)) {
+    } else if (!currentAssigned && (train?.next_station === stn.station_code || isTerminus)) {
       status = 'current';
+      isHalted = (train?.speed_kmph ?? 0) === 0 && Math.abs(stn.chainage_km - trainKm) <= 0.8;
       currentAssigned = true;
     }
 
@@ -890,13 +899,15 @@ export function getStationTimeline(
       return {
         ...stn,
         status,
+        is_terminus: isTerminus,
+        is_halted: isHalted,
       };
     }
 
     const schedArr = formatEpochTo12Hour(fcStop.sched_arr_epoch);
-    const schedDep = idx === lastIdx ? '—' : formatEpochTo12Hour(fcStop.sched_dep_epoch);
+    const schedDep = isTerminus ? '—' : formatEpochTo12Hour(fcStop.sched_dep_epoch);
     const projArr = formatEpochTo12Hour(fcStop.projected_arr_epoch);
-    const projDep = idx === lastIdx ? '—' : formatEpochTo12Hour(fcStop.projected_dep_epoch);
+    const projDep = isTerminus ? '—' : formatEpochTo12Hour(fcStop.projected_dep_epoch);
 
     return {
       ...stn,
@@ -906,6 +917,8 @@ export function getStationTimeline(
       projected_dep: projDep,
       delay_mins: Math.max(0, Math.round(fcStop.net_delay_mins)),
       status,
+      is_terminus: isTerminus,
+      is_halted: isHalted,
     };
   });
 }
