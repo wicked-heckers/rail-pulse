@@ -30,7 +30,7 @@ export const LandingPage: React.FC = () => {
       <div className="relative z-10 min-h-screen flex flex-col justify-between">
         <LandingNav />
 
-        <main className="flex-1 px-4 pt-6 md:pt-10 pb-8 flex flex-col">
+        <main className="flex-1 px-4 pt-6 md:pt-12 pb-8 flex flex-col">
           <div className="w-full max-w-3xl mx-auto flex flex-col">
             <div className="mb-6 md:mb-8">
               <HeroSection />
@@ -38,12 +38,11 @@ export const LandingPage: React.FC = () => {
             <div ref={searchCardRef}>
               <SearchCard />
             </div>
-            <div className="mt-6 md:mt-8">
-              <ValueComparison />
-            </div>
-            <div className="mt-6 md:mt-9">
-              <HowItWorks />
-            </div>
+          </div>
+
+          <div className="w-full max-w-4xl mx-auto flex flex-col mt-12 md:mt-16 gap-6 md:gap-8">
+            <ValueComparison />
+            <HowItWorks />
           </div>
         </main>
 
