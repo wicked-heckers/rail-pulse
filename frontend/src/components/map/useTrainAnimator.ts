@@ -26,6 +26,7 @@ interface AnimatedTrainState {
 export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
   const trainStateMap = useRef<Map<string, AnimatedTrainState>>(new Map());
   const animFrameId = useRef<number | null>(null);
+  const needsRenderRef = useRef<boolean>(true);
   const activeCorridorId = useRailStore((state) => state.activeCorridorId);
   const lastCorridorIdRef = useRef<string>(activeCorridorId);
 
@@ -33,6 +34,7 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
   useEffect(() => {
     if (lastCorridorIdRef.current !== activeCorridorId) {
       trainStateMap.current.clear();
+      needsRenderRef.current = true;
       lastCorridorIdRef.current = activeCorridorId;
     }
   }, [activeCorridorId]);
@@ -45,11 +47,12 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
     const now = performance.now();
     const allTrains = [...(snapshotTrains || []), ...(customTrains || [])];
 
-    // Remove any pruned custom trains
+    // Remove any trains no longer present in the active snapshot or custom trains list
     const validTrainNos = new Set(allTrains.map((t) => t.train_no));
     for (const key of trainStateMap.current.keys()) {
-      if (!validTrainNos.has(key) && customTrains?.some((ct) => ct.train_no === key)) {
+      if (!validTrainNos.has(key)) {
         trainStateMap.current.delete(key);
+        needsRenderRef.current = true;
       }
     }
 
@@ -74,6 +77,7 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
           nextStation: t.next_station,
           status: t.status,
         });
+        needsRenderRef.current = true;
       }
     }
   }, [snapshotTrains, customTrains]);
@@ -132,6 +136,7 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
           });
         }
       }
+      needsRenderRef.current = true;
     });
 
     return () => {
@@ -169,8 +174,8 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
             }
           }
 
-          // Only re-serialize GeoJSON and upload to WebGL when positions move or train selection changes
-          if (hasActiveMotion || selectedTrainChanged || !isSettled) {
+          // Only re-serialize GeoJSON and upload to WebGL when positions move, data updates, or selection changes
+          if (hasActiveMotion || selectedTrainChanged || !isSettled || needsRenderRef.current) {
             const features = [];
 
             for (const [_, state] of trainStateMap.current) {
@@ -216,6 +221,7 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
 
             lastRenderedSelectedTrain = selectedTrain;
             isSettled = !hasActiveMotion;
+            needsRenderRef.current = false;
           }
         }
       }

@@ -59,7 +59,24 @@ export const SearchCard: React.FC = () => {
   const searchButtonRef = useRef<HTMLButtonElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
-  // Synchronize stations on corridor switch
+  const recentStorageKey = `rp_recent_routes_${activeCorridorId}`;
+
+  const loadRecentForCorridor = (corridorId: string): RecentItem[] => {
+    try {
+      const saved = localStorage.getItem(`rp_recent_routes_${corridorId}`);
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed.slice(0, 2);
+      }
+      return getDefaultRecentForCorridor(corridorId);
+    } catch {
+      return getDefaultRecentForCorridor(corridorId);
+    }
+  };
+
+  const [recent, setRecent] = useState<RecentItem[]>(() => loadRecentForCorridor(activeCorridorId));
+
+  // Synchronize stations and recent routes on corridor switch
   useEffect(() => {
     if (isKolkata) {
       setFromStation('HWH');
@@ -68,22 +85,10 @@ export const SearchCard: React.FC = () => {
       setFromStation('BHC');
       setToStation('BBS');
     }
+    setRecent(loadRecentForCorridor(activeCorridorId));
     setSearchResults(null);
     setShowFindPopover(false);
-  }, [isKolkata]);
-
-  const [recent, setRecent] = useState<RecentItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('rp_recent_routes');
-      if (saved !== null) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(0, 2);
-      }
-      return getDefaultRecentForCorridor(activeCorridorId);
-    } catch {
-      return getDefaultRecentForCorridor(activeCorridorId);
-    }
-  });
+  }, [isKolkata, activeCorridorId]);
 
   // Handle outside click and Escape key for Find popover and Autocomplete
   useEffect(() => {
@@ -124,7 +129,7 @@ export const SearchCard: React.FC = () => {
       );
       const updated = [{ ...item, id: String(Date.now()) }, ...filtered].slice(0, 2);
       try {
-        localStorage.setItem('rp_recent_routes', JSON.stringify(updated));
+        localStorage.setItem(recentStorageKey, JSON.stringify(updated));
       } catch {
         /* noop */
       }
@@ -236,7 +241,7 @@ export const SearchCard: React.FC = () => {
   const handleClearRecent = () => {
     setRecent([]);
     try {
-      localStorage.setItem('rp_recent_routes', '[]');
+      localStorage.setItem(recentStorageKey, '[]');
     } catch {
       /* noop */
     }

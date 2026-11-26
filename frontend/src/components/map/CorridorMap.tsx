@@ -107,6 +107,8 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
 
   // Connection evaluation for journey status synchronization
   const prediction = getArrivalPrediction(selectedTrain, forecast);
+  const predictionRef = useRef(prediction);
+  predictionRef.current = prediction;
   const connectionDeadlineFormatted = formatTime12Hour(connectionTarget?.deadline_time);
 
   const connectionEval = evaluateLogicalConnection(
@@ -369,7 +371,8 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
 
             // Wire up "Track this train" button inside popup
             const safeTrainId = String(props.train_no).replace(/[^a-zA-Z0-9_-]/g, '');
-            setTimeout(() => {
+            clearPopupTimeout();
+            popupTimeoutRef.current = window.setTimeout(() => {
               const btn = document.getElementById(`btn-track-${safeTrainId}`);
               if (btn) {
                 btn.onclick = () => {
@@ -396,7 +399,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
                 role_badge: props.role_badge,
                 explanation: props.explanation,
               },
-              prediction
+              predictionRef.current
             );
 
             const popup = new maplibregl.Popup({ offset: 10, closeButton: true })
