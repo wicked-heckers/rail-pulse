@@ -116,11 +116,36 @@ export const REGIONAL_PLACES: RegionalPlace[] = [
   { name: 'KATHAJODI RIVER', type: 'water', coords: [85.8550, 20.4450] },
 ];
 
-export function createBaseMapStyle(mapboxToken?: string | null): string {
-  if (mapboxToken) {
-    return `https://api.mapbox.com/styles/v1/mapbox/light-v11?access_token=${mapboxToken}`;
-  }
-  return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+export function createBaseMapStyle(mapboxToken?: string | null): any {
+  const tileUrl = mapboxToken
+    ? `https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}?access_token=${mapboxToken}`
+    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+  const glyphsUrl = mapboxToken
+    ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${mapboxToken}`
+    : 'https://tiles.basemaps.cartocdn.com/v/20261118-01/fonts/{fontstack}/{range}.pbf';
+
+  return {
+    version: 8,
+    glyphs: glyphsUrl,
+    sources: {
+      'basemap-raster': {
+        type: 'raster',
+        tiles: [tileUrl],
+        tileSize: 256,
+        attribution: mapboxToken ? '&copy; Mapbox &copy; OpenStreetMap' : '&copy; OpenStreetMap contributors',
+      },
+    },
+    layers: [
+      {
+        id: 'basemap-raster-layer',
+        type: 'raster',
+        source: 'basemap-raster',
+        minzoom: 0,
+        maxzoom: 20,
+      },
+    ],
+  };
 }
 
 export type MapCameraView = 'my_train' | 'delays_ahead' | 'alternative_route' | 'full_journey';

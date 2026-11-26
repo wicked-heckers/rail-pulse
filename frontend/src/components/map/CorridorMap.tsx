@@ -206,10 +206,15 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
     let isCancelled = false;
 
     fetchCorridorConfig()
-      .then((cfg) => {
+      .then((cfg) => cfg.mapbox_access_token)
+      .catch((err) => {
+        console.warn('Failed to fetch corridor config, falling back to OSM:', err);
+        return null;
+      })
+      .then((mapboxToken) => {
         if (isCancelled || !mapContainerRef.current || mapRef.current) return;
 
-        const baseStyle = createBaseMapStyle(cfg.mapbox_access_token);
+        const baseStyle = createBaseMapStyle(mapboxToken);
         const map = new maplibregl.Map({
           container: mapContainerRef.current,
           style: baseStyle,
@@ -219,6 +224,10 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         });
 
         mapRef.current = map;
+
+        map.on('error', (e) => {
+          console.warn('MapLibre internal error:', e.error?.message || e);
+        });
 
         // Auto-resize observer
         const resizeObserver = new ResizeObserver(() => {
@@ -476,7 +485,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   }, [activeMapView, isKolkata, rescue]);
 
   return (
-    <div className={`relative w-full ${isModal ? 'h-full' : 'h-[360px] sm:h-[460px] lg:h-full'} bg-[#FAF9F6] overflow-hidden`}>
+    <div className={`relative w-full ${isModal ? 'h-full' : 'h-full min-h-[460px]'} bg-[#FAF9F6] overflow-hidden`}>
       {/* MapLibre WebGL Canvas Container */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
