@@ -401,6 +401,18 @@ export function evaluateLogicalConnection(
   };
 }
 
+export const STATION_COORDINATES_MAP: Record<string, [number, number]> = {
+  BHC: [86.4950, 21.0583],
+  JJKR: [86.1333, 20.9500],
+  JKPR: [86.0600, 20.9400],
+  NRG: [85.9200, 20.5500],
+  CTC: [85.8829, 20.4625],
+  BRAG: [85.8300, 20.4000],
+  BBS: [85.8333, 20.2667],
+  KUR: [85.7333, 20.1833],
+  PURI: [85.8314, 19.8133],
+};
+
 /**
  * 4. Generates max 2-3 delay causes in everyday passenger wording.
  * Strictly excludes speed-to-restriction ratios, signal identifiers, priority ranks, and technical codes.
@@ -429,14 +441,7 @@ export function getDelayCauses(
       tagType: c.event.includes('OVERTAKE') ? 'projected' : 'confirmed',
       explanation: c.human_message,
       locationName: `${c.station_name} (${c.station_code})`,
-      coordinates:
-        c.station_code === 'CTC'
-          ? [85.8829, 20.4625]
-          : c.station_code === 'KUR'
-          ? [85.7333, 20.1833]
-          : c.station_code === 'JKPR'
-          ? [86.06, 20.94]
-          : [85.856, 20.431],
+      coordinates: STATION_COORDINATES_MAP[c.station_code] || [85.856, 20.431],
       popupTitle: titleMap[c.event] || c.event,
       popupMessage: c.human_message,
       highlightType: c.event.includes('FREIGHT')

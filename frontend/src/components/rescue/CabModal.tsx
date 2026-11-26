@@ -11,22 +11,28 @@ export const CabModal: React.FC = () => {
 
   const plan = rescue?.bailout_plan;
   const isKhurda = plan?.deboard_station_code === 'KUR';
+  const destName = plan?.destination_station_name || (plan?.destination_station_code === 'PURI' ? 'Puri Terminal' : 'Bhubaneswar Station');
+  const deboardName = plan?.deboard_station_name || (isKhurda ? 'Khurda Road Junction' : 'Cuttack Junction');
+  const highwayTitle = plan?.highway_name || (isKhurda && plan?.destination_station_code === 'PURI' ? 'NH-316 Highway Road Transfer' : 'NH-16 Highway Road Transfer');
   const pickupName = isKhurda
     ? 'Khurda Road Junction (KUR) — Station Portico Gate 1'
     : 'Cuttack Junction (CTC) — Exit Gate 2 Portico';
   const dropName = plan?.destination_station_code === 'PURI'
     ? 'Puri Terminal (PURI) — VIP Road Entrance'
     : 'Bhubaneswar (BBS) — Platform 1 Main Concourse';
-  const roadSubtext = isKhurda
-    ? '19.5 km via NH-16 Expressway (28 mins)'
+  const driveMins = plan?.road_drive_mins ? Math.round(plan.road_drive_mins) : (isKhurda ? 26 : 38);
+  const roadSubtext = plan?.road_distance_km
+    ? `${plan.road_distance_km} km via ${plan.highway_name || 'Expressway'} (${driveMins} mins)`
+    : isKhurda
+    ? '18.5 km via NH-16 Expressway (26 mins)'
     : '27.4 km via NH-16 Expressway (38 mins)';
-  const fare = isKhurda ? '₹390' : '₹480';
+  const fare = isKhurda ? (plan?.destination_station_code === 'PURI' ? '₹650' : '₹390') : '₹480';
   const dispatchHeader = isKhurda
     ? 'Cab Dispatched to KUR Gate 1'
     : 'Cab Dispatched to CTC Gate 2';
   const dispatchDesc = isKhurda
-    ? 'Your driver Rajesh Sahu is waiting at Khurda Road Junction Portico Gate 1. Estimated road journey: 28 minutes to Bhubaneswar Station.'
-    : 'Your driver Rajesh Sahu is waiting at Cuttack Junction Exit Gate 2. Estimated road journey: 38 minutes to Bhubaneswar Station.';
+    ? `Your driver Rajesh Sahu is waiting at Khurda Road Junction Portico Gate 1. Estimated road journey: ${driveMins} minutes to ${destName}.`
+    : `Your driver Rajesh Sahu is waiting at Cuttack Junction Exit Gate 2. Estimated road journey: ${driveMins} minutes to ${destName}.`;
 
   const handleConfirm = () => {
     setIsBooking(true);
@@ -51,9 +57,9 @@ export const CabModal: React.FC = () => {
               <Car className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm">NH-16 Highway Road Transfer</h3>
+              <h3 className="font-bold text-sm">{highwayTitle}</h3>
               <p className="text-xs text-gray-300">
-                {isKhurda ? 'Khurda Road Junction ➔ Bhubaneswar Station' : 'Cuttack Junction ➔ Bhubaneswar Station'}
+                {deboardName} ➔ {destName}
               </p>
             </div>
           </div>

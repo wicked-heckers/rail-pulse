@@ -233,13 +233,28 @@ export const CorridorMap: React.FC = () => {
         if (map.getLayer('nh16-highway-badge')) {
           map.setLayoutProperty('nh16-highway-badge', 'visibility', 'visible');
         }
-        map.fitBounds(
-          [
-            [85.80, 20.24], // SW: Bhubaneswar
-            [85.92, 20.48], // NE: Cuttack
-          ],
-          { padding: 50, duration: 800 }
-        );
+        if (rescue?.bailout_plan?.deboard_station_code === 'KUR') {
+          map.fitBounds(
+            rescue.bailout_plan.destination_station_code === 'PURI'
+              ? [
+                  [85.68, 19.78], // SW: Puri
+                  [85.86, 20.22], // NE: Khurda Road
+                ]
+              : [
+                  [85.70, 20.15], // SW: Khurda Road
+                  [85.86, 20.30], // NE: Bhubaneswar
+                ],
+            { padding: 50, duration: 800 }
+          );
+        } else {
+          map.fitBounds(
+            [
+              [85.80, 20.24], // SW: Bhubaneswar
+              [85.92, 20.48], // NE: Cuttack
+            ],
+            { padding: 50, duration: 800 }
+          );
+        }
       } else if (view === 'full_journey') {
         setSelectedDelayId(null);
         map.fitBounds(
@@ -920,10 +935,14 @@ export const CorridorMap: React.FC = () => {
 
     const badgeSource = map.getSource('nh16-badge-source') as any;
     if (badgeSource && typeof badgeSource.setData === 'function') {
+      const minsSaved = rescue?.bailout_plan?.minutes_saved
+        ? Math.round(rescue.bailout_plan.minutes_saved)
+        : (isKhurdaRescue ? 22 : 21);
+      const deboardLabel = isKhurdaRescue ? 'Khurda Rd' : 'Cuttack';
       badgeSource.setData({
         type: 'Feature',
         properties: {
-          label: isKhurdaRescue ? 'Cab from Khurda Rd • 22 mins faster' : 'Cab from Cuttack • 21 mins faster',
+          label: `Cab from ${deboardLabel} • ${minsSaved} mins faster`,
         },
         geometry: {
           type: 'Point',
@@ -1010,14 +1029,28 @@ export const CorridorMap: React.FC = () => {
       });
     } else if (activeMapView === 'alternative_route') {
       closeActivePopup();
-      // Fit bounds between Cuttack (CTC) and Bhubaneswar (BBS)
-      map.fitBounds(
-        [
-          [85.80, 20.24], // SW: Bhubaneswar
-          [85.92, 20.48], // NE: Cuttack
-        ],
-        { padding: 50, duration: 800 }
-      );
+      if (rescue?.bailout_plan?.deboard_station_code === 'KUR') {
+        map.fitBounds(
+          rescue.bailout_plan.destination_station_code === 'PURI'
+            ? [
+                [85.68, 19.78], // SW: Puri
+                [85.86, 20.22], // NE: Khurda Road
+              ]
+            : [
+                [85.70, 20.15], // SW: Khurda Road
+                [85.86, 20.30], // NE: Bhubaneswar
+              ],
+          { padding: 50, duration: 800 }
+        );
+      } else {
+        map.fitBounds(
+          [
+            [85.80, 20.24], // SW: Bhubaneswar
+            [85.92, 20.48], // NE: Cuttack
+          ],
+          { padding: 50, duration: 800 }
+        );
+      }
     } else if (activeMapView === 'full_journey') {
       closeActivePopup();
       // Fit entire corridor (Bhadrak to Puri)
