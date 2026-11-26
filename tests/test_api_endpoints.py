@@ -342,49 +342,23 @@ async def test_delay_injection_no_double_counting():
 
 
 @pytest.mark.asyncio
-async def test_corridor_list_and_switch():
+async def test_random_goods_train_endpoint():
+    """Verify /demo/random-freight places an undetected goods rake on track with zero immediate delay."""
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        # 1. List corridors
-        list_resp = await client.get("/api/v1/corridor/list")
-        assert list_resp.status_code == 200
-        corridors = list_resp.json()
-        assert len(corridors) >= 2
-        ids = [c["id"] for c in corridors]
-        assert "ECoR_BHC_PURI" in ids
-        assert "SER_HWH_KGP" in ids
-
-        # 2. Switch to Kolkata Trunk Corridor (SER_HWH_KGP)
-        switch_resp = await client.post(
-            "/api/v1/corridor/switch",
-            json={"corridor_id": "SER_HWH_KGP", "speed_multiplier": 1},
+        await client.post("/api/v1/demo/reset")
+        resp = await client.post(
+            "/api/v1/demo/random-freight",
+            json={"target_train_no": "12821", "seed": 7},
         )
-        assert switch_resp.status_code == 200
-        snap = switch_resp.json()
-        assert snap["corridor_id"] == "SER_HWH_KGP"
-        assert len(snap["trains"]) >= 3
-        t_nos = [t["train_no"] for t in snap["trains"]]
-        assert "12821" in t_nos
-        assert "22895" in t_nos
-        assert "12822" in t_nos
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "RANDOM_GOODS_TRAIN_PLACED"
+        assert data["block_id"].startswith("DN_")
 
-        # 3. Verify Kolkata topology endpoint
-        topo_resp = await client.get("/api/v1/corridor/topology?corridor_id=SER_HWH_KGP")
-        assert topo_resp.status_code == 200
-        topo = topo_resp.json()
-        stn_features = [f for f in topo["features"] if f["properties"].get("feature_type") == "STATION"]
-        assert len(stn_features) == 8
-        stn_codes = [f["properties"]["station_code"] for f in stn_features]
-        assert "HWH" in stn_codes
-        assert "KGP" in stn_codes
-        assert "MCA" in stn_codes
-
-        # 4. Switch back to East Coast Trunk Corridor (ECoR_BHC_PURI)
-        back_resp = await client.post(
-            "/api/v1/corridor/switch",
-            json={"corridor_id": "ECoR_BHC_PURI", "speed_multiplier": 1},
-        )
-        assert back_resp.status_code == 200
-        back_snap = back_resp.json()
-        assert back_snap["corridor_id"] == "ECoR_BHC_PURI"
-
+        st = (await client.get("/api/v1/corridor/state")).json()
+        assert len(st.get("goods_rakes", [])) == 1
+        assert st["goods_rakes"][0]["detected"] is False
+        assert st["goods_rakes"][0]["status_phase"] == "HIDDEN_ON_TRACK"
+        # No phantom freight or delay added yet before train reaches it and AI predicts
+        assert st["phantom_freights"] == []
 

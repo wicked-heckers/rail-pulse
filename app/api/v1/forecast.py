@@ -125,10 +125,29 @@ async def get_train_forecast(
 
     # Collect causal cards (simulator cards + any active multi-cause disruption cards)
     active_causes = await state_store.get_train_causes(train_no)
+    shadows_by_dir = [
+        s for s in snapshot.get("phantom_freights", [])
+        if s.get("direction") == target_train.direction
+        and s.get("status") in ("PHANTOM_FREIGHT_SHADOW", "ULIP_FOIS_CONFIRMED")
+    ]
     causal_cards = list(sim_result.causal_cards)
     causal_cards.extend(build_cause_cards(active_causes, target_train.direction))
     for arr in adjusted_timeline:
         causal_cards.extend(arr.causal_cards)
+
+    # Enrich FREIGHT_SHADOW_DRAG causal cards with live AI accuracy/STR telemetry when available
+    if shadows_by_dir:
+        primary_shadow = max(shadows_by_dir, key=lambda s: float(s.get("freight_probability", 0.0)))
+        acc_pct = int(round(float(primary_shadow.get("freight_probability", 0.0)) * 100))
+        str_val = float(primary_shadow.get("str_value", 0.0))
+        clr_stn = primary_shadow.get("clearance_station") or "next loop"
+        blk_id = primary_shadow.get("block_id") or ""
+        for card in causal_cards:
+            if card.event == "FREIGHT_SHADOW_DRAG" and "accuracy" not in card.human_message.lower():
+                card.human_message = (
+                    f"AI detected goods train on {blk_id} ({acc_pct}% accuracy, STR {str_val:.2f}) "
+                    f"— adding +{card.added_delay_mins:.0f} min drag until clearance at {clr_stn}."
+                )
 
     # Deduplicate causal cards by human_message
     unique_cards = []

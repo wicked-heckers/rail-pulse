@@ -3,6 +3,7 @@ import type {
   ForecastResponse,
   RescueEvaluationResponse,
 } from '../../types/corridor';
+import { getTrackSliceForBlock } from '../../services/corridorData';
 import type { StationData } from '../timeline/StationRow';
 import {
   FULL_CORRIDOR_STATIONS,
@@ -150,12 +151,8 @@ export function getTrainIdentity(
       train.current_station === 'PURI'
         ? 'Puri Terminal'
         : train.current_station === 'BHC'
-        ? 'Bhadrak'
-        : train.current_station === 'HWH'
-        ? 'Howrah Terminal'
-        : train.current_station === 'KGP'
-        ? 'Kharagpur'
-        : train.current_station ?? 'Terminus';
+          ? 'Bhadrak'
+          : train.current_station ?? 'Terminus';
     locationText = `Arrived at ${termName} (Terminus)`;
   } else if (train.current_station) {
     locationText = `Stopped at ${train.current_station} station`;
@@ -193,8 +190,11 @@ export function getTrainIdentity(
   } else if (train.status === 'WEATHER_CAUTION') {
     statusText = `Monsoon Slow • ${spd} km/h (+${delay}m)`;
     statusTone = 'amber';
+  } else if (train.status === 'UNSCHEDULED_SLOWDOWN') {
+    statusText = `Slowing (${spd} km/h) • AI analyzing...`;
+    statusTone = 'amber';
   } else if (train.status === 'CRAWLING_FREIGHT_DRAG') {
-    statusText = `Goods Ahead • ${spd} km/h`;
+    statusText = delay > 0 ? `Goods Ahead • ${spd} km/h (+${delay}m)` : `Goods Ahead • ${spd} km/h`;
     statusTone = 'amber';
   } else if (train.status === 'AT_STATION_HALT' && delay > 10) {
     statusText = `Delayed (+${delay}m) • At station`;
@@ -463,12 +463,17 @@ export const STATION_COORDINATES_MAP: Record<string, [number, number]> = {
 export function getDelayCauses(
   trainNo: string,
   forecast: ForecastResponse | null,
-  _currentStation?: string | null
+  _currentStation?: string | null,
+  snapshot?: CorridorSnapshot | null
 ): DelayCause[] {
+  const trainObj = snapshot?.trains?.find((t) => t.train_no === trainNo);
+  const matchingShadow = snapshot?.phantom_freights?.find(
+    (f) => f.direction === (forecast?.direction ?? trainObj?.direction)
+  );
   const activeCards = (forecast?.causal_cards ?? []).filter((c) => c.added_delay_mins > 0);
   if (activeCards.length > 0) {
     const titleMap: Record<string, string> = {
-      FREIGHT_SHADOW_DRAG: 'Goods Train Ahead',
+      FREIGHT_SHADOW_DRAG: 'Goods Train Detected Ahead',
       PRIORITY_OVERTAKE_HOLD: 'Loop-Line Overtake Hold',
       CASCADE_DOUBLE_OVERTAKE: 'Extended Double Overtake Hold',
       MONSOON_WEATHER_DRAG: 'Heavy Monsoon Weather Drag',
@@ -477,22 +482,51 @@ export function getDelayCauses(
       JUNCTION_THROAT_HOLD: 'Junction Platform / Throat Hold',
       OHE_OR_BRAKE_FAULT: 'OHE Trip / Brake-Binding Clearance',
     };
-    return activeCards.map((c, idx) => ({
-      id: `live-cause-${idx}-${c.event}`,
-      title: titleMap[c.event] || c.event.replace(/_/g, ' '),
-      tag: `+${Math.round(c.added_delay_mins)}m delay`,
-      tagType: c.event.includes('OVERTAKE') ? 'projected' : 'confirmed',
-      explanation: c.human_message,
-      locationName: `${c.station_name} (${c.station_code})`,
-      coordinates: STATION_COORDINATES_MAP[c.station_code] || [85.856, 20.431],
-      popupTitle: titleMap[c.event] || c.event,
-      popupMessage: c.human_message,
-      highlightType: c.event.includes('FREIGHT')
-        ? 'freight_zone'
-        : c.event.includes('OVERTAKE')
-        ? 'cuttack_loop'
-        : 'station',
-    }));
+    return activeCards.map((c, idx) => {
+      const isFreight = c.event.includes('FREIGHT');
+      const accPct = isFreight && matchingShadow
+        ? Math.round((matchingShadow.freight_probability ?? 0) * 100)
+        : null;
+      const blockGeom = isFreight && matchingShadow
+        ? getTrackSliceForBlock(matchingShadow.block_id)
+        : null;
+      return {
+        id: `live-cause-${idx}-${c.event}`,
+        title: titleMap[c.event] || c.event.replace(/_/g, ' '),
+        tag: `+${Math.round(c.added_delay_mins)}m delay${accPct ? ` • ${accPct}% AI Acc` : ''}`,
+        tagType: c.event.includes('OVERTAKE') ? 'projected' : 'confirmed',
+        explanation: c.human_message,
+        locationName: blockGeom
+          ? `${blockGeom.fromName} – ${blockGeom.toName}`
+          : `${c.station_name} (${c.station_code})`,
+        coordinates: blockGeom?.midpoint || STATION_COORDINATES_MAP[c.station_code] || [85.856, 20.431],
+        popupTitle: titleMap[c.event] || c.event,
+        popupMessage: c.human_message,
+        highlightType: isFreight
+          ? 'freight_zone'
+          : c.event.includes('OVERTAKE')
+            ? 'cuttack_loop'
+            : 'station',
+      };
+    });
+  }
+
+  if (trainObj?.status === 'UNSCHEDULED_SLOWDOWN') {
+    return [
+      {
+        id: `cause-analyzing-${trainNo}`,
+        title: 'Unscheduled Slowdown Detected',
+        tag: 'AI Analyzing...',
+        tagType: 'projected',
+        explanation:
+          'Train slowed down behind an unseen obstruction ahead. Running STR + Bayesian freight accuracy model before updating delay.',
+        locationName: `Near km ${(trainObj.chainage_km ?? 115).toFixed(1)}`,
+        coordinates: [trainObj.lon ?? 85.856, trainObj.lat ?? 20.431],
+        popupTitle: 'Analyzing Slowdown',
+        popupMessage: 'AI model evaluating Section Traversal Ratio (STR) to verify goods train ahead.',
+        highlightType: 'station',
+      },
+    ];
   }
 
   if (forecast) {

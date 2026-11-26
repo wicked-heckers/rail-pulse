@@ -1,10 +1,16 @@
 import copy
 import logging
+import random
 from typing import Any
 
 from app.core.database import LocalTopologyFallback
 from app.engine.chainage_mapper import chainage_to_lat_lon
 from app.engine.disruption_causes import DISRUPTION_CAUSE_CATALOG
+from app.engine.freight_shadow import (
+    _find_clearance_loop,
+    compute_str,
+    evaluate_freight_probability,
+)
 from app.ingestion.base import CorridorDataProvider
 from app.models.schemas import FreightInferenceResult, TrainKinematicState
 
@@ -301,11 +307,15 @@ class DemoSimulationProvider(CorridorDataProvider):
         self._accrued_freight_delays: dict[str, float] = {}
         self._accrued_loop_delays: dict[str, float] = {}
         self._freight_cause_blocks: dict[str, str] = {}
+        self._hidden_goods_trains: list[dict[str, Any]] = []
+        self._detected_freight_meta: dict[str, dict[str, Any]] = {}
+        self._random_freight_blocks: set[str] = set()
+        self._auto_random_freight: bool = False
         is_kolkata_cascade = bool(
             scenario_mode
             and (
                 scenario_name in ("KOLKATA_CASCADE", "KGP_CASCADE", "SER_CASCADE")
-                or (self.corridor_id == "SER_HWH_KGP")
+                or self.corridor_id == "SER_HWH_KGP"
             )
         )
         is_dhauli_cascade = bool(scenario_mode and scenario_name == "DHAULI_CASCADE")
@@ -361,13 +371,20 @@ class DemoSimulationProvider(CorridorDataProvider):
         self._accrued_freight_delays.clear()
         self._accrued_loop_delays.clear()
         self._manual_delays.clear()
+        self._hidden_goods_trains.clear()
+        self._detected_freight_meta.clear()
+        for blk_id in list(self._random_freight_blocks):
+            self._initial_injected_freights.pop(blk_id, None)
+        self._random_freight_blocks.clear()
         self._trains = copy.deepcopy(self._initial_trains)
         self._injected_freights = copy.deepcopy(self._initial_injected_freights)
+        if self._auto_random_freight and not self._initial_scenario_mode:
+            self.spawn_random_goods_train(target_train_no="12821", auto_respawn=True)
         is_kolkata_cascade = bool(
             self._initial_scenario_mode
             and (
                 self._initial_scenario_name in ("KOLKATA_CASCADE", "KGP_CASCADE", "SER_CASCADE")
-                or (self.corridor_id == "SER_HWH_KGP")
+                or self.corridor_id == "SER_HWH_KGP"
             )
         )
         is_dhauli_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name == "DHAULI_CASCADE")
@@ -440,6 +457,308 @@ class DemoSimulationProvider(CorridorDataProvider):
                     result["12821"] = round(rem_mins, 2)
         return result
 
+    def spawn_random_goods_train(
+        self,
+        target_train_no: str | None = None,
+        block_id: str | None = None,
+        seed: int | None = None,
+        auto_respawn: bool = True,
+    ) -> dict[str, Any]:
+        """
+        Places an undetected slow goods train randomly on an upcoming track block.
+        Initially it produces zero delay and zero phantom freight prediction; only after a
+        passenger train physically reaches it, slows down, and the AI STR + Bayesian model
+        completes its prediction does the freight alert and delay take effect.
+        """
+        rng = random.Random(seed)
+        blocks = self.topology.get("track_blocks", [])
+        stn_by_code = {s["station_code"]: s for s in self.stations}
+        stations_by_km = {s["station_code"]: float(s["chainage_km"]) for s in self.stations}
+
+        # Clean previous auto-spawned random goods rakes so state remains unambiguous
+        for prev_blk in list(self._random_freight_blocks):
+            self._injected_freights.pop(prev_blk, None)
+            self._detected_freight_meta.pop(prev_blk, None)
+        self._random_freight_blocks.clear()
+        self._hidden_goods_trains.clear()
+
+        chosen_block: dict[str, Any] | None = None
+        ref_train_no: str | None = None
+        ref_train_km: float | None = None
+
+        if block_id:
+            chosen_block = next((b for b in blocks if b["block_id"] == block_id), None)
+
+        if chosen_block is None:
+            candidates: list[tuple[dict[str, Any], str, float]] = []
+            for t_no, t in self._trains.items():
+                if target_train_no and t_no != target_train_no:
+                    continue
+                if t.get("status") == "AT_TERMINUS":
+                    continue
+                t_dir = t["direction"]
+                t_km = float(t["chainage_km"])
+                for blk in blocks:
+                    if blk["direction"] != t_dir:
+                        continue
+                    to_stn = stn_by_code.get(blk["to_station"], {})
+                    if not to_stn.get("has_750m_goods_loop", False):
+                        continue
+                    b_lo = min(float(blk["start_km"]), float(blk["end_km"]))
+                    b_hi = max(float(blk["start_km"]), float(blk["end_km"]))
+                    if (b_hi - b_lo) < 6.0:
+                        continue
+                    if t_dir == "DN":
+                        lo_p = max(b_lo + 1.5, t_km + 2.0)
+                        if lo_p < b_hi - 2.2 and (b_hi - t_km) <= 65.0:
+                            candidates.append((blk, t_no, t_km))
+                    else:
+                        hi_p = min(b_hi - 1.5, t_km - 2.0)
+                        if hi_p > b_lo + 2.2 and (t_km - b_lo) <= 65.0:
+                            candidates.append((blk, t_no, t_km))
+
+            if candidates:
+                chosen_block, ref_train_no, ref_train_km = rng.choice(candidates)
+            else:
+                loop_blocks = [
+                    b for b in blocks
+                    if stn_by_code.get(b["to_station"], {}).get("has_750m_goods_loop", False)
+                    and abs(float(b["end_km"]) - float(b["start_km"])) >= 6.0
+                ]
+                chosen_block = rng.choice(loop_blocks or blocks)
+
+        assert chosen_block is not None
+        b_dir = chosen_block["direction"]
+        b_lo = min(float(chosen_block["start_km"]), float(chosen_block["end_km"]))
+        b_hi = max(float(chosen_block["start_km"]), float(chosen_block["end_km"]))
+
+        if ref_train_km is None:
+            same_dir = [
+                (t_no, float(t["chainage_km"]))
+                for t_no, t in self._trains.items()
+                if t["direction"] == b_dir and t.get("status") != "AT_TERMINUS"
+            ]
+            if same_dir:
+                same_dir.sort(
+                    key=lambda item: abs(item[1] - (b_lo if b_dir == "DN" else b_hi))
+                )
+                ref_train_no, ref_train_km = same_dir[0]
+
+        if b_dir == "DN":
+            anchor = ref_train_km if ref_train_km is not None else b_lo
+            lo_p = max(b_lo + 1.5, anchor + 2.0)
+            hi_p = max(lo_p + 0.5, b_hi - 2.2)
+            # Keep random start within a reasonable reachable window when a train is close
+            upper_cap = min(hi_p, lo_p + 6.5) if lo_p < hi_p else hi_p
+            start_km = round(rng.uniform(min(lo_p, upper_cap), upper_cap), 2)
+        else:
+            anchor = ref_train_km if ref_train_km is not None else b_hi
+            hi_p = min(b_hi - 1.5, anchor - 2.0)
+            lo_p = min(hi_p - 0.5, b_lo + 2.2)
+            lower_cap = max(lo_p, hi_p - 6.5) if hi_p > lo_p else lo_p
+            start_km = round(rng.uniform(lower_cap, max(lower_cap, hi_p)), 2)
+
+        clearance_stn, _ = _find_clearance_loop(chosen_block, self.stations)
+        clearance_km = stations_by_km.get(
+            clearance_stn or chosen_block["to_station"], float(chosen_block["end_km"])
+        )
+
+        rake_id = f"BOXN_GOODS_{rng.randint(1000, 9999)}"
+        goods_entry: dict[str, Any] = {
+            "rake_id": rake_id,
+            "block_id": chosen_block["block_id"],
+            "from_station": chosen_block["from_station"],
+            "to_station": chosen_block["to_station"],
+            "direction": b_dir,
+            "chainage_km": start_km,
+            "initial_km": start_km,
+            "speed_kmph": 28.0,
+            "clearance_station": clearance_stn or chosen_block["to_station"],
+            "clearance_km": clearance_km,
+            "slowed_trains": {},
+            "detected": False,
+            "detected_by_train": None,
+            "str_value": None,
+            "predicted_accuracy": None,
+            "predicted_status": None,
+            "predicted_delay_mins": 0.0,
+            "scaled_block_penalty": 0.0,
+            "cleared": False,
+        }
+        self._hidden_goods_trains.append(goods_entry)
+        self._auto_random_freight = auto_respawn
+
+        return {
+            "rake_id": rake_id,
+            "block_id": chosen_block["block_id"],
+            "direction": b_dir,
+            "chainage_km": start_km,
+            "speed_kmph": 28.0,
+            "clearance_station": goods_entry["clearance_station"],
+            "target_train_no": ref_train_no,
+        }
+
+    def get_goods_rakes_snapshot(self) -> list[dict[str, Any]]:
+        """Diagnostic status of active/detected random goods rakes for UI & API."""
+        items: list[dict[str, Any]] = []
+        for g in self._hidden_goods_trains:
+            if g.get("cleared"):
+                phase = "CLEARED_TO_LOOP"
+            elif g.get("detected"):
+                phase = "PREDICTED_DELAY_ADDED"
+            elif g.get("slowed_trains"):
+                phase = "SLOWDOWN_ANALYZING"
+            else:
+                phase = "HIDDEN_ON_TRACK"
+            items.append({
+                "rake_id": g["rake_id"],
+                "block_id": g["block_id"],
+                "from_station": g["from_station"],
+                "to_station": g["to_station"],
+                "direction": g["direction"],
+                "chainage_km": g["chainage_km"],
+                "speed_kmph": g["speed_kmph"],
+                "clearance_station": g["clearance_station"],
+                "detected": g["detected"],
+                "detected_by_train": g["detected_by_train"],
+                "str_value": g["str_value"],
+                "predicted_accuracy": g["predicted_accuracy"],
+                "predicted_delay_mins": g["predicted_delay_mins"],
+                "cleared": g["cleared"],
+                "status_phase": phase,
+            })
+        return items
+
+    def _evaluate_hidden_goods_detection(
+        self,
+        goods: dict[str, Any],
+        train_no: str,
+        train_state: dict[str, Any],
+        slow_info: dict[str, Any],
+    ) -> None:
+        """
+        Runs the real STR + Bayesian exclusion gate model once a passenger train has
+        physically slowed behind an undetected goods train. Adds freight delay and
+        phantom_freight shadow ONLY upon prediction completion.
+        """
+        block = next(
+            (b for b in self.topology.get("track_blocks", []) if b["block_id"] == goods["block_id"]),
+            None,
+        )
+        if not block:
+            return
+
+        blk_start = float(block["start_km"])
+        blk_end = float(block["end_km"])
+        blk_len = max(1.0, float(block["length_km"]))
+        mps = float(block.get("mps_kmph", 110))
+        free_flow_mins = float(block.get("free_flow_mins", (blk_len / max(30.0, mps)) * 60.0))
+
+        # Compute realistic rolling traversal ratio across the affected block:
+        # combine pre-slowdown fast run (capped) + sustained caution/crawl traversal
+        d_fast = min(blk_len * 0.35, abs(float(slow_info["slowdown_start_km"]) - blk_start))
+        d_slow = max(blk_len * 0.65, abs(blk_end - float(slow_info["slowdown_start_km"])))
+        caution_avg_spd = min(mps * 0.42, max(28.0, float(goods["speed_kmph"]) * 1.42))
+        actual_run_mins = (d_fast / max(30.0, mps)) * 60.0 + (d_slow / caution_avg_spd) * 60.0
+        str_val = compute_str(actual_run_mins, free_flow_mins)
+
+        # Compute gap to any preceding coaching train closer than the goods rake
+        head_gap_mins: float | None = None
+        t_km = float(train_state["chainage_km"])
+        g_km = float(goods["chainage_km"])
+        dist_to_goods = max(0.0, (g_km - t_km) if goods["direction"] == "DN" else (t_km - g_km))
+        for other_no, other in self._trains.items():
+            if other_no == train_no or other["direction"] != goods["direction"]:
+                continue
+            o_km = float(other["chainage_km"])
+            ahead_km = (o_km - t_km) if goods["direction"] == "DN" else (t_km - o_km)
+            if 0.0 < ahead_km < dist_to_goods:
+                gap_m = (ahead_km / max(30.0, float(other.get("speed_kmph") or 110.0))) * 60.0
+                if head_gap_mins is None or gap_m < head_gap_mins:
+                    head_gap_mins = gap_m
+
+        res = evaluate_freight_probability(
+            block=block,
+            str_value=str_val,
+            head_gap_mins=head_gap_mins,
+            block_history=[],
+            rain_mm_hr=self.rain_mm_hr,
+            ulip_confirmed=False,
+            stations=self.stations,
+        )
+
+        # If extreme monsoon raised threshold or edge kinematics slightly lowered posterior, re-evaluate sustained crawl
+        if res.status != "PHANTOM_FREIGHT_SHADOW":
+            sustained_actual = (blk_len / max(24.0, float(goods["speed_kmph"]) * 1.15)) * 60.0
+            str_val = compute_str(sustained_actual, free_flow_mins)
+            res = evaluate_freight_probability(
+                block=block,
+                str_value=str_val,
+                head_gap_mins=head_gap_mins,
+                block_history=[],
+                rain_mm_hr=self.rain_mm_hr,
+                ulip_confirmed=False,
+                stations=self.stations,
+            )
+
+        goods["detected"] = True
+        goods["detected_by_train"] = train_no
+        goods["str_value"] = res.str_value
+        goods["predicted_accuracy"] = res.freight_probability
+        goods["predicted_status"] = res.status
+        if res.clearance_station:
+            goods["clearance_station"] = res.clearance_station
+
+        base_speed = float(
+            train_state.get("_cruise_override_speed")
+            or (130.0 if train_state["priority_rank"] == 1 else 110.0)
+        )
+        dist_goods_rem = max(0.5, abs(float(goods["clearance_km"]) - float(goods["chainage_km"])))
+        dist_train_rem = max(0.5, abs(float(goods["clearance_km"]) - t_km))
+        freight_rem_mins = (dist_goods_rem / max(10.0, float(goods["speed_kmph"]))) * 60.0
+        pass_ff_mins = (dist_train_rem / max(30.0, base_speed)) * 60.0
+        rem_delay_mins = round(max(2.0, freight_rem_mins - pass_ff_mins), 1)
+
+        # Now that prediction is complete, retroactively add the observation-window crawl loss
+        obs_lost = float(slow_info.get("obs_lost_mins", 0.0))
+        self._accrued_freight_delays[train_no] = (
+            self._accrued_freight_delays.get(train_no, 0.0) + obs_lost
+        )
+        slow_info["obs_lost_mins"] = 0.0
+
+        rem_in_blk = max(0.5, abs(blk_end - t_km))
+        rem_frac = min(1.0, rem_in_blk / blk_len)
+        scaled_block_penalty = round(rem_delay_mins / max(0.15, rem_frac), 1)
+
+        total_added_delay = round(obs_lost + rem_delay_mins, 1)
+        goods["predicted_delay_mins"] = total_added_delay
+        goods["scaled_block_penalty"] = scaled_block_penalty
+
+        acc_pct = int(round(res.freight_probability * 100))
+        msg = (
+            f"AI detected goods rake {goods['rake_id']} on {goods['block_id']} "
+            f"({acc_pct}% accuracy, STR {res.str_value:.2f}) — clears at "
+            f"{goods['clearance_station']} Loop (+{total_added_delay:.0f}m delay)"
+        )
+
+        self._injected_freights[goods["block_id"]] = scaled_block_penalty
+        self._random_freight_blocks.add(goods["block_id"])
+        self._detected_freight_meta[goods["block_id"]] = {
+            "str_value": res.str_value,
+            "freight_probability": res.freight_probability,
+            "status": res.status,
+            "clearance_station": goods["clearance_station"],
+            "clearance_eta_mins": rem_delay_mins,
+            "block_penalty_mins": scaled_block_penalty,
+            "added_delay_mins": total_added_delay,
+            "detected_by_train": train_no,
+            "rake_id": goods["rake_id"],
+            "human_message": msg,
+        }
+
+        train_state["status"] = "CRAWLING_FREIGHT_DRAG"
+        train_state["delay_mins"] = self._compute_current_delay(train_no)
+
     async def advance_simulation(self, elapsed_wall_seconds: float) -> None:
         """Advances physical train positions by (elapsed_wall_seconds * speed_multiplier)."""
         sim_delta_secs = elapsed_wall_seconds * self.speed_multiplier
@@ -456,6 +775,29 @@ class DemoSimulationProvider(CorridorDataProvider):
             return
         else:
             self._all_terminated_secs = 0.0
+
+        # Advance any active hidden random goods trains and clear when they enter loop
+        for g in self._hidden_goods_trains:
+            if g.get("cleared"):
+                continue
+            g_spd = float(g.get("speed_kmph", 28.0))
+            if g["direction"] == "DN":
+                g["chainage_km"] = round(min(float(g["clearance_km"]), float(g["chainage_km"]) + g_spd * delta_hours), 2)
+                reached_loop = float(g["chainage_km"]) >= float(g["clearance_km"]) - 0.05
+            else:
+                g["chainage_km"] = round(max(float(g["clearance_km"]), float(g["chainage_km"]) - g_spd * delta_hours), 2)
+                reached_loop = float(g["chainage_km"]) <= float(g["clearance_km"]) + 0.05
+            if reached_loop:
+                g["chainage_km"] = float(g["clearance_km"])
+                g["cleared"] = True
+                g["speed_kmph"] = 0.0
+                self._injected_freights.pop(g["block_id"], None)
+                self._detected_freight_meta.pop(g["block_id"], None)
+                self._random_freight_blocks.discard(g["block_id"])
+
+        random_active_blocks = {
+            g["block_id"] for g in self._hidden_goods_trains if not g.get("cleared")
+        }
 
         vande_km = self._trains.get("22895", {}).get("chainage_km", 0.0)
         stations_asc = sorted(self.stations, key=lambda s: float(s["chainage_km"]))
@@ -486,6 +828,8 @@ class DemoSimulationProvider(CorridorDataProvider):
                 for item in (self._injected_freights or [])
             ]
         for blk_id, val in freight_iter:
+            if blk_id in random_active_blocks:
+                continue
             bounds = block_lookup.get(blk_id) or fallback_bounds.get(blk_id)
             if bounds is not None:
                 active_freight_zones.append(bounds)
@@ -594,9 +938,54 @@ class DemoSimulationProvider(CorridorDataProvider):
                     if actual_speed == 0.0:
                         continue
 
+            # Check proximity to any uncleared random goods train ahead on this track
+            def _find_blocking_goods(direction: str, km: float) -> dict[str, Any] | None:
+                for g in self._hidden_goods_trains:
+                    if g.get("cleared") or g["direction"] != direction:
+                        continue
+                    gap = (float(g["chainage_km"]) - km) if direction == "DN" else (km - float(g["chainage_km"]))
+                    if -0.5 <= gap <= 3.0:
+                        return g
+                return None
+
+            blocking_goods = _find_blocking_goods(t["direction"], float(t["chainage_km"]))
+            # During active overtake at Barang, Khurda Road, or Bhubaneswar, Vande Bharat overtakes on the clear mainline
+            if (
+                self._hold_until_overtaken
+                and self._overtake_target_code in ("BRAG", "KUR", "BBS")
+                and t_no == "22895"
+            ):
+                blocking_goods = None
+
             # Enforce physical speed drop inside any active goods train block area
             if not cause_active:
-                if in_freight_zone and t["status"] != "AT_STATION_HALT":
+                if blocking_goods is not None and t["status"] != "AT_STATION_HALT":
+                    g_spd = min(base_speed, float(blocking_goods.get("speed_kmph", 28.0)))
+                    t["speed_kmph"] = g_spd
+                    slow_info = blocking_goods["slowed_trains"].setdefault(
+                        t_no,
+                        {
+                            "slowdown_start_km": float(t["chainage_km"]),
+                            "crawl_secs": 0.0,
+                            "obs_lost_mins": 0.0,
+                        },
+                    )
+                    slow_info["crawl_secs"] += sim_delta_secs
+                    if not blocking_goods["detected"]:
+                        t["status"] = "UNSCHEDULED_SLOWDOWN"
+                        slow_info["obs_lost_mins"] += (sim_delta_secs / 60.0) * max(
+                            0.0, 1.0 - (g_spd / base_speed)
+                        )
+                        if slow_info["crawl_secs"] >= 12.0:
+                            self._evaluate_hidden_goods_detection(blocking_goods, t_no, t, slow_info)
+                    else:
+                        t["status"] = "CRAWLING_FREIGHT_DRAG"
+                        freight_lost = (sim_delta_secs / 60.0) * max(0.0, 1.0 - (g_spd / base_speed))
+                        self._accrued_freight_delays[t_no] = (
+                            self._accrued_freight_delays.get(t_no, 0.0) + freight_lost
+                        )
+                        t["delay_mins"] = self._compute_current_delay(t_no)
+                elif in_freight_zone and t["status"] != "AT_STATION_HALT":
                     t["status"] = "CRAWLING_FREIGHT_DRAG"
                     t["speed_kmph"] = 29.0
                     freight_lost = (sim_delta_secs / 60.0) * max(0.0, 1.0 - (29.0 / base_speed))
@@ -606,6 +995,7 @@ class DemoSimulationProvider(CorridorDataProvider):
                     t["delay_mins"] = self._compute_current_delay(t_no)
                 elif not in_freight_zone and t["status"] in (
                     "CRAWLING_FREIGHT_DRAG",
+                    "UNSCHEDULED_SLOWDOWN",
                     "TSR_CAUTION",
                     "SIGNAL_CONGESTION",
                     "WEATHER_CAUTION",
@@ -705,7 +1095,21 @@ class DemoSimulationProvider(CorridorDataProvider):
             old_km = float(t["chainage_km"])
             dist_moved = t["speed_kmph"] * effective_delta_hours
             if t["direction"] == "DN":
-                new_km = min(corridor_end_km, old_km + dist_moved)
+                new_km = min(206.0, old_km + dist_moved)
+                for g in self._hidden_goods_trains:
+                    if g.get("cleared") or g["direction"] != "DN":
+                        continue
+                    g_km = float(g["chainage_km"])
+                    if old_km <= g_km and new_km >= g_km - 2.5:
+                        new_km = min(new_km, max(old_km, g_km - 0.6))
+                        if not cause_active and t["status"] != "AT_STATION_HALT":
+                            g_spd = min(base_speed, float(g.get("speed_kmph", 28.0)))
+                            t["speed_kmph"] = g_spd
+                            t["status"] = "CRAWLING_FREIGHT_DRAG" if g["detected"] else "UNSCHEDULED_SLOWDOWN"
+                            g["slowed_trains"].setdefault(
+                                t_no,
+                                {"slowdown_start_km": round(new_km, 2), "crawl_secs": 0.0, "obs_lost_mins": 0.0},
+                            )
                 t["chainage_km"] = round(new_km, 2)
                 if new_km >= corridor_end_km:
                     t["chainage_km"] = corridor_end_km
@@ -733,6 +1137,20 @@ class DemoSimulationProvider(CorridorDataProvider):
                         t["next_station"] = _next_stn("DN", new_km)
             else:
                 new_km = max(0.0, old_km - dist_moved)
+                for g in self._hidden_goods_trains:
+                    if g.get("cleared") or g["direction"] != "UP":
+                        continue
+                    g_km = float(g["chainage_km"])
+                    if old_km >= g_km and new_km <= g_km + 2.5:
+                        new_km = max(new_km, min(old_km, g_km + 0.6))
+                        if not cause_active and t["status"] != "AT_STATION_HALT":
+                            g_spd = min(base_speed, float(g.get("speed_kmph", 28.0)))
+                            t["speed_kmph"] = g_spd
+                            t["status"] = "CRAWLING_FREIGHT_DRAG" if g["detected"] else "UNSCHEDULED_SLOWDOWN"
+                            g["slowed_trains"].setdefault(
+                                t_no,
+                                {"slowdown_start_km": round(new_km, 2), "crawl_secs": 0.0, "obs_lost_mins": 0.0},
+                            )
                 t["chainage_km"] = round(new_km, 2)
                 if new_km <= 0.0:
                     t["chainage_km"] = 0.0
@@ -764,7 +1182,13 @@ class DemoSimulationProvider(CorridorDataProvider):
                 d == t["direction"] and lo <= t["chainage_km"] <= hi
                 for d, lo, hi in active_freight_zones
             )
-            if not cause_active and not still_in_freight and t["status"] == "CRAWLING_FREIGHT_DRAG":
+            still_behind_goods = _find_blocking_goods(t["direction"], float(t["chainage_km"])) is not None
+            if (
+                not cause_active
+                and not still_in_freight
+                and not still_behind_goods
+                and t["status"] in ("CRAWLING_FREIGHT_DRAG", "UNSCHEDULED_SLOWDOWN")
+            ):
                 t["status"] = base_status
                 t["speed_kmph"] = base_speed
 
@@ -795,17 +1219,36 @@ class DemoSimulationProvider(CorridorDataProvider):
         for block_id, penalty_mins in self._injected_freights.items():
             direction = "UP" if block_id.startswith("UP_") else "DN"
             clearance_stn = block_id.split("_")[-1] if "_" in block_id else "BRAG"
-            freight_shadows.append(
-                FreightInferenceResult(
-                    block_id=block_id,
-                    direction=direction,
-                    str_value=1.85,
-                    freight_probability=0.88,
-                    status="PHANTOM_FREIGHT_SHADOW",
-                    clearance_station=clearance_stn,
-                    clearance_eta_mins=float(penalty_mins),
+            meta = self._detected_freight_meta.get(block_id)
+            if meta:
+                freight_shadows.append(
+                    FreightInferenceResult(
+                        block_id=block_id,
+                        direction=direction,
+                        str_value=float(meta["str_value"]),
+                        freight_probability=float(meta["freight_probability"]),
+                        status=meta["status"],
+                        clearance_station=meta.get("clearance_station") or clearance_stn,
+                        clearance_eta_mins=float(meta["clearance_eta_mins"]),
+                        block_penalty_mins=float(meta["block_penalty_mins"]),
+                        added_delay_mins=float(meta["added_delay_mins"]),
+                        detected_by_train=meta.get("detected_by_train"),
+                        rake_id=meta.get("rake_id"),
+                        human_message=meta.get("human_message"),
+                    )
                 )
-            )
+            else:
+                freight_shadows.append(
+                    FreightInferenceResult(
+                        block_id=block_id,
+                        direction=direction,
+                        str_value=1.85,
+                        freight_probability=0.88,
+                        status="PHANTOM_FREIGHT_SHADOW",
+                        clearance_station=clearance_stn,
+                        clearance_eta_mins=float(penalty_mins),
+                    )
+                )
 
         return {
             "tick_utc": self.sim_clock_secs,
@@ -813,6 +1256,7 @@ class DemoSimulationProvider(CorridorDataProvider):
             "speed_multiplier": self.speed_multiplier,
             "trains": train_states,
             "phantom_freights": freight_shadows,
+            "goods_rakes": self.get_goods_rakes_snapshot(),
             "weather": {
                 "rain_mm_hr": self.rain_mm_hr,
                 "wind_speed_kmph": 24.0 if self.rain_mm_hr > 10.0 else 14.0,
