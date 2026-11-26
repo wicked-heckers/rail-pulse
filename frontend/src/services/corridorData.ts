@@ -81,9 +81,54 @@ const NH16_HIGHWAY_WAYPOINTS: [number, number][] = [
   [85.8333, 20.2667], // Master Canteen / Bhubaneswar Station
 ];
 
+// NH-16 Highway bailout alignment (Khurda Road to Bhubaneswar)
+const NH16_KUR_HIGHWAY_WAYPOINTS: [number, number][] = [
+  [85.7333, 20.1833], // Khurda Road Junction Station
+  [85.7500, 20.2000], // Jatni Gate
+  [85.7750, 20.2200], // Pitapalli Junction NH-16
+  [85.8050, 20.2450], // Khandagiri Square
+  [85.8333, 20.2667], // Bhubaneswar Station
+];
+
+// South Eastern Railway Kolkata Trunk Line waypoints (Howrah to Kharagpur Junction)
+const SER_HWH_KGP_WAYPOINTS: [number, number][] = [
+  [88.3426, 22.5830], // HWH - Howrah Junction
+  [88.2830, 22.5800], // SRC - Santragachi Junction
+  [88.1100, 22.4700], // ULB - Uluberia
+  [87.9700, 22.4600], // BZN - Bagnan
+  [87.8600, 22.4200], // MCA - Mecheda Junction
+  [87.7200, 22.4100], // PKU - Panskura Junction
+  [87.5500, 22.3700], // BCK - Balichak
+  [87.3200, 22.3300], // KGP - Kharagpur Junction
+];
+
+// Kona Expressway & Vidyasagar Setu (Second Hooghly Bridge) road rescue alignment
+// Santragachi Junction (SRC) -> Kona Expressway -> Vidyasagar Setu -> Howrah Station (HWH)
+const KONA_EXPRESSWAY_WAYPOINTS: [number, number][] = [
+  [88.2830, 22.5800], // Santragachi Station Portico
+  [88.2950, 22.5780], // Kona Expressway toll plaza
+  [88.3100, 22.5700], // Mandirtala
+  [88.3280, 22.5600], // Vidyasagar Setu (Second Hooghly Bridge)
+  [88.3426, 22.5830], // Howrah Railway Station
+];
+
+// NH-16 Highway Mecheda to Howrah road bailout alignment
+const NH16_MCA_HWH_WAYPOINTS: [number, number][] = [
+  [87.8600, 22.4200], // Mecheda Station
+  [87.9800, 22.4600], // Bagnan Bypass NH-16
+  [88.1100, 22.4700], // Uluberia NH-16
+  [88.2830, 22.5800], // Santragachi Kona Expressway
+  [88.3426, 22.5830], // Howrah Station
+];
+
 // High-resolution smooth Catmull-Rom geometries
 export const SMOOTH_TRACK_COORDS = catmullRomSpline(ECOR_STATION_WAYPOINTS, 8);
 export const SMOOTH_NH16_COORDS = catmullRomSpline(NH16_HIGHWAY_WAYPOINTS, 8);
+export const SMOOTH_NH16_KUR_COORDS = catmullRomSpline(NH16_KUR_HIGHWAY_WAYPOINTS, 8);
+
+export const SMOOTH_HWH_KGP_TRACK_COORDS = catmullRomSpline(SER_HWH_KGP_WAYPOINTS, 8);
+export const SMOOTH_KONA_EXPRESSWAY_COORDS = catmullRomSpline(KONA_EXPRESSWAY_WAYPOINTS, 8);
+export const SMOOTH_MCA_HWH_COORDS = catmullRomSpline(NH16_MCA_HWH_WAYPOINTS, 8);
 
 // Active Delay Ahead: Cuttack (CTC) down to Barang (BRAG) & Mancheswar
 // Physically ahead of southbound train 12821 towards Bhubaneswar
@@ -95,21 +140,36 @@ const CONGESTION_AHEAD_WAYPOINTS: [number, number][] = [
 ];
 export const SMOOTH_CONGESTION_AHEAD_COORDS = catmullRomSpline(CONGESTION_AHEAD_WAYPOINTS, 8);
 
+// Kolkata Congestion Ahead: Santragachi (SRC) down to Uluberia & Mecheda
+const KOLKATA_CONGESTION_AHEAD_WAYPOINTS: [number, number][] = [
+  [88.2830, 22.5800], // SRC - Santragachi
+  [88.1100, 22.4700], // ULB - Uluberia
+  [87.9700, 22.4600], // BZN - Bagnan
+  [87.8600, 22.4200], // MCA - Mecheda
+];
+export const SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS = catmullRomSpline(KOLKATA_CONGESTION_AHEAD_WAYPOINTS, 8);
+
 /**
- * Snaps any coordinate [lon, lat] onto the nearest point along SMOOTH_TRACK_COORDS.
+ * Snaps any coordinate [lon, lat] onto the nearest point along the provided or active track coordinates.
  * Prevents trains from visually drifting or rendering off the physical railway line.
  */
-export function snapPointToTrack(lon: number, lat: number): [number, number] {
-  if (!SMOOTH_TRACK_COORDS || SMOOTH_TRACK_COORDS.length < 2) {
+export function snapPointToTrack(
+  lon: number,
+  lat: number,
+  coords?: [number, number][]
+): [number, number] {
+  const defaultTrack = lon >= 87.0 ? SMOOTH_HWH_KGP_TRACK_COORDS : SMOOTH_TRACK_COORDS;
+  const track = coords && coords.length >= 2 ? coords : defaultTrack;
+  if (!track || track.length < 2) {
     return [lon, lat];
   }
 
   let minDistanceSq = Infinity;
   let bestPoint: [number, number] = [lon, lat];
 
-  for (let i = 0; i < SMOOTH_TRACK_COORDS.length - 1; i++) {
-    const a = SMOOTH_TRACK_COORDS[i];
-    const b = SMOOTH_TRACK_COORDS[i + 1];
+  for (let i = 0; i < track.length - 1; i++) {
+    const a = track[i];
+    const b = track[i + 1];
 
     const dx = b[0] - a[0];
     const dy = b[1] - a[1];

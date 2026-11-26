@@ -11,22 +11,26 @@ import { useRailStore } from '../../stores/useRailStore';
 import { useManagerTrainStore } from '../../stores/useManagerTrainStore';
 import { TRANSLATIONS } from './translations';
 import {
-  PILOT_STATIONS,
-  PILOT_TRAINS,
-  DEFAULT_RECENT,
+  getStationsForCorridor,
+  getTrainsForCorridor,
+  getDefaultRecentForCorridor,
   type PilotTrain,
   type RecentItem,
 } from './searchConstants';
 
 export const SearchCard: React.FC = () => {
-  const { language, navigateToDashboardWithTrain, setSelectedTrain } = useRailStore();
+  const { language, navigateToDashboardWithTrain, setSelectedTrain, activeCorridorId } = useRailStore();
   const managerTrains = useManagerTrainStore((s) => s.trains);
   const t = TRANSLATIONS[language].search;
+
+  const isKolkata = activeCorridorId === 'SER_HWH_KGP';
+  const corridorStations = useMemo(() => getStationsForCorridor(activeCorridorId), [activeCorridorId]);
+  const baseCorridorTrains = useMemo(() => getTrainsForCorridor(activeCorridorId), [activeCorridorId]);
 
   // Combine pilot trains with any manager / custom trains dynamically
   const allCorridorTrains = useMemo<PilotTrain[]>(() => {
     const custom = managerTrains.filter(
-      (mt) => !PILOT_TRAINS.some((pt) => pt.no === mt.no)
+      (mt) => !baseCorridorTrains.some((pt) => pt.no === mt.no)
     );
     const mappedCustom: PilotTrain[] = custom.map((ct) => ({
       no: ct.no,
@@ -39,12 +43,12 @@ export const SearchCard: React.FC = () => {
       destination: `${ct.to}`,
       subtitle: `${ct.from} → ${ct.to} • ${ct.priority} (${ct.direction})`,
     }));
-    return [...PILOT_TRAINS, ...mappedCustom];
-  }, [managerTrains]);
+    return [...baseCorridorTrains, ...mappedCustom];
+  }, [managerTrains, baseCorridorTrains]);
 
   const [activeTab, setActiveTab] = useState<'find' | 'track'>('find');
-  const [fromStation, setFromStation] = useState('BHC');
-  const [toStation, setToStation] = useState('BBS');
+  const [fromStation, setFromStation] = useState(() => (isKolkata ? 'HWH' : 'BHC'));
+  const [toStation, setToStation] = useState(() => (isKolkata ? 'KGP' : 'BBS'));
   const [trainQuery, setTrainQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PilotTrain[] | null>(null);
   const [showFindPopover, setShowFindPopover] = useState(false);
@@ -55,16 +59,29 @@ export const SearchCard: React.FC = () => {
   const searchButtonRef = useRef<HTMLButtonElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
+  // Synchronize stations on corridor switch
+  useEffect(() => {
+    if (isKolkata) {
+      setFromStation('HWH');
+      setToStation('KGP');
+    } else {
+      setFromStation('BHC');
+      setToStation('BBS');
+    }
+    setSearchResults(null);
+    setShowFindPopover(false);
+  }, [isKolkata]);
+
   const [recent, setRecent] = useState<RecentItem[]>(() => {
     try {
       const saved = localStorage.getItem('rp_recent_routes');
       if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed.slice(0, 2);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(0, 2);
       }
-      return DEFAULT_RECENT;
+      return getDefaultRecentForCorridor(activeCorridorId);
     } catch {
-      return DEFAULT_RECENT;
+      return getDefaultRecentForCorridor(activeCorridorId);
     }
   });
 
@@ -121,8 +138,8 @@ export const SearchCard: React.FC = () => {
       return;
     }
 
-    const fromStn = PILOT_STATIONS.find((s) => s.code === fromCode);
-    const toStn = PILOT_STATIONS.find((s) => s.code === toCode);
+    const fromStn = corridorStations.find((s) => s.code === fromCode);
+    const toStn = corridorStations.find((s) => s.code === toCode);
     const fromKm = fromStn?.km ?? 0;
     const toKm = toStn?.km ?? 0;
 
@@ -158,8 +175,8 @@ export const SearchCard: React.FC = () => {
     filterTrains(fromStation, toStation);
     setShowFindPopover(true);
     if (fromStation && toStation && fromStation !== toStation) {
-      const fromStn = PILOT_STATIONS.find((s) => s.code === fromStation);
-      const toStn = PILOT_STATIONS.find((s) => s.code === toStation);
+      const fromStn = corridorStations.find((s) => s.code === fromStation);
+      const toStn = corridorStations.find((s) => s.code === toStation);
       saveRecent({
         label: `${fromStn?.name} (${fromStation}) → ${toStn?.name} (${toStation})`,
         fromCode: fromStation,
@@ -284,7 +301,7 @@ export const SearchCard: React.FC = () => {
                         <option value="" disabled>
                           {t.fromPlaceholder}
                         </option>
-                        {PILOT_STATIONS.map((s) => (
+                        {corridorStations.map((s) => (
                           <option key={s.code} value={s.code}>
                             {s.name} ({s.code})
                           </option>
@@ -321,7 +338,7 @@ export const SearchCard: React.FC = () => {
                         <option value="" disabled>
                           {t.toPlaceholder}
                         </option>
-                        {PILOT_STATIONS.map((s) => (
+                        {corridorStations.map((s) => (
                           <option key={s.code} value={s.code}>
                             {s.name} ({s.code})
                           </option>

@@ -123,7 +123,7 @@ export function getStationPopupHtml(
         <p class="text-slate-600 leading-snug">${explanation}</p>
       </div>
       ${
-        props.code === 'BBS'
+        props.code === prediction.destinationCode || props.code === 'BBS' || props.code === 'KGP' || props.code === 'PURI' || props.code === 'HWH'
           ? `<div class="bg-slate-50 p-1.5 rounded border border-slate-200 text-xs text-slate-700 font-medium">
               Expected Arrival: <strong class="text-[#0F294A] font-bold">${escapeHtml(prediction.expectedTime)}</strong> (Window: ${escapeHtml(prediction.likelyWindow)})
             </div>`

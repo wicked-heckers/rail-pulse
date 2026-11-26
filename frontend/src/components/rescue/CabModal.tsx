@@ -4,7 +4,7 @@ import { Car, X, Check, MapPin, Navigation } from 'lucide-react';
 import { formatEpochTo12Hour } from '../dashboard/passengerUtils';
 
 export const CabModal: React.FC = () => {
-  const { cabModalOpen, setCabModalOpen, rescue, activeSnapshot } = useRailStore();
+  const { cabModalOpen, setCabModalOpen, rescue, activeSnapshot, activeCorridorId } = useRailStore();
   const [isBooked, setIsBooked] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
 
@@ -23,11 +23,85 @@ export const CabModal: React.FC = () => {
 
   if (!cabModalOpen) return null;
 
-  const defaultRoadEpoch = (activeSnapshot.tick_utc || 1795067700) + 38 * 60;
+  const plan = rescue?.bailout_plan;
+  const isKolkata = activeCorridorId === 'SER_HWH_KGP' || plan?.deboard_station_code === 'SRC' || plan?.deboard_station_code === 'MCA';
+  const isKhurda = plan?.deboard_station_code === 'KUR';
+
+  const destName = plan?.destination_station_name || (
+    isKolkata
+      ? 'Howrah Station'
+      : plan?.destination_station_code === 'PURI'
+      ? 'Puri Terminal'
+      : 'Bhubaneswar Station'
+  );
+
+  const deboardName = plan?.deboard_station_name || (
+    isKolkata
+      ? (plan?.deboard_station_code === 'MCA' ? 'Mecheda Junction' : 'Santragachi Junction')
+      : isKhurda
+      ? 'Khurda Road Junction'
+      : 'Cuttack Junction'
+  );
+
+  const highwayTitle = plan?.highway_name || (
+    isKolkata
+      ? 'Kona Expressway Road Transfer'
+      : isKhurda && plan?.destination_station_code === 'PURI'
+      ? 'NH-316 Highway Road Transfer'
+      : 'NH-16 Highway Road Transfer'
+  );
+
+  const pickupName = isKolkata
+    ? (plan?.deboard_station_code === 'MCA' ? 'Mecheda Junction (MCA) — Station Exit Gate 1' : 'Santragachi Junction (SRC) — Kona Expressway Gate')
+    : isKhurda
+    ? 'Khurda Road Junction (KUR) — Station Portico Gate 1'
+    : 'Cuttack Junction (CTC) — Exit Gate 2 Portico';
+
+  const dropName = isKolkata
+    ? 'Howrah Station (HWH) — Platform 1 Main Portico'
+    : plan?.destination_station_code === 'PURI'
+    ? 'Puri Terminal (PURI) — VIP Road Entrance'
+    : 'Bhubaneswar (BBS) — Platform 1 Main Concourse';
+
+  const driveMins = plan?.road_drive_mins
+    ? Math.round(plan.road_drive_mins)
+    : isKolkata
+    ? 18
+    : isKhurda
+    ? 26
+    : 38;
+
+  const roadSubtext = plan?.road_distance_km
+    ? `${plan.road_distance_km} km via ${plan.highway_name || 'Expressway'} (${driveMins} mins)`
+    : isKolkata
+    ? '10.5 km via Kona Expressway & Vidyasagar Setu (18 mins)'
+    : isKhurda
+    ? '18.5 km via NH-16 Expressway (26 mins)'
+    : '27.4 km via NH-16 Expressway (38 mins)';
+
+  const fare = isKolkata
+    ? '₹280'
+    : isKhurda
+    ? (plan?.destination_station_code === 'PURI' ? '₹650' : '₹390')
+    : '₹480';
+
+  const dispatchHeader = isKolkata
+    ? (plan?.deboard_station_code === 'MCA' ? 'Cab Dispatched to MCA Gate 1' : 'Cab Dispatched to SRC Kona Gate')
+    : isKhurda
+    ? 'Cab Dispatched to KUR Gate 1'
+    : 'Cab Dispatched to CTC Gate 2';
+
+  const dispatchDesc = isKolkata
+    ? `Your driver Subhash Mondal is waiting at Santragachi Junction Kona Expressway Gate. Estimated road journey: ${driveMins} minutes to ${destName}.`
+    : isKhurda
+    ? `Your driver Rajesh Sahu is waiting at Khurda Road Junction Portico Gate 1. Estimated road journey: ${driveMins} minutes to ${destName}.`
+    : `Your driver Rajesh Sahu is waiting at Cuttack Junction Exit Gate 2. Estimated road journey: ${driveMins} minutes to ${destName}.`;
+
+  const defaultRoadEpoch = (activeSnapshot.tick_utc || 1795067700) + driveMins * 60;
   const roadArrival = rescue?.bailout_plan?.final_road_arrival_epoch
     ? formatEpochTo12Hour(rescue.bailout_plan.final_road_arrival_epoch)
     : formatEpochTo12Hour(defaultRoadEpoch);
-  const minsSaved = rescue?.bailout_plan?.minutes_saved ?? 21;
+  const minsSaved = rescue?.bailout_plan?.minutes_saved ?? (isKolkata ? 25 : isKhurda ? 28 : 21);
 
   const handleConfirm = () => {
     setIsBooking(true);
@@ -52,8 +126,10 @@ export const CabModal: React.FC = () => {
               <Car className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm">NH-16 Highway Road Transfer</h3>
-              <p className="text-xs text-gray-300">Cuttack Junction ➔ Bhubaneswar Station</p>
+              <h3 className="font-bold text-sm">{highwayTitle}</h3>
+              <p className="text-xs text-gray-300">
+                {deboardName} ➔ {destName}
+              </p>
             </div>
           </div>
           <button
@@ -74,19 +150,19 @@ export const CabModal: React.FC = () => {
                   <MapPin className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
                   <div className="text-xs">
                     <span className="text-[#64748B] block">Pickup Location</span>
-                    <strong className="text-[#0F172A]">Cuttack Junction (CTC) — Exit Gate 2 Portico</strong>
+                    <strong className="text-[#0F172A]">{pickupName}</strong>
                   </div>
                 </div>
 
                 <div className="border-l-2 border-dashed border-[#CBD5E1] ml-2 pl-4 py-1">
-                  <span className="text-xs font-mono text-[#64748B]">27.4 km via NH-16 Expressway (38 mins)</span>
+                  <span className="text-xs font-mono text-[#64748B]">{roadSubtext}</span>
                 </div>
 
                 <div className="flex items-start gap-2.5">
                   <Navigation className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
                   <div className="text-xs">
                     <span className="text-[#64748B] block">Drop Location</span>
-                    <strong className="text-[#0F172A]">Bhubaneswar (BBS) — Platform 1 Main Concourse</strong>
+                    <strong className="text-[#0F172A]">{dropName}</strong>
                   </div>
                 </div>
               </div>
@@ -99,7 +175,7 @@ export const CabModal: React.FC = () => {
                   <div className="text-xs text-emerald-600 font-medium mt-0.5">★ 4.9 (420+ trips) • 3 mins away</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-bold font-mono text-[#0F172A]">₹480</div>
+                  <div className="text-sm font-bold font-mono text-[#0F172A]">{fare}</div>
                   <div className="text-xs text-[#64748B]">Fixed Fare</div>
                 </div>
               </div>
@@ -137,10 +213,9 @@ export const CabModal: React.FC = () => {
               <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
                 <Check className="w-6 h-6 stroke-[3]" />
               </div>
-              <h4 className="text-base font-bold text-[#0F172A]">Cab Dispatched to CTC Gate 2</h4>
+              <h4 className="text-base font-bold text-[#0F172A]">{dispatchHeader}</h4>
               <p className="text-xs text-[#64748B] max-w-xs mx-auto">
-                Your driver Rajesh Sahu is waiting at Cuttack Junction Exit Gate 2. Estimated road journey: 38 minutes to
-                Bhubaneswar Station.
+                {dispatchDesc}
               </p>
 
               <div className="bg-[#FAF9F6] p-3 rounded-lg border border-[#E2E8F0] text-xs font-mono inline-block">

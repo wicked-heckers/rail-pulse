@@ -49,6 +49,17 @@ const INITIAL_TRAINS: ManagerTrain[] = [
     currentDelayMins: 5,
     isCustom: false,
   },
+  {
+    no: '12822',
+    name: 'Dhauli Exp UP',
+    priority: 'Express',
+    direction: 'UP',
+    from: 'PURI',
+    to: 'HWH',
+    currentStation: 'BCK',
+    currentDelayMins: 4,
+    isCustom: false,
+  },
 ];
 
 const STATION_COORDS: Record<string, { lat: number; lon: number; km: number }> = {
@@ -61,6 +72,15 @@ const STATION_COORDS: Record<string, { lat: number; lon: number; km: number }> =
   BBS: { lat: 20.2646, lon: 85.8394, km: 143.0 },
   KUR: { lat: 20.1834, lon: 85.7337, km: 162.0 },
   PURI: { lat: 19.8135, lon: 85.8312, km: 206.0 },
+  // South Eastern Railway Kolkata Trunk Line
+  HWH: { lat: 22.5830, lon: 88.3426, km: 0.0 },
+  SRC: { lat: 22.5800, lon: 88.2830, km: 7.0 },
+  ULB: { lat: 22.4700, lon: 88.1100, km: 32.0 },
+  BZN: { lat: 22.4600, lon: 87.9700, km: 45.0 },
+  MCA: { lat: 22.4200, lon: 87.8600, km: 58.0 },
+  PKU: { lat: 22.4100, lon: 87.7200, km: 71.0 },
+  BCK: { lat: 22.3700, lon: 87.5500, km: 91.0 },
+  KGP: { lat: 22.3300, lon: 87.3200, km: 115.0 },
 };
 
 const STORAGE_KEY = 'rp_manager_trains';

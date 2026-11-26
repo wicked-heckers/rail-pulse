@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRailStore } from '../../stores/useRailStore';
-import { useManagerTrainStore } from '../../stores/useManagerTrainStore';
 import { setSpeedMultiplier } from '../../services/api';
 import { Shield, Navigation, ArrowLeft, Settings, Clock } from 'lucide-react';
+import { CorridorSwitcher } from './CorridorSwitcher';
+import { TrainDropdown } from './TrainDropdown';
 
 function formatEpochClockIST(epochSecs: number): string {
   const istSecs = (Math.floor(epochSecs) + 19800) % 86400;
@@ -19,7 +20,6 @@ function formatEpochClockIST(epochSecs: number): string {
 
 export const TopHeader: React.FC = () => {
   const {
-    selectedTrain,
     activeSnapshot,
     updateSnapshot,
     passengerStatus,
@@ -28,16 +28,6 @@ export const TopHeader: React.FC = () => {
     setDrawerOpen,
     setCurrentView,
   } = useRailStore();
-
-  const activeTrain = activeSnapshot.trains?.find((t) => t.train_no === selectedTrain);
-  const managerTrains = useManagerTrainStore((s) => s.trains);
-  const managerTrain = managerTrains.find((t) => t.no === selectedTrain);
-
-  const corridorText = managerTrain?.from && managerTrain?.to
-    ? `${managerTrain.from} → ${managerTrain.to}`
-    : activeTrain?.direction === 'UP' || selectedTrain === '18410'
-    ? 'PURI → BHC'
-    : 'BHC → PURI';
 
   const simSpeed = activeSnapshot.speed_multiplier || 1;
   const clockAnchorRef = useRef<{ tickUtc: number; syncedAtMs: number; speed: number }>({
@@ -114,12 +104,12 @@ export const TopHeader: React.FC = () => {
           </span>
         </button>
 
-        <span
-          className="hidden sm:inline-flex text-xs font-mono px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-bold select-none cursor-default shrink-0"
-          title="East Coast Railway Trunk Corridor"
-        >
-          {corridorText}
-        </span>
+        <CorridorSwitcher />
+      </div>
+
+      {/* Active Monitored Train Selector (Desktop) */}
+      <div className="hidden md:flex items-center justify-center px-1 sm:px-2 shrink-0">
+        <TrainDropdown />
       </div>
 
       {/* Right Controls: Desktop Clock/Speed + Responsive At Home/On Board Toggle + Demo Button */}

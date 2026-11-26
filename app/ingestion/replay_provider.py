@@ -67,6 +67,10 @@ class ReplayProvider(CorridorDataProvider):
 
         all_at_terminal = bool(self._trains)
         for t in self._trains:
+            if t.get("status") == "AT_TERMINUS":
+                t["speed_kmph"] = 0.0
+                continue
+
             if t.get("status") == "AT_STATION_HALT":
                 all_at_terminal = False
                 if sim_delta_secs > 10:
@@ -80,12 +84,22 @@ class ReplayProvider(CorridorDataProvider):
             if t.get("direction") == "DN":
                 new_km = min(settings.CORRIDOR_END_KM, float(t.get("chainage_km", 0.0)) + dist_moved)
                 t["chainage_km"] = round(new_km, 2)
-                if new_km < settings.CORRIDOR_END_KM:
+                if new_km >= settings.CORRIDOR_END_KM:
+                    t["speed_kmph"] = 0.0
+                    t["status"] = "AT_TERMINUS"
+                    t["current_station"] = "PURI"
+                    t["next_station"] = None
+                else:
                     all_at_terminal = False
             else:
                 new_km = max(settings.CORRIDOR_START_KM, float(t.get("chainage_km", 0.0)) - dist_moved)
                 t["chainage_km"] = round(new_km, 2)
-                if new_km > settings.CORRIDOR_START_KM:
+                if new_km <= settings.CORRIDOR_START_KM:
+                    t["speed_kmph"] = 0.0
+                    t["status"] = "AT_TERMINUS"
+                    t["current_station"] = "BHC"
+                    t["next_station"] = None
+                else:
                     all_at_terminal = False
 
         if all_at_terminal and self._trains:

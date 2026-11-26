@@ -21,6 +21,26 @@
       "polyline": "w~xmC_~ixLm@fE_AfGkAhHaBzI}B~KiCvM_DfPeBhJu@dFg@vDu@`HaBtN"
     },
     {
+      "from_station": "KUR",
+      "to_station": "BBS",
+      "highway_name": "NH-16 (Khurda Road - Bhubaneswar Expressway)",
+      "distance_km": 18.5,
+      "base_drive_mins": 20.0,
+      "typical_peak_drive_mins": 26.0,
+      "station_exit_penalty_mins": 6.0,
+      "polyline": "w~xmC_~ixLm@fE_AfGkAhHaBzI}B~KiCvM_DfPeBhJu@dFg@vDu@`HaBtNcCrUgBlQaBfPeBjPkBlPkBnPgBhPoAzLsAvM"
+    },
+    {
+      "from_station": "KUR",
+      "to_station": "PURI",
+      "highway_name": "NH-316 (Jagannath Sadak / Puri Expressway)",
+      "distance_km": 44.0,
+      "base_drive_mins": 48.0,
+      "typical_peak_drive_mins": 58.0,
+      "station_exit_penalty_mins": 10.0,
+      "polyline": "ayumCsffxLkBjPkBlPkBnPgBhPoAzLsAvMgAhK[rDe@zDs@`HaBtNcCrUgBlQaBfPeBjPkBlPkBnPgBhPoAzLsAvM"
+    },
+    {
       "from_station": "BRAG",
       "to_station": "BBS",
       "highway_name": "Nandan Kanan Road to BBS",
@@ -29,6 +49,36 @@
       "typical_peak_drive_mins": 32.0,
       "station_exit_penalty_mins": 8.0,
       "polyline": "ayumCsffxLkBjPkBlPkBnPgBhPoAzLsAvMgAhK[rDe@zDs@`HaB"
+    },
+    {
+      "from_station": "SRC",
+      "to_station": "HWH",
+      "highway_name": "Kona Expressway & Vidyasagar Setu (2nd Hooghly Bridge)",
+      "distance_km": 10.5,
+      "base_drive_mins": 18.0,
+      "typical_peak_drive_mins": 25.0,
+      "station_exit_penalty_mins": 6.0,
+      "polyline": "_{tmCujhxLyB`LwDfSkBpKeBhJu@dFg@vDu@`HaBtNcCrUgBlQaBfPeBjPkBlPkBnPgBhPoAzLsAvM"
+    },
+    {
+      "from_station": "MCA",
+      "to_station": "HWH",
+      "highway_name": "NH-16 (Mecheda-Kolkata Expressway via Kona)",
+      "distance_km": 62.0,
+      "base_drive_mins": 65.0,
+      "typical_peak_drive_mins": 85.0,
+      "station_exit_penalty_mins": 8.0,
+      "polyline": "w~xmC_~ixLm@fE_AfGkAhHaBzI}B~KiCvM_DfPeBhJu@dFg@vDu@`HaBtNcCrUgBlQaBfPeBjPkBlPkBnPgBhPoAzLsAvM"
+    },
+    {
+      "from_station": "KGP",
+      "to_station": "HWH",
+      "highway_name": "NH-16 (Kharagpur-Howrah Expressway)",
+      "distance_km": 118.0,
+      "base_drive_mins": 120.0,
+      "typical_peak_drive_mins": 150.0,
+      "station_exit_penalty_mins": 10.0,
+      "polyline": "ayumCsffxLkBjPkBlPkBnPgBhPoAzLsAvMgAhK[rDe@zDs@`HaBtNcCrUgBlQaBfPeBjPkBlPkBnPgBhPoAzLsAvM"
     }
   ]
 }

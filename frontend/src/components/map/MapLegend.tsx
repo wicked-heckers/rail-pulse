@@ -3,12 +3,14 @@ import { useRailStore } from '../../stores/useRailStore';
 import { ChevronUp, ChevronDown, Layers } from 'lucide-react';
 
 export const MapLegend: React.FC = () => {
-  const { rescue, passengerStatus, activeMapView } = useRailStore();
+  const { rescue, passengerStatus, activeMapView, activeCorridorId } = useRailStore();
   const [collapsed, setCollapsed] = useState(false);
 
   const isRescueVisible =
     activeMapView === 'alternative_route' ||
     ((rescue?.survival_probability_pct ?? 34.0) < 40 && passengerStatus === 'ON_BOARD');
+
+  const isKolkata = activeCorridorId === 'SER_HWH_KGP';
 
   return (
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto max-w-[95%]">
@@ -48,7 +50,9 @@ export const MapLegend: React.FC = () => {
             {isRescueVisible && (
               <div className="flex items-center gap-1.5" title="Alternative NH-16 highway road transfer route">
                 <span className="w-4 h-0.5 border-t-2 border-dashed border-emerald-600 inline-block" />
-                <span className="text-emerald-800 font-bold">Faster Cab Route (NH-16)</span>
+                <span className="text-emerald-800 font-bold">
+                  Faster Cab Route ({isKolkata ? 'Kona Exp' : 'NH-16'})
+                </span>
               </div>
             )}
           </div>

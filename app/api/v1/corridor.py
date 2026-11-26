@@ -1,22 +1,35 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import CorridorStateStore, get_state_store, get_topology
+from app.api.deps import CorridorStateStore, demo_provider, get_state_store
+from app.core.database import LocalTopologyFallback
+from app.models.schemas import CorridorSwitchRequest
 
 router = APIRouter(tags=["Corridor"])
 
 
+@router.get("/list")
+async def list_available_corridors() -> list[dict[str, Any]]:
+    """
+    Returns list of all available railway corridors configured in the system,
+    with active status, section coverage, length, and primary highway.
+    """
+    return LocalTopologyFallback.list_corridors()
+
+
 @router.get("/topology")
 async def get_corridor_topology(
-    topology: dict[str, Any] = Depends(get_topology),
+    corridor_id: str | None = Query(None, description="Optional corridor ID (e.g. ECoR_BHC_PURI, SER_HWH_KGP)"),
 ) -> dict[str, Any]:
     """
-    Returns full GeoJSON FeatureCollection of the ECoR trunk corridor:
+    Returns full GeoJSON FeatureCollection of the requested or active trunk corridor:
     station points, track block linestrings, loops, and freight merge chords.
     """
+    topology = LocalTopologyFallback.load_topology(corridor_id=corridor_id)
     stations = topology.get("stations", [])
     track_blocks = topology.get("track_blocks", [])
+    active_cid = corridor_id or topology.get("corridor_id") or LocalTopologyFallback.get_active_corridor_id()
 
     stn_coord_map = {s["station_code"]: (s["lon"], s["lat"]) for s in stations}
 
@@ -73,26 +86,43 @@ async def get_corridor_topology(
                 },
             })
 
-    # 3. Dedicated Barang Goods Merge Chord Feature
-    features.append({
-        "type": "Feature",
-        "geometry": {
-            "type": "LineString",
-            "coordinates": [[85.78, 20.44], [85.83, 20.4024]],  # Talcher branch -> Barang Goods Loop
-        },
-        "properties": {
-            "feature_type": "FREIGHT_MERGE_CHORD",
-            "name": "Barang Freight Inflow Chord",
-            "source": "TALCHER_COAL_BELT",
-            "merge_station": "BRAG",
-            "merge_km": 128.0,
-            "has_750m_goods_loop": True,
-        },
-    })
+    # 3. Dedicated Freight Merge Chord Feature
+    if active_cid == "SER_HWH_KGP" or any(s["station_code"] == "HWH" for s in stations):
+        features.append({
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[88.06, 22.03], [87.86, 22.42]],  # Haldia Port Chord -> Mecheda Loop
+            },
+            "properties": {
+                "feature_type": "FREIGHT_MERGE_CHORD",
+                "name": "Haldia Port Freight Chord",
+                "source": "HALDIA_PORT_DOCKS",
+                "merge_station": "MCA",
+                "merge_km": 58.0,
+                "has_750m_goods_loop": True,
+            },
+        })
+    else:
+        features.append({
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[85.78, 20.44], [85.83, 20.4024]],  # Talcher branch -> Barang Goods Loop
+            },
+            "properties": {
+                "feature_type": "FREIGHT_MERGE_CHORD",
+                "name": "Barang Freight Inflow Chord",
+                "source": "TALCHER_COAL_BELT",
+                "merge_station": "BRAG",
+                "merge_km": 128.0,
+                "has_750m_goods_loop": True,
+            },
+        })
 
     return {
         "type": "FeatureCollection",
-        "name": "ECoR_BHC_PURI_Corridor",
+        "name": f"{active_cid}_Corridor",
         "crs": {
             "type": "name",
             "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"},
@@ -104,15 +134,40 @@ async def get_corridor_topology(
 @router.get("/config")
 async def get_corridor_client_config() -> dict[str, Any]:
     """
-    Returns public frontend configuration including Mapbox token.
+    Returns public frontend configuration including Mapbox token and active corridor dimensions.
     """
     from app.config import settings
+    active_cid = LocalTopologyFallback.get_active_corridor_id()
+    topo = LocalTopologyFallback.load_topology(corridor_id=active_cid)
+    stations = topo.get("stations", [])
+    end_km = float(stations[-1]["chainage_km"]) if stations else settings.CORRIDOR_END_KM
+    name = topo.get("corridor_name", settings.CORRIDOR_NAME)
     return {
+        "active_corridor_id": active_cid,
         "mapbox_access_token": settings.MAPBOX_ACCESS_TOKEN,
-        "corridor_name": settings.CORRIDOR_NAME,
+        "corridor_name": name,
         "corridor_start_km": settings.CORRIDOR_START_KM,
-        "corridor_end_km": settings.CORRIDOR_END_KM,
+        "corridor_end_km": end_km,
     }
+
+
+@router.post("/switch")
+async def switch_active_corridor(
+    req: CorridorSwitchRequest,
+    state_store: CorridorStateStore = Depends(get_state_store),
+) -> dict[str, Any]:
+    """
+    Dynamically switches the active corridor across topology cache, state store,
+    and demo simulation provider.
+    """
+    LocalTopologyFallback.set_active_corridor(req.corridor_id)
+    await state_store.set_active_corridor(req.corridor_id)
+    demo_provider.switch_corridor(req.corridor_id, speed_multiplier=float(req.speed_multiplier))
+    new_snap = await demo_provider.tick()
+    await state_store.update_trains(new_snap["trains"])
+    await state_store.update_freight_shadows(new_snap["phantom_freights"])
+    await state_store.update_weather(new_snap["weather"])
+    return await state_store.get_snapshot()
 
 
 @router.get("/state")

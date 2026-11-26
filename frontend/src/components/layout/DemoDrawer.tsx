@@ -21,6 +21,7 @@ import {
   Database,
   CheckCircle2,
   Plus,
+  Train,
 } from 'lucide-react';
 
 const CAUSE_OPTIONS = [
@@ -29,6 +30,7 @@ const CAUSE_OPTIONS = [
   { id: 'TSR_MAINTENANCE', label: 'Track Maintenance / 30 km/h TSR (+14m)' },
   { id: 'SIGNAL_CONGESTION', label: 'Slow Preceding Train / Double-Yellow (+12m)' },
   { id: 'PLATFORM_HOLD', label: 'Terminal Platform / Yard Throat Hold (+10m)' },
+  { id: 'KUR_BRANCH_HOLD', label: 'Khurda Road Branch Throat Hold (+15m)' },
   { id: 'OHE_BRAKE_FAULT', label: 'OHE Traction Trip / Brake-Binding (+25m)' },
 ];
 
@@ -38,6 +40,7 @@ export const DemoDrawer: React.FC = () => {
     setDrawerOpen,
     selectedTrain,
     setSelectedTrain,
+    activeCorridorId,
     activeSnapshot,
     updateSnapshot,
     activeCausesByTrain,
@@ -168,6 +171,22 @@ export const DemoDrawer: React.FC = () => {
     }
   };
 
+  const handleScenarioKhurda = async () => {
+    setIsInjecting(true);
+    setInjectedDelay(26);
+    try {
+      await startDemoScenario('KHURDA_CASCADE', speed);
+      await injectFreightShadow('DN_KUR_PURI', 20.0, 0.88);
+      setSelectedTrain('12821');
+      triggerRefresh();
+      setStatusMessage('Scenario active: Khurda Road Junction (KUR, 162 km) loop hold + DN_KUR_PURI freight blockade with NH-16/NH-316 road rescue.');
+    } catch {
+      setStatusMessage('Khurda Road disruption applied.');
+    } finally {
+      setIsInjecting(false);
+    }
+  };
+
   const handleScenario2Overtake = async () => {
     setIsInjecting(true);
     try {
@@ -258,6 +277,49 @@ export const DemoDrawer: React.FC = () => {
                     }`}
                 >
                   {s}x {s === 1 ? 'Realtime' : s === 10 ? 'Fast' : 'Demo'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 1.5 Target Train Selection */}
+          <div className="bg-[#FAF9F6] p-3.5 rounded-xl border border-[#E5E7EB] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-[#0F172A] flex items-center gap-1.5">
+                <Train className="w-4 h-4 text-indigo-600" />
+                <span>Target Monitored Train</span>
+              </span>
+              <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {selectedTrain}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {(activeCorridorId === 'SER_HWH_KGP'
+                ? [
+                    { no: '12821', name: 'Dhauli DN' },
+                    { no: '22895', name: 'Vande Bharat DN' },
+                    { no: '12822', name: 'Dhauli UP' },
+                  ]
+                : [
+                    { no: '12821', name: 'Dhauli DN' },
+                    { no: '22895', name: 'Vande Bharat DN' },
+                    { no: '18410', name: 'Jagannath UP' },
+                  ]
+              ).map((t) => (
+                <button
+                  key={t.no}
+                  onClick={() => {
+                    setSelectedTrain(t.no);
+                    triggerRefresh();
+                  }}
+                  className={`py-2 px-2.5 rounded-lg font-bold text-xs border transition-all text-left flex flex-col gap-0.5 cursor-pointer ${
+                    selectedTrain === t.no
+                      ? 'bg-[#0F172A] text-white border-[#0F172A] shadow-xs'
+                      : 'bg-white text-[#475569] border-[#CBD5E1] hover:bg-[#F1F5F9]'
+                  }`}
+                >
+                  <span className="font-mono text-xs">{t.no}</span>
+                  <span className="text-[11px] truncate opacity-80">{t.name}</span>
                 </button>
               ))}
             </div>
@@ -420,6 +482,22 @@ export const DemoDrawer: React.FC = () => {
                   <div className="text-xs text-[#64748B]">
                     Runs corridor at 10x speed as 22895 Vande Bharat closes at 130 km/h, triggering a +16m loop hold on
                     12821.
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={handleScenarioKhurda}
+                disabled={isInjecting}
+                className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-emerald-500 transition-all flex items-start gap-2.5 disabled:opacity-60 cursor-pointer"
+              >
+                <div className="w-6 h-6 rounded-md bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                  KUR
+                </div>
+                <div>
+                  <div className="font-bold text-[#0F172A]">Khurda Road Junction Disruption (+26m)</div>
+                  <div className="text-xs text-[#64748B]">
+                    Loads train holding at Khurda Road Junction (KUR, 162 km) with DN_KUR_PURI freight blockade, triggering loop hold and NH-16 road rescue.
                   </div>
                 </div>
               </button>

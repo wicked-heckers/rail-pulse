@@ -40,8 +40,8 @@ def simulate_corridor_overtakes(
             "halts": [],
         }
 
-    direction = target_master["direction"]
-    target_rank = target_master["priority_rank"]
+    direction = target_state.direction if target_state else target_master.get("direction", "DN")
+    target_rank = target_state.priority_rank if target_state else target_master.get("priority_rank", 3)
     target_max_speed = target_master.get("max_speed_kmph", 110)
 
     # Initial delay combining current state + judge injected slider
@@ -86,8 +86,10 @@ def simulate_corridor_overtakes(
     current_sim_time = current_epoch + int(delay_shift_mins * 60)
 
     loop_occupancy: dict[str, list[tuple[int, int]]] = defaultdict(list)
-    has_explicit_halts = bool(target_master.get("halts"))
-    halt_schedule_map = {h["station_code"]: h for h in target_master.get("halts", [])}
+    master_direction = target_master.get("direction", direction)
+    master_halts = target_master.get("halts", []) if master_direction == direction else []
+    has_explicit_halts = bool(master_halts)
+    halt_schedule_map = {h["station_code"]: h for h in master_halts}
     block_lookup = {
         b["block_id"]: (
             b["direction"],
@@ -264,7 +266,9 @@ def simulate_corridor_overtakes(
         elif has_explicit_halts:
             dwell_mins = scheduled_halt.get("scheduled_dwell_m", 2) if scheduled_halt else 0
         else:
-            dwell_mins = 2 if stn.get("is_major_junction", False) and stn_km not in (0.0, 206.0) else 0
+            stations_list = topology.get("stations", [])
+            end_km = float(stations_list[-1]["chainage_km"]) if stations_list else 206.0
+            dwell_mins = 2 if stn.get("is_major_junction", False) and stn_km not in (0.0, end_km) else 0
         dep_epoch = current_sim_time + int(dwell_mins * 60)
         current_sim_time = dep_epoch
         prev_stn_km = stn_km

@@ -225,13 +225,6 @@ async def test_demo_freight_inject_and_reset():
 
 
 @pytest.mark.asyncio
-async def test_multi_cause_disruption_across_trains():
-    """Verify multiple disruption causes stack accurately for Vande Bharat (22895) and UP trains (18410)."""
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        await client.post("/api/v1/demo/reset")
-
-
-@pytest.mark.asyncio
 async def test_trigger_live_overtake_does_not_teleport_trains():
     """Verify trigger-overtake preserves live coordinates while scheduling loop hold and Vande speed boost."""
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
@@ -346,4 +339,52 @@ async def test_delay_injection_no_double_counting():
         # Verify new delay is exactly base_delay + 15
         f_after = (await client.get("/api/v1/trains/12821/forecast")).json()
         assert f_after["current_delay_mins"] == pytest.approx(base_delay + 15.0, abs=1.0)
+
+
+@pytest.mark.asyncio
+async def test_corridor_list_and_switch():
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        # 1. List corridors
+        list_resp = await client.get("/api/v1/corridor/list")
+        assert list_resp.status_code == 200
+        corridors = list_resp.json()
+        assert len(corridors) >= 2
+        ids = [c["id"] for c in corridors]
+        assert "ECoR_BHC_PURI" in ids
+        assert "SER_HWH_KGP" in ids
+
+        # 2. Switch to Kolkata Trunk Corridor (SER_HWH_KGP)
+        switch_resp = await client.post(
+            "/api/v1/corridor/switch",
+            json={"corridor_id": "SER_HWH_KGP", "speed_multiplier": 1},
+        )
+        assert switch_resp.status_code == 200
+        snap = switch_resp.json()
+        assert snap["corridor_id"] == "SER_HWH_KGP"
+        assert len(snap["trains"]) >= 3
+        t_nos = [t["train_no"] for t in snap["trains"]]
+        assert "12821" in t_nos
+        assert "22895" in t_nos
+        assert "12822" in t_nos
+
+        # 3. Verify Kolkata topology endpoint
+        topo_resp = await client.get("/api/v1/corridor/topology?corridor_id=SER_HWH_KGP")
+        assert topo_resp.status_code == 200
+        topo = topo_resp.json()
+        stn_features = [f for f in topo["features"] if f["properties"].get("feature_type") == "STATION"]
+        assert len(stn_features) == 8
+        stn_codes = [f["properties"]["station_code"] for f in stn_features]
+        assert "HWH" in stn_codes
+        assert "KGP" in stn_codes
+        assert "MCA" in stn_codes
+
+        # 4. Switch back to East Coast Trunk Corridor (ECoR_BHC_PURI)
+        back_resp = await client.post(
+            "/api/v1/corridor/switch",
+            json={"corridor_id": "ECoR_BHC_PURI", "speed_multiplier": 1},
+        )
+        assert back_resp.status_code == 200
+        back_snap = back_resp.json()
+        assert back_snap["corridor_id"] == "ECoR_BHC_PURI"
+
 

@@ -18,11 +18,24 @@ interface AnimatedTrainState {
   trainNo: string;
   trainName: string;
   delayMins: number;
+  currentStation?: string | null;
+  nextStation?: string | null;
+  status?: string | null;
 }
 
 export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
   const trainStateMap = useRef<Map<string, AnimatedTrainState>>(new Map());
   const animFrameId = useRef<number | null>(null);
+  const activeCorridorId = useRailStore((state) => state.activeCorridorId);
+  const lastCorridorIdRef = useRef<string>(activeCorridorId);
+
+  // Clear animated trains cache when corridor switches to prevent cross-corridor ghost markers
+  useEffect(() => {
+    if (lastCorridorIdRef.current !== activeCorridorId) {
+      trainStateMap.current.clear();
+      lastCorridorIdRef.current = activeCorridorId;
+    }
+  }, [activeCorridorId]);
 
   const snapshotTrains = useRailStore((state) => state.activeSnapshot?.trains);
   const customTrains = useRailStore((state) => state.customTrains);
@@ -57,6 +70,9 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
           trainNo: t.train_no,
           trainName: t.train_name,
           delayMins: t.current_delay_mins ?? 0,
+          currentStation: t.current_station,
+          nextStation: t.next_station,
+          status: t.status,
         });
       }
     }
@@ -93,6 +109,9 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
           existing.durationMs = 1500; // 1.5s broadcast window
           existing.speedKmph = t.speed_kmph;
           existing.delayMins = t.current_delay_mins;
+          existing.currentStation = t.current_station;
+          existing.nextStation = t.next_station;
+          existing.status = t.status;
         } else {
           trainStateMap.current.set(t.train_no, {
             fromLat: snappedLat,
@@ -107,6 +126,9 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
             trainNo: t.train_no,
             trainName: t.train_name,
             delayMins: t.current_delay_mins,
+            currentStation: t.current_station,
+            nextStation: t.next_station,
+            status: t.status,
           });
         }
       }
@@ -176,6 +198,9 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
                   speed_kmph: Math.round(state.speedKmph),
                   delay_mins: Math.round(state.delayMins),
                   is_target: state.trainNo === selectedTrain,
+                  current_station: state.currentStation,
+                  next_station: state.nextStation,
+                  status: state.status,
                 },
                 geometry: {
                   type: 'Point' as const,

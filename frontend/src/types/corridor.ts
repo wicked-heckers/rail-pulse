@@ -13,6 +13,20 @@ export interface Station {
   road_exit_penalty_m: number;
 }
 
+export interface TrackBlock {
+  block_id: string;
+  direction: Direction;
+  from_station: string;
+  to_station: string;
+  start_km: number;
+  end_km: number;
+  length_km: number;
+  mps_kmph: number;
+  free_flow_mins: number;
+  freight_injection_weight: number;
+  terminal_slack_mins: number;
+  is_single_line_throat?: boolean;
+}
 export interface CausalCard {
   event: string;
   station_code: string;
@@ -74,6 +88,7 @@ export interface WeatherData {
 }
 
 export interface CorridorSnapshot {
+  corridor_id?: string;
   tick_utc: number;
   mode: string;
   speed_multiplier: number;
@@ -102,6 +117,17 @@ export interface ForecastResponse {
   overtakes_count: number;
 }
 
+export interface CorridorSummary {
+  id: string;
+  name: string;
+  section: string;
+  length_km: number;
+  stations_count: number;
+  primary_highway: string;
+  region: string;
+  is_active: boolean;
+}
+
 export interface BailoutPlan {
   deboard_station_code: string;
   deboard_station_name: string;
@@ -114,6 +140,10 @@ export interface BailoutPlan {
   road_survival_pct: number;
   polyline: string;
   human_guidance: string;
+  destination_station_code?: string;
+  destination_station_name?: string;
+  road_distance_km?: number;
+  highway_name?: string;
 }
 
 export interface RescueEvaluationResponse {

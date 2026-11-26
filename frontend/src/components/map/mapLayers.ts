@@ -12,7 +12,11 @@ export function initCorridorMapLayers(
   remainingCoords: [number, number][],
   isRescueAvailable: boolean,
   stationFeatures: any[],
-  initialTrainFeatures: any[]
+  initialTrainFeatures: any[],
+  fullTrackCoords?: [number, number][],
+  highwayCoords?: [number, number][],
+  highwayBadgeLabel?: string,
+  highwayBadgeCoords?: [number, number]
 ): void {
   // Hide built-in basemap place and label layers to avoid duplicate text behind station labels
   const styleLayers = map.getStyle().layers || [];
@@ -29,8 +33,8 @@ export function initCorridorMapLayers(
     type: 'geojson',
     data: {
       type: 'Feature',
-      properties: { name: 'ECoR Trunk Line' },
-      geometry: { type: 'LineString', coordinates: SMOOTH_TRACK_COORDS },
+      properties: { name: 'Railway Trunk Line' },
+      geometry: { type: 'LineString', coordinates: fullTrackCoords || SMOOTH_TRACK_COORDS },
     },
   });
 
@@ -191,13 +195,13 @@ export function initCorridorMapLayers(
     },
   });
 
-  // 5. Dashed Emerald NH-16 Rescue Route (CTC ➔ BBS)
+  // 5. Dashed Emerald Highway Rescue Route
   map.addSource('nh16-highway', {
     type: 'geojson',
     data: {
       type: 'Feature',
-      properties: { name: 'NH-16 Expressway Rescue Corridor' },
-      geometry: { type: 'LineString', coordinates: SMOOTH_NH16_COORDS },
+      properties: { name: 'Expressway Rescue Corridor' },
+      geometry: { type: 'LineString', coordinates: highwayCoords || SMOOTH_NH16_COORDS },
     },
   });
 
@@ -236,15 +240,15 @@ export function initCorridorMapLayers(
     },
   });
 
-  // NH-16 Rescue Pill Badge with crisp white halo
+  // Highway Rescue Pill Badge with crisp white halo
   map.addSource('nh16-badge-source', {
     type: 'geojson',
     data: {
       type: 'Feature',
-      properties: { label: 'Cab from Cuttack • 21 mins faster' },
+      properties: { label: highwayBadgeLabel || 'Cab from Cuttack • 21 mins faster' },
       geometry: {
         type: 'Point',
-        coordinates: [85.875, 20.370],
+        coordinates: highwayBadgeCoords || [85.875, 20.370],
       },
     },
   });

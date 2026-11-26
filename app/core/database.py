@@ -45,36 +45,101 @@ async def get_db_session() -> AsyncGenerator[AsyncSession]:
             await session.close()
 
 
+AVAILABLE_CORRIDORS: dict[str, dict[str, Any]] = {
+    "ECoR_BHC_PURI": {
+        "id": "ECoR_BHC_PURI",
+        "name": "East Coast Trunk Line",
+        "section": "Bhadrak – Cuttack – Bhubaneswar – Puri",
+        "length_km": 206.0,
+        "stations_count": 9,
+        "path": Path("data/seed_ecor_topology.json"),
+        "primary_highway": "NH-16 Expressway",
+        "region": "Odisha",
+    },
+    "SER_HWH_KGP": {
+        "id": "SER_HWH_KGP",
+        "name": "Kolkata Trunk Line",
+        "section": "Howrah – Santragachi – Mecheda – Kharagpur",
+        "length_km": 115.0,
+        "stations_count": 8,
+        "path": Path("data/seed_ser_topology.json"),
+        "primary_highway": "Kona Expressway & NH-16",
+        "region": "West Bengal",
+    },
+}
+
+
 class LocalTopologyFallback:
-    """Thread-safe zero-dependency JSON loader when PostgreSQL is unavailable."""
+    """Thread-safe zero-dependency JSON loader supporting multiple railway corridors."""
 
     _cached_data: dict[str, Any] | None = None
+    _cached_by_corridor: dict[str, dict[str, Any]] = {}
+    _active_corridor_id: str = "ECoR_BHC_PURI"
 
     @classmethod
-    def load_topology(cls, path: Path | None = None) -> dict[str, Any]:
-        if cls._cached_data is not None:
-            return cls._cached_data
+    def list_corridors(cls) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": c["id"],
+                "name": c["name"],
+                "section": c["section"],
+                "length_km": c["length_km"],
+                "stations_count": c["stations_count"],
+                "primary_highway": c["primary_highway"],
+                "region": c["region"],
+                "is_active": (c["id"] == cls._active_corridor_id),
+            }
+            for c in AVAILABLE_CORRIDORS.values()
+        ]
 
-        target_path = path or settings.SEED_TOPOLOGY_PATH
+    @classmethod
+    def set_active_corridor(cls, corridor_id: str) -> None:
+        if corridor_id not in AVAILABLE_CORRIDORS:
+            raise ValueError(f"Unknown corridor ID: {corridor_id}. Available: {list(AVAILABLE_CORRIDORS.keys())}")
+        cls._active_corridor_id = corridor_id
+
+    @classmethod
+    def get_active_corridor_id(cls) -> str:
+        return cls._active_corridor_id
+
+    @classmethod
+    def load_topology(cls, path: Path | None = None, corridor_id: str | None = None) -> dict[str, Any]:
+        cid = corridor_id or cls._active_corridor_id
+        if path is None and cid in cls._cached_by_corridor:
+            return cls._cached_by_corridor[cid]
+
+        if path:
+            target_path = path
+        elif cid in AVAILABLE_CORRIDORS:
+            target_path = AVAILABLE_CORRIDORS[cid]["path"]
+        else:
+            target_path = settings.SEED_TOPOLOGY_PATH
+
         if not target_path.exists():
             raise FileNotFoundError(f"Seed topology file not found at {target_path}")
 
-        logger.info("Loading topology from local JSON fallback: %s", target_path)
+        logger.info("Loading topology for corridor %s from %s", cid, target_path)
         with open(target_path, encoding="utf-8") as f:
             data = json.load(f)
 
+        cls._cached_by_corridor[cid] = data
         cls._cached_data = data
         return data
 
     @classmethod
     def clear_cache(cls) -> None:
         cls._cached_data = None
+        cls._cached_by_corridor.clear()
 
 
 class LocalRoadMatrixFallback:
     """Zero-dependency JSON loader for road transfer cache."""
 
     _cached_matrix: dict[str, Any] | None = None
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        cls._cached_matrix = None
 
     @classmethod
     def load_matrix(cls, path: Path | None = None) -> dict[str, Any]:

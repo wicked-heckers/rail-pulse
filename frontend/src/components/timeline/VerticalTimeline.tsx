@@ -54,7 +54,6 @@ export const VerticalTimeline: React.FC = () => {
     activeSnapshot
   );
 
-  const trainKm = currentTrain?.chainage_km ?? 115.0;
   const trainSpeed = currentTrain?.speed_kmph ?? 0;
 
   const handleToggleDelay = (causeId: string) => {
@@ -258,7 +257,7 @@ export const VerticalTimeline: React.FC = () => {
             <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-slate-200 -translate-x-1/2 z-0" />
 
             {stationTimeline.map((stn) => {
-              const isAtThisStation = Math.abs(stn.chainage_km - trainKm) <= 6;
+              const isAtThisStation = Boolean(stn.is_halted) || currentTrain?.current_station === stn.station_code;
               return (
                 <StationRow
                   key={stn.station_code}

@@ -18,6 +18,79 @@ export const STATIONS: CorridorStation[] = [
   { code: 'PURI', name: 'Puri', km: 206.0, coords: [85.8314, 19.8133] },
 ];
 
+export const SER_STATIONS: CorridorStation[] = [
+  { code: 'HWH', name: 'Howrah Jn', km: 0.0, coords: [88.3426, 22.5830] },
+  { code: 'SRC', name: 'Santragachi Jn', km: 7.0, coords: [88.2830, 22.5800] },
+  { code: 'ULB', name: 'Uluberia', km: 32.0, coords: [88.1100, 22.4700] },
+  { code: 'BZN', name: 'Bagnan', km: 45.0, coords: [87.9700, 22.4600] },
+  { code: 'MCA', name: 'Mecheda', km: 58.0, coords: [87.8600, 22.4200] },
+  { code: 'PKU', name: 'Panskura Jn', km: 71.0, coords: [87.7200, 22.4100] },
+  { code: 'BCK', name: 'Balichak', km: 91.0, coords: [87.5500, 22.3700] },
+  { code: 'KGP', name: 'Kharagpur Jn', km: 115.0, coords: [87.3200, 22.3300] },
+];
+
+export const SMOOTH_HWH_KGP_TRACK_COORDS: [number, number][] = [
+  [88.3426, 22.5830],
+  [88.3200, 22.5820],
+  [88.2830, 22.5800],
+  [88.2000, 22.5200],
+  [88.1100, 22.4700],
+  [88.0400, 22.4650],
+  [87.9700, 22.4600],
+  [87.9100, 22.4400],
+  [87.8600, 22.4200],
+  [87.7900, 22.4150],
+  [87.7200, 22.4100],
+  [87.6300, 22.3900],
+  [87.5500, 22.3700],
+  [87.4300, 22.3500],
+  [87.3200, 22.3300],
+];
+
+export const SMOOTH_KONA_EXPRESSWAY_COORDS: [number, number][] = [
+  [88.2830, 22.5800],
+  [88.2950, 22.5780],
+  [88.3150, 22.5650],
+  [88.3280, 22.5620],
+  [88.3380, 22.5750],
+  [88.3426, 22.5830],
+];
+
+export const SER_CAMERA_PRESETS: Record<MapCameraView, CameraPreset> = {
+  my_train: {
+    bounds: [
+      [87.75, 22.35],
+      [88.35, 22.60],
+    ],
+    padding: { top: 75, bottom: 85, left: 60, right: 60 },
+    duration: 600,
+  },
+  delays_ahead: {
+    bounds: [
+      [87.80, 22.38],
+      [88.30, 22.59],
+    ],
+    padding: 85,
+    duration: 600,
+  },
+  alternative_route: {
+    bounds: [
+      [88.25, 22.55],
+      [88.36, 22.60],
+    ],
+    padding: 80,
+    duration: 600,
+  },
+  full_journey: {
+    bounds: [
+      [87.25, 22.25],
+      [88.40, 22.65],
+    ],
+    padding: { top: 70, bottom: 85, left: 50, right: 50 },
+    duration: 600,
+  },
+};
+
 // Curated regional places and landmarks in subtle monochrome typography
 export interface RegionalPlace {
   name: string;
@@ -43,11 +116,36 @@ export const REGIONAL_PLACES: RegionalPlace[] = [
   { name: 'KATHAJODI RIVER', type: 'water', coords: [85.8550, 20.4450] },
 ];
 
-export function createBaseMapStyle(mapboxToken?: string | null): string {
-  if (mapboxToken) {
-    return `https://api.mapbox.com/styles/v1/mapbox/light-v11?access_token=${mapboxToken}`;
-  }
-  return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+export function createBaseMapStyle(mapboxToken?: string | null): any {
+  const tileUrl = mapboxToken
+    ? `https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}?access_token=${mapboxToken}`
+    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+  const glyphsUrl = mapboxToken
+    ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${mapboxToken}`
+    : 'https://tiles.basemaps.cartocdn.com/v/20261118-01/fonts/{fontstack}/{range}.pbf';
+
+  return {
+    version: 8,
+    glyphs: glyphsUrl,
+    sources: {
+      'basemap-raster': {
+        type: 'raster',
+        tiles: [tileUrl],
+        tileSize: 256,
+        attribution: mapboxToken ? '&copy; Mapbox &copy; OpenStreetMap' : '&copy; OpenStreetMap contributors',
+      },
+    },
+    layers: [
+      {
+        id: 'basemap-raster-layer',
+        type: 'raster',
+        source: 'basemap-raster',
+        minzoom: 0,
+        maxzoom: 20,
+      },
+    ],
+  };
 }
 
 export type MapCameraView = 'my_train' | 'delays_ahead' | 'alternative_route' | 'full_journey';
