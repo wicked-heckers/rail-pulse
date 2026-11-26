@@ -904,14 +904,35 @@ export const CorridorMap: React.FC = () => {
     }
   }, [isRescueAvailable, activeMapView]);
 
-  // Synchronize Map Camera with activeMapView when triggered externally
+  // Synchronize phantom freight slow-zone visibility
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
+    const hasActiveFreight =
+      (activeSnapshot.phantom_freights?.length ?? 0) > 0 || activeMapView === 'delays_ahead';
+    const visibility = hasActiveFreight ? 'visible' : 'none';
+
+    for (const layerId of ['freight-hazard-glow', 'freight-hazard-core', 'freight-badge-layer']) {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', visibility);
+      }
+    }
+  }, [activeSnapshot.phantom_freights, activeMapView]);
+
+  // Keep latest train coordinates in a ref so 1.5s WebSocket ticks never hijack manual user zoom/pan
+  const currentTrainRef = useRef(currentTrain);
+  currentTrainRef.current = currentTrain;
+
+  // Synchronize Map Camera with activeMapView ONLY when view mode or selected train changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const trainSnapshot = currentTrainRef.current;
     if (activeMapView === 'my_train') {
       closeActivePopup();
-      if (currentTrain && currentTrain.lon && currentTrain.lat) {
+      if (trainSnapshot && trainSnapshot.lon && trainSnapshot.lat) {
         if (selectedTrain === '12821') {
           // Smoothly fit bounds to active rescue action corridor (Cuttack to Bhubaneswar)
           map.fitBounds(
@@ -924,7 +945,7 @@ export const CorridorMap: React.FC = () => {
         } else {
           // For other trains (Vande Bharat 22895 or Sri Jagannath 18410), center camera directly on the train
           map.flyTo({
-            center: [currentTrain.lon, currentTrain.lat],
+            center: [trainSnapshot.lon, trainSnapshot.lat],
             zoom: 12.2,
             speed: 1.2,
             duration: 800,
@@ -968,7 +989,7 @@ export const CorridorMap: React.FC = () => {
         { padding: 40, duration: 800 }
       );
     }
-  }, [activeMapView, selectedTrain, currentTrain, closeActivePopup]);
+  }, [activeMapView, selectedTrain, closeActivePopup]);
 
   // Synchronize Delay Inspection between Left Dashboard and Map (Section 5)
   useEffect(() => {

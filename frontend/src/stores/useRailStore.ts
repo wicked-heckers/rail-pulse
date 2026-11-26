@@ -10,6 +10,7 @@ interface ConnectionTargetState {
   station_code: string;
   deadline_time: string;
   transfer_buffer_mins: number;
+  isCustom?: boolean;
 }
 
 interface RailStore {
@@ -35,6 +36,8 @@ interface RailStore {
   // Connection & Health
   wsConnected: boolean;
   wsStatusText: string;
+  refreshNonce: number;
+  activeCausesByTrain: Record<string, string[]>;
 
   // Actions
   setCurrentView: (view: 'landing' | 'dashboard') => void;
@@ -52,6 +55,9 @@ interface RailStore {
   setForecast: (forecast: ForecastResponse) => void;
   setRescue: (rescue: RescueEvaluationResponse) => void;
   setWsStatus: (connected: boolean, text: string) => void;
+  setTrainCauses: (trainNo: string, causes: string[]) => void;
+  clearAllCauses: () => void;
+  triggerRefresh: () => void;
 }
 
 export const useRailStore = create<RailStore>((set, get) => ({
@@ -77,6 +83,8 @@ export const useRailStore = create<RailStore>((set, get) => ({
 
   wsConnected: false,
   wsStatusText: 'Connecting...',
+  refreshNonce: 0,
+  activeCausesByTrain: {},
 
   setCurrentView: (view) => set({ currentView: view }),
   setLanguage: (lang) => set({ language: lang }),
@@ -85,7 +93,11 @@ export const useRailStore = create<RailStore>((set, get) => ({
       currentView: 'dashboard',
       selectedTrain: trainNo || state.selectedTrain,
     })),
-  setSelectedTrain: (trainNo) => set({ selectedTrain: trainNo }),
+  setSelectedTrain: (trainNo) =>
+    set((state) => ({
+      selectedTrain: trainNo,
+      connectionTarget: { ...state.connectionTarget, isCustom: false },
+    })),
   setPassengerStatus: (status) => set({ passengerStatus: status }),
   setMobileTab: (tab) => set({ mobileTab: tab }),
   setDrawerOpen: (open) => set({ drawerOpen: open }),
@@ -116,4 +128,10 @@ export const useRailStore = create<RailStore>((set, get) => ({
   setRescue: (rescue) => set({ rescue }),
   setWsStatus: (connected, text) =>
     set({ wsConnected: connected, wsStatusText: text }),
+  setTrainCauses: (trainNo, causes) =>
+    set((state) => ({
+      activeCausesByTrain: { ...state.activeCausesByTrain, [trainNo]: causes },
+    })),
+  clearAllCauses: () => set({ activeCausesByTrain: {} }),
+  triggerRefresh: () => set((state) => ({ refreshNonce: state.refreshNonce + 1 })),
 }));

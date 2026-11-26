@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Ingestion & Simulation Controls
     DEFAULT_PROVIDER_MODE: Literal["DEMO_SIMULATION", "LIVE_POLLER", "REPLAY"] = "DEMO_SIMULATION"
     DEMO_SPEED_MULTIPLIER: float = 1.0  # 1x, 10x, 30x
+    LIVE_POLL_INTERVAL_SECONDS: int = 120
+    REDIS_SNAPSHOT_TTL_SECONDS: int = 300
+    LIVE_TRAIN_API_URL: str | None = None
 
     # Corridor Linear Physics Bounds (Bhadrak to Puri)
     CORRIDOR_NAME: str = "ECoR_BHC_PURI"

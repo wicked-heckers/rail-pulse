@@ -225,6 +225,61 @@ async def test_demo_freight_inject_and_reset():
 
 
 @pytest.mark.asyncio
+async def test_multi_cause_disruption_across_trains():
+    """Verify multiple disruption causes stack accurately for Vande Bharat (22895) and UP trains (18410)."""
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        await client.post("/api/v1/demo/reset")
+
+
+@pytest.mark.asyncio
+async def test_trigger_live_overtake_does_not_teleport_trains():
+    """Verify trigger-overtake preserves live coordinates while scheduling loop hold and Vande speed boost."""
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        await client.post("/api/v1/demo/reset")
+        before = (await client.get("/api/v1/corridor/state")).json()["trains"]
+        d_before = next(t["chainage_km"] for t in before if t["train_no"] == "12821")
+        v_before = next(t["chainage_km"] for t in before if t["train_no"] == "22895")
+
+        resp = await client.post("/api/v1/demo/trigger-overtake")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "OVERTAKE_TRIGGERED"
+        assert data["dhauli_km"] == d_before
+        assert data["vande_km"] == v_before
+        assert data["hold_km"] >= d_before
+
+        await client.post("/api/v1/demo/reset")
+
+        # Apply Monsoon Rain (+8m + 28mm/hr) + TSR (+14m) on 22895 Vande Bharat
+        apply_resp = await client.post(
+            "/api/v1/demo/apply-causes",
+            json={"train_no": "22895", "causes": ["MONSOON_RAIN", "TSR_MAINTENANCE"]},
+        )
+        assert apply_resp.status_code == 200
+        data = apply_resp.json()
+        assert data["status"] == "CAUSES_APPLIED"
+        assert data["direct_delay_mins"] == 22.0
+        assert data["rain_mm_hr"] == 28.0
+        assert set(data["active_causes"]) == {"MONSOON_RAIN", "TSR_MAINTENANCE"}
+
+        fc = (await client.get("/api/v1/trains/22895/forecast")).json()
+        events = {c["event"] for c in fc["causal_cards"]}
+        assert "MONSOON_WEATHER_DRAG" in events
+        assert "STATIC_TSR_CAUTION" in events
+
+        # Apply Freight Blockade on UP train 18410
+        up_resp = await client.post(
+            "/api/v1/demo/apply-causes",
+            json={"train_no": "18410", "causes": ["FREIGHT_BLOCKADE", "OHE_BRAKE_FAULT"]},
+        )
+        assert up_resp.status_code == 200
+        assert up_resp.json()["freight_penalty_mins"] == 20.0
+        assert up_resp.json()["direct_delay_mins"] == 25.0
+
+        await client.post("/api/v1/demo/reset")
+
+
+@pytest.mark.asyncio
 async def test_predict_cascade_unified_endpoint():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         # Start demo scenario first

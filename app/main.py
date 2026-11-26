@@ -1,19 +1,22 @@
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request
+import httpx
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.deps import demo_provider
+from app.api.deps import demo_provider, live_provider, replay_provider
 from app.api.v1 import corridor, demo, forecast, health, rescue, webhooks
 from app.api.ws import router as ws_router
 from app.api.ws import ws_manager
 from app.config import settings
+from app.core.redis_client import redis_client
 from app.core.state_store import state_store
 from app.engine.quantile_ml import QuantileMLEngine
 
@@ -22,36 +25,114 @@ logging.basicConfig(level=settings.LOG_LEVEL)
 logger = logging.getLogger("railpulse.main")
 
 
+async def _apply_snapshot_to_store(snap: dict[str, Any], mode: str) -> None:
+    """Applies a normalized provider snapshot to the in-memory state store."""
+    await state_store.set_provider_mode(mode)
+    await state_store.update_trains(snap["trains"])
+    await state_store.update_freight_shadows(snap["phantom_freights"])
+    await state_store.update_weather(snap["weather"])
+
+
+async def _poll_initial_state() -> str:
+    """
+    Seeds initial corridor state according to DEFAULT_PROVIDER_MODE,
+    with automatic failover to REPLAY if LIVE_POLLER is unreachable.
+    Returns the active provider mode string.
+    """
+    configured_mode = settings.DEFAULT_PROVIDER_MODE
+
+    if configured_mode == "LIVE_POLLER":
+        try:
+            snap = await live_provider.get_corridor_snapshot(force_refresh=True)
+            await _apply_snapshot_to_store(snap, "LIVE_POLLER")
+            return "LIVE_POLLER"
+        except (httpx.HTTPError, TimeoutError, RuntimeError, ValueError, OSError) as exc:
+            logger.warning("Live poller unavailable at startup (%s). Engaging automatic REPLAY mode.", exc)
+            snap = await replay_provider.get_corridor_snapshot()
+            await _apply_snapshot_to_store(snap, "REPLAY")
+            return "REPLAY"
+
+    if configured_mode == "REPLAY":
+        snap = await replay_provider.get_corridor_snapshot()
+        await _apply_snapshot_to_store(snap, "REPLAY")
+        return "REPLAY"
+
+    snap = await demo_provider.tick()
+    await _apply_snapshot_to_store(snap, "DEMO_SIMULATION")
+    return "DEMO_SIMULATION"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Application lifespan manager.
     Initializes ML models, seeds initial corridor state, and launches background
-    simulation tick and WebSocket fan-out broadcaster.
+    simulation/replay tick, 120s Redis poller, and WebSocket fan-out broadcaster.
     """
     logger.info("Initializing RAIL-PULSE ECoR Corridor Intelligence Engine...")
 
     # 1. Warm ML Quantile Engine
     QuantileMLEngine.load_models()
 
-    # 2. Seed initial deterministic state from demo provider
-    init_snap = await demo_provider.tick()
-    await state_store.update_trains(init_snap["trains"])
-    await state_store.update_freight_shadows(init_snap["phantom_freights"])
-    await state_store.update_weather(init_snap["weather"])
-    logger.info(f"Seeded corridor state with {len(init_snap['trains'])} active trains.")
+    # 2. Seed initial state & sync to Redis
+    active_mode = await _poll_initial_state()
+    if active_mode == "DEMO_SIMULATION":
+        await state_store.set_remaining_cause_delays(
+            demo_provider.get_all_remaining_cause_delays(),
+            demo_provider.get_all_remaining_loop_holds(),
+        )
+    init_snap = await state_store.get_snapshot()
+    await redis_client.set_snapshot(init_snap, ttl=settings.REDIS_SNAPSHOT_TTL_SECONDS)
+    logger.info(
+        "Seeded corridor state (%s) with %d active trains.",
+        active_mode,
+        len(init_snap["trains"]),
+    )
 
     # 3. Launch background workers
     async def _provider_worker():
+        last_redis_sync = time.monotonic()
+        last_live_poll = time.monotonic()
+        in_replay_failover = active_mode == "REPLAY" and settings.DEFAULT_PROVIDER_MODE == "LIVE_POLLER"
+
         while True:
             try:
                 await asyncio.sleep(1.5)
-                await demo_provider.advance_simulation(1.5)
-                snap = await demo_provider.tick()
-                await state_store.update_trains(snap["trains"])
-                await state_store.update_freight_shadows(snap["phantom_freights"])
-                await state_store.update_weather(snap["weather"])
+                now = time.monotonic()
+
+                if settings.DEFAULT_PROVIDER_MODE == "LIVE_POLLER":
+                    if (now - last_live_poll) >= settings.LIVE_POLL_INTERVAL_SECONDS:
+                        last_live_poll = now
+                        try:
+                            snap = await live_provider.get_corridor_snapshot(force_refresh=True)
+                            await _apply_snapshot_to_store(snap, "LIVE_POLLER")
+                            in_replay_failover = False
+                        except (httpx.HTTPError, TimeoutError, RuntimeError, ValueError, OSError) as exc:
+                            if not in_replay_failover:
+                                logger.warning("Upstream live feed dropped (%s). Switching to REPLAY mode.", exc)
+                            in_replay_failover = True
+
+                    if in_replay_failover:
+                        await replay_provider.advance_simulation(1.5)
+                        snap = await replay_provider.get_corridor_snapshot()
+                        await _apply_snapshot_to_store(snap, "REPLAY")
+                elif settings.DEFAULT_PROVIDER_MODE == "REPLAY":
+                    await replay_provider.advance_simulation(1.5)
+                    snap = await replay_provider.get_corridor_snapshot()
+                    await _apply_snapshot_to_store(snap, "REPLAY")
+                else:
+                    await demo_provider.advance_simulation(1.5)
+                    snap = await demo_provider.tick()
+                    await state_store.set_remaining_cause_delays(
+                        demo_provider.get_all_remaining_cause_delays(),
+                        demo_provider.get_all_remaining_loop_holds(),
+                    )
+                    await _apply_snapshot_to_store(snap, "DEMO_SIMULATION")
+
+                if (now - last_redis_sync) >= settings.LIVE_POLL_INTERVAL_SECONDS:
+                    last_redis_sync = now
+                    redis_snap = await state_store.get_snapshot()
+                    await redis_client.set_snapshot(redis_snap, ttl=settings.REDIS_SNAPSHOT_TTL_SECONDS)
             except asyncio.CancelledError:
                 break
             except Exception as e:  # noqa: BLE001
@@ -78,6 +159,7 @@ async def lifespan(app: FastAPI):
     provider_task.cancel()
     ws_task.cancel()
     await asyncio.gather(provider_task, ws_task, return_exceptions=True)
+    await redis_client.close()
     logger.info("RAIL-PULSE background workers stopped.")
 
 
@@ -102,6 +184,10 @@ dist_dir = BASE_DIR / "frontend" / "dist"
 assets_dir = dist_dir / "assets"
 if assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+fonts_dir = dist_dir / "fonts"
+if fonts_dir.exists():
+    app.mount("/fonts", StaticFiles(directory=str(fonts_dir)), name="fonts")
 
 static_dir = BASE_DIR / "frontend" / "static"
 if static_dir.exists():
@@ -153,4 +239,17 @@ async def dashboard():
     if index_file.exists():
         return FileResponse(index_file)
     return {"error": "Dashboard template not found"}
+
+
+@app.get("/{filename}.{ext}", include_in_schema=False)
+async def serve_static_root_file(filename: str, ext: str):
+    """
+    Serves root-level static assets (e.g. logo.png, favicon.png, SVGs)
+    from the production built frontend directory.
+    """
+    candidate = dist_dir / f"{filename}.{ext}"
+    if candidate.is_file():
+        return FileResponse(candidate)
+    raise HTTPException(status_code=404, detail="File not found")
+
 

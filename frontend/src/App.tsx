@@ -16,12 +16,23 @@ export const App: React.FC = () => {
   const {
     currentView,
     selectedTrain,
+    activeSnapshot,
     passengerStatus,
     mobileTab,
     connectionTarget,
+    refreshNonce,
+    setConnectionTarget,
     setForecast,
     setRescue,
   } = useRailStore();
+
+  const monitoredTrain = activeSnapshot.trains?.find((t) => t.train_no === selectedTrain);
+  const simBucket = Math.floor((activeSnapshot.tick_utc || 0) / 30);
+  const trainPhaseKey = `${monitoredTrain?.status ?? ''}|${Math.round(
+    monitoredTrain?.current_delay_mins ?? 0
+  )}|${monitoredTrain?.current_station ?? ''}|${monitoredTrain?.next_station ?? ''}|${
+    activeSnapshot.phantom_freights?.length ?? 0
+  }`;
 
   // Initialize WebSocket stream and load initial corridor state in background
   useEffect(() => {
@@ -33,40 +44,76 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Fetch forecast and rescue whenever selected train, boarding status, or connection target changes
+  // Fetch forecast and rescue whenever train, boarding status, connection target, or demo state changes
   useEffect(() => {
     let isMounted = true;
 
-    // Load forecast
-    fetchForecast(selectedTrain)
-      .then((fc) => {
-        if (isMounted) setForecast(fc);
-      })
-      .catch((err) => console.warn('Forecast error:', err));
+    const loadForecastAndRescue = async () => {
+      try {
+        const fc = await fetchForecast(selectedTrain);
+        if (!isMounted) return;
+        setForecast(fc);
 
-    // Calculate deadline epoch aligned with simulation day timeline
-    const targetMinutes =
-      timeStringToMinutes(connectionTarget?.deadline_time || '12:15') ?? 735;
-    const SIMULATION_BASE_MIDNIGHT = 1795034100;
-    const deadlineEpoch = SIMULATION_BASE_MIDNIGHT + targetMinutes * 60;
+        const preferredCode = connectionTarget?.station_code || 'BBS';
+        const targetStop =
+          fc.station_timeline?.find((s) => s.station_code === preferredCode) ??
+          fc.station_timeline?.[fc.station_timeline.length - 1];
+        const destCode = targetStop?.station_code ?? preferredCode;
+        const bufferMins = connectionTarget?.transfer_buffer_mins ?? 15;
 
-    // Load rescue evaluation
-    evaluateRescue({
-      train_no: selectedTrain,
-      destination_code: connectionTarget?.station_code || 'BBS',
-      connection_deadline_utc: deadlineEpoch,
-      transfer_buffer_mins: connectionTarget?.transfer_buffer_mins ?? 15,
-      passenger_status: passengerStatus,
-    })
-      .then((res) => {
+        let deadlineEpoch: number;
+        const baseTick = activeSnapshot.tick_utc || 1795067700;
+        const simMidnightIst = Math.floor((baseTick + 19800) / 86400) * 86400 - 19800;
+        if (connectionTarget?.isCustom && connectionTarget.deadline_time) {
+          const targetMinutes = timeStringToMinutes(connectionTarget.deadline_time) ?? 735;
+          deadlineEpoch = simMidnightIst + targetMinutes * 60;
+        } else if (targetStop?.sched_arr_epoch) {
+          // Realistic connecting departure: +15m cushion + 15m transfer buffer after scheduled arrival
+          deadlineEpoch = targetStop.sched_arr_epoch + (bufferMins + 15) * 60;
+          const istDate = new Date((deadlineEpoch + 19800) * 1000);
+          const hh = istDate.getUTCHours().toString().padStart(2, '0');
+          const mm = istDate.getUTCMinutes().toString().padStart(2, '0');
+          const autoDeadline = `${hh}:${mm}`;
+          if (connectionTarget?.deadline_time !== autoDeadline) {
+            setConnectionTarget({ deadline_time: autoDeadline, isCustom: false });
+          }
+        } else {
+          const targetMinutes = timeStringToMinutes(connectionTarget?.deadline_time || '12:15') ?? 735;
+          deadlineEpoch = simMidnightIst + targetMinutes * 60;
+        }
+
+        const res = await evaluateRescue({
+          train_no: selectedTrain,
+          destination_code: destCode,
+          connection_deadline_utc: deadlineEpoch,
+          transfer_buffer_mins: bufferMins,
+          passenger_status: passengerStatus,
+        });
         if (isMounted) setRescue(res);
-      })
-      .catch((err) => console.warn('Rescue evaluation error:', err));
+      } catch (err) {
+        console.warn('Forecast/Rescue fetch error:', err);
+      }
+    };
+
+    loadForecastAndRescue();
 
     return () => {
       isMounted = false;
     };
-  }, [selectedTrain, passengerStatus, connectionTarget, setForecast, setRescue]);
+  }, [
+    selectedTrain,
+    passengerStatus,
+    connectionTarget?.station_code,
+    connectionTarget?.deadline_time,
+    connectionTarget?.isCustom,
+    connectionTarget?.transfer_buffer_mins,
+    refreshNonce,
+    simBucket,
+    trainPhaseKey,
+    setConnectionTarget,
+    setForecast,
+    setRescue,
+  ]);
 
   // Screen 1: User first sees clean modern landing page
   if (currentView === 'landing') {

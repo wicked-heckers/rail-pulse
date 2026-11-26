@@ -7,15 +7,15 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import CorridorStateStore, get_state_store, get_topology
+from app.engine.disruption_causes import build_cause_cards
 from app.engine.overtake_sim import simulate_corridor_overtakes
-from app.engine.quantile_ml import QuantileMLEngine
+from app.engine.quantile_ml import QuantileMLEngine, build_quantile_feature_vector
 from app.engine.rescue_engine import evaluate_connection_rescue
 from app.engine.slack_adjuster import apply_slack_to_timeline
 from app.models.schemas import (
     ForecastResponse,
     PredictCascadeRequest,
     PredictCascadeResponse,
-    QuantileFeatureVector,
     TrainKinematicState,
 )
 
@@ -71,12 +71,18 @@ async def get_train_forecast(
             max_freight_prob = max(max_freight_prob, float(shadow.get("freight_probability", 0.0)))
 
     # 1. Deterministic forward simulation of loop overtakes & freight drag
+    current_epoch = snapshot.get("tick_utc", int(time.time()))
+    injected_shift = await state_store.get_injected_delay(train_no)
+    loop_hold_override = await state_store.get_remaining_loop_hold(train_no)
     sim_result = await asyncio.to_thread(
         simulate_corridor_overtakes,
         target_train_no=train_no,
         active_trains=active_trains,
         topology=topology,
         freight_penalties=freight_penalties,
+        current_epoch=current_epoch,
+        delay_shift_mins=injected_shift,
+        loop_hold_override_mins=loop_hold_override,
     )
 
     # 2. Subtract usable timetable recovery slack with intermediate floor clamp
@@ -91,30 +97,22 @@ async def get_train_forecast(
     # 3. Identify destination arrival
     dest_arr = adjusted_timeline[-1] if adjusted_timeline else None
     sched_arr_epoch = dest_arr.sched_arr_epoch if dest_arr else int(time.time() + 3600)
-    p50_base_delay = dest_arr.net_delay_mins if dest_arr else target_train.current_delay_mins
     dest_km = dest_arr.chainage_km if dest_arr else (206.0 if target_train.direction == "DN" else 0.0)
     remaining_km = max(5.0, abs(dest_km - target_train.chainage_km))
 
     # Calculate usable recovery slack redeemed
     usable_slack = sum(max(0.0, a.raw_sim_delay_mins - a.net_delay_mins) for a in adjusted_timeline)
 
-    # 4. Predict quantiles via ML engine
-    feat = QuantileFeatureVector(
-        current_delay_mins=target_train.current_delay_mins,
-        p50_base_delay_mins=p50_base_delay,
-        freight_probability=max_freight_prob,
-        freight_shadow_prob=max_freight_prob,
-        overtake_count=sim_result.overtakes_count,
-        sim_overtake_count=sim_result.overtakes_count,
-        overtake_mins=sim_result.total_loop_hold_mins,
-        sim_overtake_hold_mins=sim_result.total_loop_hold_mins,
+    # 4. Predict quantiles via unified 12-feature ML engine
+    feat = build_quantile_feature_vector(
+        train_state=target_train,
+        sim_result=sim_result,
+        adjusted_timeline=adjusted_timeline,
+        target_arrival=dest_arr,
         remaining_km=remaining_km,
-        remaining_distance_km=remaining_km,
-        remaining_halts=len(adjusted_timeline),
-        remaining_commercial_halts=len(adjusted_timeline),
-        usable_slack_mins=usable_slack,
-        train_priority_rank=target_train.priority_rank,
+        freight_shadow_prob=max_freight_prob,
         rain_mm_hr=rain_mm_hr,
+        current_epoch=current_epoch,
     )
     quantiles = await asyncio.to_thread(QuantileMLEngine.predict, feat, sched_arr_epoch)
 
@@ -123,8 +121,10 @@ async def get_train_forecast(
     naive_ntes_delay_mins = target_train.current_delay_mins
     naive_ntes_eta_epoch = sched_arr_epoch + int(naive_ntes_delay_mins * 60)
 
-    # Collect causal cards
+    # Collect causal cards (simulator cards + any active multi-cause disruption cards)
+    active_causes = await state_store.get_train_causes(train_no)
     causal_cards = list(sim_result.causal_cards)
+    causal_cards.extend(build_cause_cards(active_causes, target_train.direction))
     for arr in adjusted_timeline:
         causal_cards.extend(arr.causal_cards)
 
@@ -252,21 +252,19 @@ async def predict_cascade_unified(
     )
 
     sched_arr_epoch = target_arrival.sched_arr_epoch if target_arrival else current_epoch + 3600
-    p50_base_delay = target_arrival.net_delay_mins if target_arrival else target_train.current_delay_mins
     target_km = target_arrival.chainage_km if target_arrival else 143.0
     remaining_km = max(5.0, abs(target_km - target_train.chainage_km))
 
-    # 4. Predict quantiles
-    feat = QuantileFeatureVector(
-        current_delay_mins=target_train.current_delay_mins,
-        p50_base_delay_mins=p50_base_delay,
-        freight_probability=max_freight_prob,
-        overtake_count=sim_result.overtakes_count,
-        overtake_mins=sim_result.total_loop_hold_mins,
+    # 4. Predict quantiles via unified 12-feature ML engine
+    feat = build_quantile_feature_vector(
+        train_state=target_train,
+        sim_result=sim_result,
+        adjusted_timeline=adjusted_timeline,
+        target_arrival=target_arrival,
         remaining_km=remaining_km,
-        remaining_halts=len(adjusted_timeline),
-        usable_slack_mins=sum(max(0.0, a.raw_sim_delay_mins - a.net_delay_mins) for a in adjusted_timeline),
+        freight_shadow_prob=max_freight_prob,
         rain_mm_hr=rain_mm_hr,
+        current_epoch=current_epoch,
     )
     quantiles = await asyncio.to_thread(QuantileMLEngine.predict, feat, sched_arr_epoch)
 
@@ -331,6 +329,9 @@ async def predict_cascade_unified(
             topology=topology,
             current_epoch=current_epoch,
             use_live_traffic=(snapshot.get("mode") == "LIVE_FEED"),
+            rain_mm_hr=rain_mm_hr,
+            freight_shadow_prob=max_freight_prob,
+            adjusted_timeline=adjusted_timeline,
         )
 
         bailout_rec = None

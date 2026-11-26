@@ -106,3 +106,61 @@ def test_osrm_road_route_fallback():
 
     result = get_osrm_road_route_sync((20.4625, 85.8829), (20.2667, 85.8333), timeout=0.1)
     assert result is None or (len(result) == 3 and result[0] > 0)
+
+
+def test_rescue_applies_slack_and_matches_forecast_quantiles(topology):
+    """Verify rescue engine applies sectional slack and feeds all 12 features consistently."""
+    from app.engine.quantile_ml import QuantileMLEngine, build_quantile_feature_vector
+    from app.engine.slack_adjuster import apply_slack_to_timeline
+
+    dhauli = TrainKinematicState(
+        train_no="12821",
+        train_name="Dhauli Express",
+        direction="DN",
+        priority_rank=2,
+        chainage_km=115.0,
+        current_station="CTC",
+        speed_kmph=0.0,
+        current_delay_mins=28.0,
+    )
+    current_epoch = 1795071480
+    sim_res = simulate_corridor_overtakes(
+        target_train_no="12821",
+        active_trains=[dhauli],
+        topology=topology,
+        freight_penalties={"DN_CTC_BRAG": 20.0},
+        current_epoch=current_epoch,
+    )
+    adjusted = apply_slack_to_timeline(
+        timeline=sim_res.timeline,
+        track_blocks=topology.get("track_blocks", []),
+        direction="DN",
+        rain_mm_hr=10.0,
+        freight_probability=0.85,
+    )
+    bbs_arr = next(a for a in adjusted if a.station_code == "BBS")
+    expected_feat = build_quantile_feature_vector(
+        train_state=dhauli,
+        sim_result=sim_res,
+        adjusted_timeline=adjusted,
+        target_arrival=bbs_arr,
+        remaining_km=abs(bbs_arr.chainage_km - dhauli.chainage_km),
+        freight_shadow_prob=0.85,
+        rain_mm_hr=10.0,
+        current_epoch=current_epoch,
+    )
+    expected_q = QuantileMLEngine.predict(expected_feat, bbs_arr.sched_arr_epoch)
+
+    rescue_res = evaluate_connection_rescue(
+        train_state=dhauli,
+        destination_code="BBS",
+        connection_deadline_epoch=current_epoch + 72 * 60,
+        sim_result=sim_res,
+        topology=topology,
+        current_epoch=current_epoch,
+        rain_mm_hr=10.0,
+        freight_shadow_prob=0.85,
+    )
+    assert rescue_res["train_p10_eta_epoch"] == expected_q.p10_eta_epoch
+    assert rescue_res["train_p50_eta_epoch"] == expected_q.p50_eta_epoch
+    assert rescue_res["train_p90_eta_epoch"] == expected_q.p90_eta_epoch
