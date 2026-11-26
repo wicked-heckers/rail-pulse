@@ -311,6 +311,13 @@ class DemoSimulationProvider(CorridorDataProvider):
         self._detected_freight_meta: dict[str, dict[str, Any]] = {}
         self._random_freight_blocks: set[str] = set()
         self._auto_random_freight: bool = False
+        is_kolkata_cascade = bool(
+            scenario_mode
+            and (
+                scenario_name in ("KOLKATA_CASCADE", "KGP_CASCADE", "SER_CASCADE")
+                or self.corridor_id == "SER_HWH_KGP"
+            )
+        )
         is_dhauli_cascade = bool(scenario_mode and scenario_name == "DHAULI_CASCADE")
         is_khurda_cascade = bool(scenario_mode and scenario_name in ("KHURDA_CASCADE", "KUR_CASCADE"))
         self._hold_until_overtaken: bool = bool(scenario_mode)
@@ -373,6 +380,13 @@ class DemoSimulationProvider(CorridorDataProvider):
         self._injected_freights = copy.deepcopy(self._initial_injected_freights)
         if self._auto_random_freight and not self._initial_scenario_mode:
             self.spawn_random_goods_train(target_train_no="12821", auto_respawn=True)
+        is_kolkata_cascade = bool(
+            self._initial_scenario_mode
+            and (
+                self._initial_scenario_name in ("KOLKATA_CASCADE", "KGP_CASCADE", "SER_CASCADE")
+                or self.corridor_id == "SER_HWH_KGP"
+            )
+        )
         is_dhauli_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name == "DHAULI_CASCADE")
         is_khurda_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name in ("KHURDA_CASCADE", "KUR_CASCADE"))
         self._hold_until_overtaken = bool(self._initial_scenario_mode)

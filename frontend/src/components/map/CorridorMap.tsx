@@ -28,7 +28,6 @@ import {
   type MapCameraView,
 } from './mapConstants';
 import {
-  getGoodsTrainPopupHtml,
   getTrainPopupHtml,
   getStationPopupHtml,
 } from './mapPopupTemplates';
@@ -208,7 +207,6 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   const openGoodsTrainPopup = useCallback(
     (map: MapLibreMap) => {
       closeActivePopup();
-      const popupCoords: [number, number] = isKolkata ? [87.970, 22.460] : [85.856, 20.431];
       const popup = new maplibregl.Popup({
         anchor: 'right',
         offset: [-16, 0],
@@ -547,7 +545,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(layerId, 'visibility', visibility);
       }
-    }
+    });
 
     const hazardSource = map.getSource('freight-hazard-source') as any;
     if (hazardSource && typeof hazardSource.setData === 'function') {
