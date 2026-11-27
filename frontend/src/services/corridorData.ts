@@ -119,6 +119,7 @@ const CONGESTION_AHEAD_WAYPOINTS: [number, number][] = [
   [85.8320, 20.3300], // Mancheswar
 ];
 export const SMOOTH_CONGESTION_AHEAD_COORDS = catmullRomSpline(CONGESTION_AHEAD_WAYPOINTS, 8);
+export const SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS = SMOOTH_HWH_KGP_TRACK_COORDS.slice(8, 17);
 
 /**
  * Snaps any coordinate [lon, lat] onto the nearest point along the provided or active track coordinates.

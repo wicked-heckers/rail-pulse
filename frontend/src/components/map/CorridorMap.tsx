@@ -137,10 +137,11 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
       selectedTrain,
       forecast,
       currentTrain?.current_station,
-      currentTrain?.current_delay_mins
+      currentTrain?.current_delay_mins,
+      activeSnapshot
     );
     return causes.find((c) => c.tagType !== 'clear') || causes[0] || null;
-  }, [selectedTrain, forecast, currentTrain?.current_station, currentTrain?.current_delay_mins]);
+  }, [selectedTrain, forecast, currentTrain?.current_station, currentTrain?.current_delay_mins, activeSnapshot]);
 
   // Split route coordinates: Completed (muted) vs Remaining (prominent navy)
   const { completedCoords, remainingCoords } = useMemo(() => {
@@ -250,7 +251,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         maxWidth: '320px',
       })
         .setLngLat(popupCoords)
-        .setHTML(getGoodsTrainPopupHtml(primaryCause))
+        .setHTML(getGoodsTrainPopupHtml())
         .addTo(map);
 
       activePopupRef.current = popup;
@@ -640,10 +641,6 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
     activeFreightShadow,
     activeFreightGeom,
   ]);
-
-  // Keep latest train coordinates in a ref so 1.5s WebSocket ticks never hijack manual user zoom/pan
-  const currentTrainRef = useRef(currentTrain);
-  currentTrainRef.current = currentTrain;
 
   // Smooth camera view pan/zoom updates
   useEffect(() => {

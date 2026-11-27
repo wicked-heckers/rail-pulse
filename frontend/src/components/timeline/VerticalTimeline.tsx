@@ -42,7 +42,8 @@ export const VerticalTimeline: React.FC = () => {
     selectedTrain,
     forecast,
     currentTrain?.current_station,
-    currentTrain?.current_delay_mins
+    currentTrain?.current_delay_mins,
+    activeSnapshot
   );
 
   // Filter active delays (excludes clear route)
