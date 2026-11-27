@@ -8,6 +8,7 @@ from app.api.deps import (
     get_demo_provider,
     get_state_store,
 )
+from app.core.database import LocalTopologyFallback
 from app.engine.disruption_causes import (
     DISRUPTION_CAUSE_CATALOG,
     compute_causes_impact,
@@ -16,6 +17,7 @@ from app.models.schemas import (
     DemoApplyCausesRequest,
     DemoDelayInjectRequest,
     DemoFreightInjectRequest,
+    DemoRandomFreightRequest,
     DemoScenarioStartRequest,
     DemoSpeedRequest,
 )
@@ -37,10 +39,13 @@ async def start_demo_scenario(
     await demo_provider.set_speed_multiplier(request.speed_multiplier)
 
     # Re-initialize provider to requested scenario coordinates
+    active_cid = LocalTopologyFallback.get_active_corridor_id()
+    chosen_scenario = request.scenario_id or request.scenario_name
     demo_provider.__init__(
         speed_multiplier=request.speed_multiplier,
         scenario_mode=True,
-        scenario_name=request.scenario_name,
+        scenario_name=chosen_scenario,
+        corridor_id=active_cid,
     )
 
     # Perform initial snapshot tick and populate state store
@@ -52,13 +57,16 @@ async def start_demo_scenario(
     await state_store.set_speed_multiplier(demo_provider.speed_multiplier)
     await state_store.update_trains(snapshot["trains"])
     await state_store.update_freight_shadows(snapshot["phantom_freights"])
+    await state_store.update_goods_rakes(snapshot.get("goods_rakes", []))
     await state_store.update_weather(snapshot["weather"])
 
     active_trains = await state_store.get_active_trains()
 
     return {
         "status": "STARTED",
-        "scenario": request.scenario_name,
+        "scenario": chosen_scenario,
+        "scenario_id": chosen_scenario,
+        "corridor_id": active_cid,
         "speed_multiplier": request.speed_multiplier,
         "active_trains": len(active_trains),
         "tick_utc": snapshot["tick_utc"],
@@ -127,6 +135,35 @@ async def inject_freight_shadow(
     }
 
 
+@router.post("/random-freight")
+async def spawn_random_goods_train_endpoint(
+    request: DemoRandomFreightRequest | None = None,
+    state_store: CorridorStateStore = Depends(get_state_store),
+    demo_provider: DemoSimulationProvider = Depends(get_demo_provider),
+) -> dict[str, Any]:
+    """
+    Places an undetected goods train randomly on an upcoming track block.
+    It adds zero delay until a passenger train reaches it, slows down automatically,
+    and the AI STR + Bayesian model predicts accuracy & adds delay.
+    """
+    req = request or DemoRandomFreightRequest()
+    spawned = demo_provider.spawn_random_goods_train(
+        target_train_no=req.target_train_no,
+        block_id=req.block_id,
+        seed=req.seed,
+        auto_respawn=True,
+    )
+    snap = await demo_provider.tick()
+    await state_store.update_trains(snap["trains"])
+    await state_store.update_freight_shadows(snap["phantom_freights"])
+    await state_store.update_goods_rakes(snap.get("goods_rakes", []))
+
+    return {
+        "status": "RANDOM_GOODS_TRAIN_PLACED",
+        **spawned,
+    }
+
+
 @router.post("/reset")
 async def reset_corridor_state(
     state_store: CorridorStateStore = Depends(get_state_store),
@@ -145,6 +182,7 @@ async def reset_corridor_state(
     await state_store.set_speed_multiplier(demo_provider.speed_multiplier)
     await state_store.update_trains(snapshot["trains"])
     await state_store.update_freight_shadows(snapshot["phantom_freights"])
+    await state_store.update_goods_rakes(snapshot.get("goods_rakes", []))
     await state_store.update_weather(snapshot["weather"])
 
     return {
