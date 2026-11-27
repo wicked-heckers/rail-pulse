@@ -146,7 +146,23 @@ export async function injectFreightShadow(
   return await res.json();
 }
 
-export async function resetCorridor(): Promise<ApiResponseStatus> {
+export async function spawnRandomGoodsTrain(
+  targetTrainNo?: string,
+  blockId?: string
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/demo/random-freight`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      target_train_no: targetTrainNo ?? null,
+      block_id: blockId ?? null,
+    }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+export async function resetCorridor(): Promise<any> {
   const res = await fetch(`${API_BASE}/demo/reset`, {
     method: 'POST',
   });
@@ -178,7 +194,10 @@ export async function triggerLiveOvertake(): Promise<LiveOvertakeResponse> {
   return await res.json();
 }
 
-export async function injectULIPFreight(): Promise<ApiResponseStatus> {
+export async function injectULIPFreight(
+  blockId: string = 'DN_CTC_BRAG',
+  rakeId: string = 'BOXN_COAL_CONFIRMED'
+): Promise<ApiResponseStatus> {
   const res = await fetch(`${API_BASE}/webhooks/ulip-fois`, {
     method: 'POST',
     headers: {
@@ -186,8 +205,8 @@ export async function injectULIPFreight(): Promise<ApiResponseStatus> {
       'X-ULIP-API-Key': 'railpulse-enterprise-ulip-key',
     },
     body: JSON.stringify({
-      rake_id: 'BOXN_COAL_CONFIRMED',
-      block_id: 'DN_CTC_BRAG',
+      rake_id: rakeId,
+      block_id: blockId,
       direction: 'DN',
       speed_kmph: 28.0,
       cargo_type: 'COAL',

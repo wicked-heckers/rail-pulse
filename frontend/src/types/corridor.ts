@@ -52,6 +52,33 @@ interface FreightInferenceResult {
     | 'ULIP_FOIS_CONFIRMED';
   clearance_station?: string | null;
   clearance_eta_mins?: number | null;
+  detected_by_train?: string | null;
+  rake_id?: string | null;
+  human_message?: string | null;
+  block_penalty_mins?: number | null;
+  added_delay_mins?: number | null;
+}
+
+interface GoodsRakeTelemetry {
+  rake_id: string;
+  block_id: string;
+  from_station: string;
+  to_station: string;
+  direction: Direction;
+  chainage_km: number;
+  speed_kmph: number;
+  clearance_station: string;
+  detected: boolean;
+  detected_by_train?: string | null;
+  str_value?: number | null;
+  predicted_accuracy?: number | null;
+  predicted_delay_mins: number;
+  cleared: boolean;
+  status_phase:
+    | 'HIDDEN_ON_TRACK'
+    | 'SLOWDOWN_ANALYZING'
+    | 'PREDICTED_DELAY_ADDED'
+    | 'CLEARED_TO_LOOP';
 }
 
 interface WeatherData {
@@ -67,6 +94,7 @@ export interface CorridorSnapshot {
   speed_multiplier: number;
   trains: TrainKinematicState[];
   phantom_freights: FreightInferenceResult[];
+  goods_rakes?: GoodsRakeTelemetry[];
   weather: WeatherData;
 }
 

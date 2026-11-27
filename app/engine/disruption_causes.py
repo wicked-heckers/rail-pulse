@@ -82,6 +82,17 @@ DISRUPTION_CAUSE_CATALOG: dict[str, CauseSpec] = {
         "station_name": "Khurda Road Junction",
         "message": "Puri branch single-line throat occupied by delayed rake; holding at Khurda Road Junction Loop (+15 min).",
     },
+    "SRC_BRANCH_HOLD": {
+        "id": "SRC_BRANCH_HOLD",
+        "label": "Santragachi Junction Yard Throat Hold",
+        "added_delay_mins": 15.0,
+        "freight_penalty_mins": 0.0,
+        "rain_mm_hr": 0.0,
+        "event": "JUNCTION_THROAT_HOLD",
+        "station_code": "SRC",
+        "station_name": "Santragachi Junction",
+        "message": "South Eastern trunk junction throat occupied by freight rake; holding at Santragachi Junction Loop (+15 min).",
+    },
     "OHE_BRAKE_FAULT": {
         "id": "OHE_BRAKE_FAULT",
         "label": "OHE Traction Trip / Brake-Binding",
@@ -113,17 +124,47 @@ def compute_causes_impact(causes: list[str]) -> tuple[float, float, float]:
 
 def build_cause_cards(causes: list[str], direction: str) -> list[CausalCard]:
     """Builds CausalCards for active non-freight causes on a train."""
+    from app.core.database import LocalTopologyFallback
+    active_cid = LocalTopologyFallback.get_active_corridor_id()
+    is_kolkata = active_cid == "SER_HWH_KGP"
+
     cards: list[CausalCard] = []
     for cause_id in dict.fromkeys(causes):
         spec = DISRUPTION_CAUSE_CATALOG.get(cause_id)
         if not spec or spec["added_delay_mins"] <= 0:
             continue
-        stn_code = "BBS" if (direction == "UP" and cause_id == "PLATFORM_HOLD") else spec["station_code"]
+
+        if is_kolkata:
+            if cause_id == "PLATFORM_HOLD":
+                stn_code = "HWH" if direction == "UP" else "KGP"
+                stn_name = "Howrah Terminal Throat" if direction == "UP" else "Kharagpur Yard Throat"
+            elif cause_id in ("KUR_BRANCH_HOLD", "SRC_BRANCH_HOLD"):
+                stn_code = "SRC"
+                stn_name = "Santragachi Junction"
+            elif cause_id == "MONSOON_RAIN":
+                stn_code = "MCA"
+                stn_name = "SER Gangetic Section"
+            elif cause_id == "TSR_MAINTENANCE":
+                stn_code = "ULB"
+                stn_name = "Uluberia-Bagnan Block"
+            elif cause_id == "SIGNAL_CONGESTION":
+                stn_code = "SRC"
+                stn_name = "Santragachi Approach"
+            elif cause_id == "OHE_BRAKE_FAULT":
+                stn_code = "MCA"
+                stn_name = "Mecheda-Panskura Section"
+            else:
+                stn_code = spec["station_code"]
+                stn_name = spec["station_name"]
+        else:
+            stn_code = "BBS" if (direction == "UP" and cause_id == "PLATFORM_HOLD") else spec["station_code"]
+            stn_name = spec["station_name"]
+
         cards.append(
             CausalCard(
                 event=spec["event"],
                 station_code=stn_code,
-                station_name=spec["station_name"],
+                station_name=stn_name,
                 added_delay_mins=spec["added_delay_mins"],
                 human_message=spec["message"],
             )

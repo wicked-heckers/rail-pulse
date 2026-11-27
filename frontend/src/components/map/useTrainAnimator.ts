@@ -100,8 +100,20 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
 
         const existing = trainStateMap.current.get(t.train_no);
         if (existing) {
-          existing.fromLat = existing.currentLat;
-          existing.fromLon = existing.currentLon;
+          const deltaJump = Math.hypot(
+            existing.currentLat - snappedLat,
+            existing.currentLon - snappedLon
+          );
+          // If delta exceeds ~17 km (e.g. corridor switch, reset, or teleport), snap immediately without gliding
+          if (deltaJump > 0.15) {
+            existing.currentLat = snappedLat;
+            existing.currentLon = snappedLon;
+            existing.fromLat = snappedLat;
+            existing.fromLon = snappedLon;
+          } else {
+            existing.fromLat = existing.currentLat;
+            existing.fromLon = existing.currentLon;
+          }
           existing.toLat = snappedLat;
           existing.toLon = snappedLon;
           existing.startEpoch = now;

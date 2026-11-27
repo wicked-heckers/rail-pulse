@@ -108,6 +108,7 @@ const CONGESTION_AHEAD_WAYPOINTS: [number, number][] = [
   [85.8320, 20.3300], // Mancheswar
 ];
 export const SMOOTH_CONGESTION_AHEAD_COORDS = catmullRomSpline(CONGESTION_AHEAD_WAYPOINTS, 8);
+const SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS = SMOOTH_HWH_KGP_TRACK_COORDS.slice(8, 17);
 
 /**
  * Snaps any coordinate [lon, lat] onto the nearest point along the provided or active track coordinates.
@@ -152,6 +153,157 @@ export function snapPointToTrack(
   }
 
   return bestPoint;
+}
+
+const STATION_WAYPOINT_INDEX: Record<string, number> = {
+  BHC: 0,
+  JJKR: 4,
+  JKPR: 5,
+  NRG: 10,
+  CTC: 12,
+  BRAG: 14,
+  BBS: 17,
+  KUR: 20,
+  PURI: 26,
+};
+
+const STATION_NAMES_MAP: Record<string, string> = {
+  BHC: 'Bhadrak',
+  JJKR: 'Jajpur Keonjhar Rd',
+  JKPR: 'Jakhapura Jn',
+  NRG: 'Nergundi Jn',
+  CTC: 'Cuttack Jn',
+  BRAG: 'Barang Jn',
+  BBS: 'Bhubaneswar',
+  KUR: 'Khurda Road Jn',
+  PURI: 'Puri',
+};
+
+const SER_STATION_WAYPOINT_INDEX: Record<string, number> = {
+  HWH: 0,
+  SRC: 1,
+  ULB: 2,
+  BZN: 3,
+  MCA: 4,
+  PKU: 5,
+  BCK: 6,
+  KGP: 7,
+};
+
+const SER_STATION_NAMES_MAP: Record<string, string> = {
+  HWH: 'Howrah Jn',
+  SRC: 'Santragachi Jn',
+  ULB: 'Uluberia',
+  BZN: 'Bagnan',
+  MCA: 'Mecheda Jn',
+  PKU: 'Panskura Jn',
+  BCK: 'Balichak',
+  KGP: 'Kharagpur Jn',
+};
+
+/**
+ * Extracts the exact smooth railway polyline slice and midpoint for any block ID (e.g. DN_CTC_BRAG, DN_SRC_ULB, DN_MCA_PKU).
+ */
+export function getTrackSliceForBlock(
+  blockId?: string | null,
+  corridorId?: string
+): {
+  coords: [number, number][];
+  midpoint: [number, number];
+  fromCode: string;
+  toCode: string;
+  fromName: string;
+  toName: string;
+} {
+  const isSERDefault = corridorId === 'SER_HWH_KGP';
+
+  if (!blockId || !blockId.includes('_')) {
+    if (isSERDefault) {
+      return {
+        coords: SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS,
+        midpoint: [88.196, 22.525],
+        fromCode: 'SRC',
+        toCode: 'ULB',
+        fromName: 'Santragachi Jn',
+        toName: 'Uluberia',
+      };
+    }
+    return {
+      coords: SMOOTH_CONGESTION_AHEAD_COORDS,
+      midpoint: [85.856, 20.431],
+      fromCode: 'CTC',
+      toCode: 'BRAG',
+      fromName: 'Cuttack Jn',
+      toName: 'Barang Jn',
+    };
+  }
+
+  const parts = blockId.split('_');
+  const fromCode = parts[1] || (isSERDefault ? 'SRC' : 'CTC');
+  const toCode = parts[2] || (isSERDefault ? 'ULB' : 'BRAG');
+
+  const isSER =
+    isSERDefault ||
+    fromCode in SER_STATION_WAYPOINT_INDEX ||
+    toCode in SER_STATION_WAYPOINT_INDEX;
+
+  if (isSER) {
+    const idxA = SER_STATION_WAYPOINT_INDEX[fromCode];
+    const idxB = SER_STATION_WAYPOINT_INDEX[toCode];
+
+    if (idxA === undefined || idxB === undefined) {
+      return {
+        coords: SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS,
+        midpoint: [88.196, 22.525],
+        fromCode,
+        toCode,
+        fromName: SER_STATION_NAMES_MAP[fromCode] || fromCode,
+        toName: SER_STATION_NAMES_MAP[toCode] || toCode,
+      };
+    }
+
+    const startIdx = Math.min(idxA, idxB) * 8;
+    const endIdx = Math.min(SMOOTH_HWH_KGP_TRACK_COORDS.length - 1, Math.max(idxA, idxB) * 8);
+    const coords = SMOOTH_HWH_KGP_TRACK_COORDS.slice(startIdx, endIdx + 1);
+    const midpoint = coords[Math.floor(coords.length / 2)] || [88.196, 22.525];
+
+    return {
+      coords: coords.length >= 2 ? coords : SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS,
+      midpoint,
+      fromCode,
+      toCode,
+      fromName: SER_STATION_NAMES_MAP[fromCode] || fromCode,
+      toName: SER_STATION_NAMES_MAP[toCode] || toCode,
+    };
+  }
+
+  const idxA = STATION_WAYPOINT_INDEX[fromCode];
+  const idxB = STATION_WAYPOINT_INDEX[toCode];
+
+  if (idxA === undefined || idxB === undefined) {
+    return {
+      coords: SMOOTH_CONGESTION_AHEAD_COORDS,
+      midpoint: [85.856, 20.431],
+      fromCode,
+      toCode,
+      fromName: STATION_NAMES_MAP[fromCode] || fromCode,
+      toName: STATION_NAMES_MAP[toCode] || toCode,
+    };
+  }
+
+  const startIdx = Math.min(idxA, idxB) * 8;
+  const endIdx = Math.min(SMOOTH_TRACK_COORDS.length - 1, Math.max(idxA, idxB) * 8);
+  const coords = SMOOTH_TRACK_COORDS.slice(startIdx, endIdx + 1);
+  const midpoint = coords[Math.floor(coords.length / 2)] || [85.856, 20.431];
+
+  return {
+    coords: coords.length >= 2 ? coords : SMOOTH_CONGESTION_AHEAD_COORDS,
+    midpoint,
+    fromCode,
+    toCode,
+    fromName: STATION_NAMES_MAP[fromCode] || fromCode,
+    toName: STATION_NAMES_MAP[toCode] || toCode,
+  };
 }
 
 

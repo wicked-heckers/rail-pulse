@@ -30,6 +30,7 @@ async def _apply_snapshot_to_store(snap: dict[str, Any], mode: str) -> None:
     await state_store.set_provider_mode(mode)
     await state_store.update_trains(snap["trains"])
     await state_store.update_freight_shadows(snap["phantom_freights"])
+    await state_store.update_goods_rakes(snap.get("goods_rakes", []))
     await state_store.update_weather(snap["weather"])
 
 
@@ -75,6 +76,14 @@ async def lifespan(app: FastAPI):
     QuantileMLEngine.load_models()
 
     # 2. Seed initial state & sync to Redis
+    if settings.DEFAULT_PROVIDER_MODE == "DEMO_SIMULATION":
+        spawned = demo_provider.spawn_random_goods_train(target_train_no="12821", auto_respawn=True)
+        logger.info(
+            "Placed random undetected goods rake %s on %s @ km %.2f (awaiting slowdown & AI detection).",
+            spawned["rake_id"],
+            spawned["block_id"],
+            spawned["chainage_km"],
+        )
     active_mode = await _poll_initial_state()
     if active_mode == "DEMO_SIMULATION":
         await state_store.set_remaining_cause_delays(
