@@ -464,7 +464,7 @@ export function getDelayCauses(
   trainNo: string,
   forecast: ForecastResponse | null,
   _currentStation?: string | null,
-  snapshot?: CorridorSnapshot | null
+  currentTrainDelayMins?: number
 ): DelayCause[] {
   const trainObj = snapshot?.trains?.find((t) => t.train_no === trainNo);
   const matchingShadow = snapshot?.phantom_freights?.find(
@@ -524,6 +524,49 @@ export function getDelayCauses(
         coordinates: [trainObj.lon ?? 85.856, trainObj.lat ?? 20.431],
         popupTitle: 'Analyzing Slowdown',
         popupMessage: 'AI model evaluating Section Traversal Ratio (STR) to verify goods train ahead.',
+        highlightType: 'station',
+      },
+    ];
+  }
+
+  const forecastDelayMins = Math.round(
+    Math.max(
+      forecast?.p50_delay_mins ?? 0,
+      forecast?.p90_delay_mins ?? 0,
+      currentTrainDelayMins ?? 0
+    )
+  );
+
+  if (forecast && forecastDelayMins > 0) {
+    const isUp = forecast.direction === 'UP' || trainNo === '18410' || trainNo === '12822';
+    const isKolkata =
+      trainNo === '12822' ||
+      Boolean(
+        forecast.station_timeline?.some(
+          (s) => s.station_code === 'HWH' || s.station_code === 'KGP'
+        )
+      );
+    const routeText = isKolkata
+      ? isUp
+        ? 'Kharagpur – Howrah UP Line'
+        : 'Howrah – Kharagpur DN Line'
+      : isUp
+      ? 'Puri – Bhadrak UP Line'
+      : 'Bhadrak – Puri DN Line';
+    const stationCode = _currentStation || (isKolkata ? (isUp ? 'SRC' : 'MCA') : isUp ? 'BBS' : 'CTC');
+    return [
+      {
+        id: `cause-traffic-${trainNo}`,
+        title: 'Corridor Signal & Traffic Drag',
+        tag: `+${forecastDelayMins}m delay`,
+        tagType: 'projected',
+        explanation: `Projected traffic drag and minor signal spacing ahead may add up to ${forecastDelayMins} mins by destination.`,
+        locationName: _currentStation ? `Near ${_currentStation} • ${routeText}` : routeText,
+        coordinates:
+          STATION_COORDINATES_MAP[stationCode] ||
+          (isKolkata ? [87.97, 22.46] : [85.856, 20.431]),
+        popupTitle: 'Corridor Signal & Traffic Drag',
+        popupMessage: `Projected traffic drag and minor signal spacing ahead may add up to ${forecastDelayMins} mins by destination.`,
         highlightType: 'station',
       },
     ];

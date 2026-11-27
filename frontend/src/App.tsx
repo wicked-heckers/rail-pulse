@@ -164,16 +164,16 @@ export const App: React.FC = () => {
     return <LandingPage />;
   }
 
-  // Screen 2: Real-Time Corridor Analytics & Digital Twin Dashboard (Auto-Expanding Sidebar + Sticky Map)
+  // Screen 2: Real-Time Corridor Analytics & Digital Twin Dashboard (Locked Viewport, Internal Sidebar Scroll)
   return (
-    <div className="min-h-screen bg-[#FAF9F6] text-[#0F172A] flex flex-col font-sans">
-      {/* Top Application Header (Sticky 52px Bar) */}
+    <div className="h-screen overflow-hidden bg-[#FAF9F6] text-[#0F172A] flex flex-col font-sans">
+      {/* Top Application Header (Fixed 56px Bar) */}
       <TopHeader />
 
       {/* Main Two-Column Layout */}
-      <main className="flex flex-1 items-start w-full max-w-[1600px] mx-auto flex-col md:flex-row">
-        {/* Left Column / Dashboard Cards (Full width on mobile, 40% on desktop) */}
-        <div className="w-full md:w-[40%] shrink-0 px-3 py-3 flex flex-col gap-3">
+      <main className="flex flex-1 min-h-0 w-full max-w-[1600px] mx-auto flex-col md:flex-row overflow-hidden">
+        {/* Left Column / Dashboard Cards (Internal scroll, full width on mobile, 40% on desktop) */}
+        <div className="w-full md:w-[40%] h-full overflow-y-auto shrink-0 px-3 py-3 flex flex-col gap-3">
           {/* Section 1: Train Identity + Arrival & Connection Summary */}
           <ArrivalConnectionCard />
 
@@ -181,8 +181,8 @@ export const App: React.FC = () => {
           <VerticalTimeline />
         </div>
 
-        {/* Right Map Container (60% width, desktop only sticky full-height viewport) */}
-        <div className="hidden md:block md:w-[60%] sticky top-[52px] h-[calc(100vh-52px)] p-3 md:pl-0 overflow-hidden">
+        {/* Right Map Container (60% width, desktop only full-height viewport) */}
+        <div className="hidden md:block md:w-[60%] h-full p-3 md:pl-0 overflow-hidden">
           {isDesktop && (
             <Suspense fallback={<MapSkeleton />}>
               <CorridorMap />
@@ -208,20 +208,21 @@ export const App: React.FC = () => {
       {mobileMapOpen && (
         <div className="fixed inset-0 z-50 bg-white flex flex-col md:hidden animate-in fade-in duration-150">
           {/* Header Bar */}
-          <div className="h-14 px-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-[#FAF9F6]">
+          <div className="h-[52px] px-3 flex items-center justify-between gap-2.5 bg-white border-b border-slate-200 shrink-0">
             <button
               type="button"
               onClick={() => setMobileMapOpen(false)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              className="whitespace-nowrap shrink-0 h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 inline-flex items-center gap-1.5 hover:bg-slate-50 transition-colors cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Journey</span>
+              <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+              <span className="sm:hidden">Back</span>
+              <span className="hidden sm:inline">Back to Journey</span>
             </button>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="font-mono font-bold text-xs text-[#0F294A] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 shrink-0">
+              <span className="shrink-0 px-2 py-0.5 rounded-md bg-slate-100 text-xs font-bold text-slate-800 font-mono">
                 {selectedTrain}
               </span>
-              <span className="font-bold text-xs text-slate-800 truncate">
+              <span className="truncate text-xs font-semibold text-slate-700">
                 {monitoredTrain?.train_name || 'Corridor Train'}
               </span>
             </div>

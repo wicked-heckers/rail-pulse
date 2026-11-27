@@ -57,14 +57,10 @@ export const MapScreen: React.FC = () => {
     const STATIONS = ${stationsJson};
     const INIT_TRAINS = ${initialTrainsJson};
 
-    const initCenter = STATIONS && STATIONS.length > 0
-      ? [STATIONS[Math.floor(STATIONS.length / 2)].lon, STATIONS[Math.floor(STATIONS.length / 2)].lat]
-      : [85.95, 20.46];
-
     const map = new maplibregl.Map({
       container: 'map',
       style: 'https://tiles.openfreemap.org/styles/positron',
-      center: initCenter,
+      center: [85.95, 20.46],
       zoom: 8.2,
       attributionControl: false
     });
@@ -72,17 +68,6 @@ export const MapScreen: React.FC = () => {
     const trainMarkers = {};
 
     function updateTrains(list) {
-      if (!Array.isArray(list)) return;
-      const activeNos = new Set(list.map(t => String(t.train_no)));
-      for (const tNo in trainMarkers) {
-        if (!activeNos.has(tNo)) {
-          try {
-            trainMarkers[tNo].remove();
-          } catch (e) {}
-          delete trainMarkers[tNo];
-        }
-      }
-
       list.forEach((t) => {
         const lng = t.lon || 85.8829;
         const lat = t.lat || 20.4625;
