@@ -39,8 +39,16 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onNavigateToSearch
 
   return (
     <>
-      <footer className="w-full border-t border-slate-200/80 bg-white/70 backdrop-blur-sm mt-16">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-10 pb-8 md:pt-12 md:pb-10">
+      <footer className="w-full mt-16 px-3 sm:px-[1cm]">
+        <div className="w-full drop-shadow-[0_-1px_0_rgba(226,232,240,0.85)]">
+          <div
+            className="w-full bg-white/85 backdrop-blur-sm"
+            style={{
+              clipPath:
+                'polygon(0% 10px, 10px 0%, 17% 0%, 18.5% 4px, 21% 36px, 22.5% 40px, 77.5% 40px, 79% 36px, 81.5% 4px, 83% 0%, calc(100% - 10px) 0%, 100% 10px, 100% 100%, 0% 100%)',
+            }}
+          >
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-16 pb-8 md:pt-16 md:pb-10">
           {/* Asymmetrical 3-Column Editorial Grid */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-10">
             {/* Column 1: Project Information */}
@@ -57,15 +65,11 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onNavigateToSearch
               </div>
 
               <p className="text-sm text-slate-600 leading-relaxed mt-3 max-w-md">
-                A corridor-aware arrival and connection tracker built for the East Coast Railway
-                route between Bhadrak, Cuttack, Bhubaneswar, and Puri. Instead of relying on static
-                timetable estimates, Rail-Pulse factors in freight traffic, platform holds, and
-                express overtakes ahead of your train to give a realistic arrival window—and a
-                timely cab alternative when onward connections are at risk.
-              </p>
-
-              <p className="text-[13px] text-slate-600 mt-3 font-medium">
-                Active Corridor: Bhadrak (BHC) – Jajpur – Cuttack – Bhubaneswar – Khurda Rd – Puri (PURI)
+                A corridor-aware arrival and connection tracker designed to model real-time track
+                conditions across railway routes. Instead of relying on static timetable estimates,
+                Rail-Pulse factors in freight traffic, platform holds, and express overtakes ahead
+                of your train to give a realistic arrival window—and a timely road backup option
+                when onward connections are at risk.
               </p>
             </div>
 
@@ -136,6 +140,8 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onNavigateToSearch
               with railway signaling. Not affiliated with Indian Railways or IRCTC.
             </p>
             <p className="whitespace-nowrap shrink-0 font-medium">&copy; 2026 Rail-Pulse</p>
+          </div>
+            </div>
           </div>
         </div>
       </footer>
@@ -238,12 +244,13 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onNavigateToSearch
 
                   <div>
                     <h5 className="font-semibold text-slate-900">
-                      When does Rail-Pulse suggest getting off at Cuttack for a cab?
+                      When does Rail-Pulse suggest taking a cab instead of staying on the train?
                     </h5>
                     <p className="text-[13px] text-slate-600 mt-1 leading-relaxed">
                       When you are already on board and your projected train arrival leaves less than
-                      the safe transfer buffer for your onward train, Rail-Pulse checks whether an
-                      NH-16 cab from Cuttack can reach Bhubaneswar earlier.
+                      the safe transfer buffer for your onward train, Rail-Pulse checks whether a cab
+                      along a nearby highway bypass on the currently loaded corridor can reach your
+                      connection station earlier.
                     </p>
                   </div>
 

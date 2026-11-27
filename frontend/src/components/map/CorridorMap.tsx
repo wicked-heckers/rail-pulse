@@ -44,7 +44,7 @@ import {
   X,
 } from 'lucide-react';
 
-export interface CorridorMapProps {
+interface CorridorMapProps {
   isModal?: boolean;
 }
 
@@ -53,6 +53,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   const mapRef = useRef<MapLibreMap | null>(null);
   const activePopupRef = useRef<MapLibrePopup | null>(null);
   const popupTimeoutRef = useRef<number | null>(null);
+  const skipNextCameraEffectRef = useRef(false);
   const [mobileDelayCardOpen, setMobileDelayCardOpen] = useState(false);
 
   const clearPopupTimeout = useCallback(() => {
@@ -207,6 +208,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   // Direct camera view handler triggered on button click or track click
   const handleCameraView = useCallback(
     (view: MapCameraView) => {
+      skipNextCameraEffectRef.current = true;
       setActiveMapView(view);
       const map = mapRef.current;
       if (!map) return;
@@ -289,7 +291,11 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
             if (layer.type === 'symbol') {
               const idLower = layer.id.toLowerCase();
               if (['place', 'settlement', 'city', 'town', 'village'].some((k) => idLower.includes(k))) {
-                map.setLayoutProperty(layer.id, 'visibility', 'none');
+                try {
+                  map.setLayoutProperty(layer.id, 'visibility', 'none');
+                } catch {
+                  /* ignore immutable basemap layer */
+                }
               }
             }
           }
@@ -553,8 +559,14 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
     activeSnapshot.phantom_freights,
   ]);
 
-  // Smooth camera view pan/zoom updates
+  const rescueDeboardCode = rescue?.bailout_plan?.deboard_station_code;
+
+  // Smooth camera view pan/zoom updates (only when preset view, corridor, or active bailout hub changes)
   useEffect(() => {
+    if (skipNextCameraEffectRef.current) {
+      skipNextCameraEffectRef.current = false;
+      return;
+    }
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
@@ -562,7 +574,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
     const preset = presets[activeMapView];
     if (preset) {
       if (activeMapView === 'alternative_route') {
-        const isKhurda = rescue?.bailout_plan?.deboard_station_code === 'KUR';
+        const isKhurda = rescueDeboardCode === 'KUR';
         const bounds = isKolkata
           ? preset.bounds
           : isKhurda
@@ -573,7 +585,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         map.fitBounds(preset.bounds, { padding: preset.padding, duration: preset.duration });
       }
     }
-  }, [activeMapView, isKolkata, rescue]);
+  }, [activeMapView, isKolkata, rescueDeboardCode]);
 
   return (
     <div className={`relative w-full ${isModal ? 'h-full' : 'h-full min-h-[460px]'} bg-[#FAF9F6] overflow-hidden`}>

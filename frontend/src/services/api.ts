@@ -1,5 +1,4 @@
 import type {
-  CorridorSummary,
   ForecastResponse,
   RescueEvaluationResponse,
 } from '../types/corridor';
@@ -70,13 +69,13 @@ export async function evaluateRescue(payload: {
   }
 }
 
-export interface ApiResponseStatus {
+interface ApiResponseStatus {
   status: string;
   message?: string;
   [key: string]: unknown;
 }
 
-export interface DisruptionCausesResponse {
+interface DisruptionCausesResponse {
   catalog: Array<{
     id: string;
     label: string;
@@ -88,13 +87,13 @@ export interface DisruptionCausesResponse {
   active_causes: string[];
 }
 
-export interface ApplyCausesResponse {
+interface ApplyCausesResponse {
   status: string;
   active_causes: string[];
   new_delay_mins: number;
 }
 
-export interface LiveOvertakeResponse {
+interface LiveOvertakeResponse {
   status: string;
   hold_station_code: string;
   hold_station_name: string;
@@ -109,6 +108,7 @@ export async function injectTrainDelay(trainNo: string, addedDelayMins: number):
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ train_no: trainNo, added_delay_mins: addedDelayMins }),
   });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
 
@@ -118,6 +118,7 @@ export async function startDemoScenario(name = 'DHAULI_CASCADE', speed = 1): Pro
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ scenario_name: name, speed_multiplier: speed }),
   });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
 
@@ -127,6 +128,7 @@ export async function setSpeedMultiplier(multiplier: number): Promise<ApiRespons
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ speed_multiplier: multiplier }),
   });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
 
@@ -140,6 +142,7 @@ export async function injectFreightShadow(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ block_id: blockId, penalty_mins: penaltyMins, confidence }),
   });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
 
@@ -147,6 +150,7 @@ export async function resetCorridor(): Promise<ApiResponseStatus> {
   const res = await fetch(`${API_BASE}/demo/reset`, {
     method: 'POST',
   });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
 
@@ -188,47 +192,6 @@ export async function injectULIPFreight(): Promise<ApiResponseStatus> {
       speed_kmph: 28.0,
       cargo_type: 'COAL',
     }),
-  });
-  return await res.json();
-}
-
-export async function listCorridors(): Promise<CorridorSummary[]> {
-  try {
-    const res = await fetch(`${API_BASE}/corridor/list`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    console.warn('Failed to fetch corridors list, using fallback', err);
-    return [
-      {
-        id: 'ECoR_BHC_PURI',
-        name: 'East Coast Trunk Line',
-        section: 'Bhadrak – Cuttack – Bhubaneswar – Puri',
-        length_km: 206.0,
-        stations_count: 9,
-        primary_highway: 'NH-16 / NH-316',
-        region: 'East Coast Railway (ECoR)',
-        is_active: true,
-      },
-      {
-        id: 'SER_HWH_KGP',
-        name: 'Kolkata Trunk Line',
-        section: 'Howrah – Santragachi – Mecheda – Kharagpur',
-        length_km: 115.0,
-        stations_count: 8,
-        primary_highway: 'NH-16 / Kona Expressway',
-        region: 'South Eastern Railway (SER)',
-        is_active: false,
-      },
-    ];
-  }
-}
-
-export async function switchCorridorApi(corridorId: string, speedMultiplier = 1): Promise<any> {
-  const res = await fetch(`${API_BASE}/corridor/switch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ corridor_id: corridorId, speed_multiplier: speedMultiplier }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();

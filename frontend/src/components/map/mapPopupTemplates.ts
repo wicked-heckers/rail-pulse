@@ -1,6 +1,6 @@
 import type { ArrivalPrediction, DelayCause } from '../dashboard/passengerUtils';
 
-export function escapeHtml(str?: string | number | null): string {
+function escapeHtml(str?: string | number | null): string {
   if (str == null) return '';
   return String(str)
     .replace(/&/g, '&amp;')

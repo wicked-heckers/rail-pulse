@@ -1,33 +1,6 @@
-export type Direction = 'DN' | 'UP';
+type Direction = 'DN' | 'UP';
 
-export interface Station {
-  station_code: string;
-  station_name: string;
-  chainage_km: number;
-  lat: number;
-  lon: number;
-  has_750m_goods_loop: boolean;
-  passenger_loops_dn: number;
-  passenger_loops_up: number;
-  is_major_junction: boolean;
-  road_exit_penalty_m: number;
-}
-
-export interface TrackBlock {
-  block_id: string;
-  direction: Direction;
-  from_station: string;
-  to_station: string;
-  start_km: number;
-  end_km: number;
-  length_km: number;
-  mps_kmph: number;
-  free_flow_mins: number;
-  freight_injection_weight: number;
-  terminal_slack_mins: number;
-  is_single_line_throat?: boolean;
-}
-export interface CausalCard {
+interface CausalCard {
   event: string;
   station_code: string;
   station_name: string;
@@ -36,7 +9,7 @@ export interface CausalCard {
   human_message: string;
 }
 
-export interface StationArrival {
+interface StationArrival {
   station_code: string;
   station_name: string;
   chainage_km: number;
@@ -66,7 +39,7 @@ export interface TrainKinematicState {
   status: string;
 }
 
-export interface FreightInferenceResult {
+interface FreightInferenceResult {
   block_id: string;
   direction: Direction;
   str_value: number;
@@ -81,7 +54,7 @@ export interface FreightInferenceResult {
   clearance_eta_mins?: number | null;
 }
 
-export interface WeatherData {
+interface WeatherData {
   rain_mm_hr: number;
   wind_speed_kmph: number;
   condition: string;
@@ -117,18 +90,7 @@ export interface ForecastResponse {
   overtakes_count: number;
 }
 
-export interface CorridorSummary {
-  id: string;
-  name: string;
-  section: string;
-  length_km: number;
-  stations_count: number;
-  primary_highway: string;
-  region: string;
-  is_active: boolean;
-}
-
-export interface BailoutPlan {
+interface BailoutPlan {
   deboard_station_code: string;
   deboard_station_name: string;
   deboard_eta_epoch: number;

@@ -22,7 +22,6 @@ export const ArrivalConnectionCard: React.FC = () => {
     selectedTrain,
     activeSnapshot,
     forecast,
-    rescue: _rescue,
     connectionTarget,
     passengerStatus,
     setCabModalOpen,
@@ -279,9 +278,17 @@ export const ArrivalConnectionCard: React.FC = () => {
           <div className="relative">
             <button
               type="button"
-              onClick={() => setShowModelInfo(!showModelInfo)}
-              onMouseEnter={() => setShowModelInfo(true)}
-              onMouseLeave={() => setShowModelInfo(false)}
+              onClick={() => setShowModelInfo((prev) => !prev)}
+              onMouseEnter={() => {
+                if (typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches) {
+                  setShowModelInfo(true);
+                }
+              }}
+              onMouseLeave={() => {
+                if (typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches) {
+                  setShowModelInfo(false);
+                }
+              }}
               className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer p-0.5 rounded-full"
               aria-label="Prediction details"
               title="Statistical prediction details"

@@ -1,5 +1,5 @@
 // Verified ECoR Stations on the Corridor
-export interface CorridorStation {
+interface CorridorStation {
   code: string;
   name: string;
   km: number;
@@ -92,7 +92,7 @@ export const SER_CAMERA_PRESETS: Record<MapCameraView, CameraPreset> = {
 };
 
 // Curated regional places and landmarks in subtle monochrome typography
-export interface RegionalPlace {
+interface RegionalPlace {
   name: string;
   type: 'town' | 'landmark' | 'water';
   coords: [number, number];
@@ -150,7 +150,7 @@ export function createBaseMapStyle(mapboxToken?: string | null): any {
 
 export type MapCameraView = 'my_train' | 'delays_ahead' | 'alternative_route' | 'full_journey';
 
-export interface CameraPreset {
+interface CameraPreset {
   bounds: [[number, number], [number, number]];
   padding: number | { top: number; bottom: number; left: number; right: number };
   duration: number;

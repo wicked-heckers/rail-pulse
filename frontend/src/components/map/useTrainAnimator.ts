@@ -40,14 +40,13 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
   }, [activeCorridorId]);
 
   const snapshotTrains = useRailStore((state) => state.activeSnapshot?.trains);
-  const customTrains = useRailStore((state) => state.customTrains);
 
-  // 1. Pre-populate and synchronize from activeSnapshot & custom trains
+  // 1. Pre-populate and synchronize from activeSnapshot
   useEffect(() => {
     const now = performance.now();
-    const allTrains = [...(snapshotTrains || []), ...(customTrains || [])];
+    const allTrains = snapshotTrains || [];
 
-    // Remove any trains no longer present in the active snapshot or custom trains list
+    // Remove any trains no longer present in the active snapshot
     const validTrainNos = new Set(allTrains.map((t) => t.train_no));
     for (const key of trainStateMap.current.keys()) {
       if (!validTrainNos.has(key)) {
@@ -80,19 +79,15 @@ export function useTrainAnimator(mapRef: React.RefObject<MapLibreMap | null>) {
         needsRenderRef.current = true;
       }
     }
-  }, [snapshotTrains, customTrains]);
+  }, [snapshotTrains]);
 
   // 2. Subscribe to live WebSocket train coordinates
   useEffect(() => {
     const unsubscribe = wsClient.subscribeCoords((trains: TrainKinematicState[]) => {
       const now = performance.now();
 
-      // Prune departed trains from animated map (protect active custom trains)
-      const currentCustoms = useRailStore.getState().customTrains || [];
-      const activeNos = new Set([
-        ...trains.map((t) => t.train_no),
-        ...currentCustoms.map((t) => t.train_no),
-      ]);
+      // Prune departed trains from animated map
+      const activeNos = new Set(trains.map((t) => t.train_no));
       for (const key of trainStateMap.current.keys()) {
         if (!activeNos.has(key)) {
           trainStateMap.current.delete(key);

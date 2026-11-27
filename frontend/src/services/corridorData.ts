@@ -93,22 +93,11 @@ const SER_HWH_KGP_WAYPOINTS: [number, number][] = [
   [87.3200, 22.3300], // KGP - Kharagpur Junction
 ];
 
-// Kona Expressway & Vidyasagar Setu (Second Hooghly Bridge) road rescue alignment
-// Santragachi Junction (SRC) -> Kona Expressway -> Vidyasagar Setu -> Howrah Station (HWH)
-const KONA_EXPRESSWAY_WAYPOINTS: [number, number][] = [
-  [88.2830, 22.5800], // Santragachi Station Portico
-  [88.2950, 22.5780], // Kona Expressway toll plaza
-  [88.3100, 22.5700], // Mandirtala
-  [88.3280, 22.5600], // Vidyasagar Setu (Second Hooghly Bridge)
-  [88.3426, 22.5830], // Howrah Railway Station
-];
-
 // High-resolution smooth Catmull-Rom geometries
 export const SMOOTH_TRACK_COORDS = catmullRomSpline(ECOR_STATION_WAYPOINTS, 8);
 export const SMOOTH_NH16_COORDS = catmullRomSpline(NH16_HIGHWAY_WAYPOINTS, 8);
 
-export const SMOOTH_HWH_KGP_TRACK_COORDS = catmullRomSpline(SER_HWH_KGP_WAYPOINTS, 8);
-export const SMOOTH_KONA_EXPRESSWAY_COORDS = catmullRomSpline(KONA_EXPRESSWAY_WAYPOINTS, 8);
+const SMOOTH_HWH_KGP_TRACK_COORDS = catmullRomSpline(SER_HWH_KGP_WAYPOINTS, 8);
 
 // Active Delay Ahead: Cuttack (CTC) down to Barang (BRAG) & Mancheswar
 // Physically ahead of southbound train 12821 towards Bhubaneswar

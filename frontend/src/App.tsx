@@ -5,7 +5,6 @@ import { fetchForecast, evaluateRescue, fetchCorridorConfig } from './services/a
 import { TopHeader } from './components/layout/TopHeader';
 import { DemoDrawer } from './components/layout/DemoDrawer';
 import { CabModal } from './components/rescue/CabModal';
-import { AddTrainModal } from './components/layout/AddTrainModal';
 import { ArrivalConnectionCard } from './components/connection/ArrivalConnectionCard';
 import { VerticalTimeline } from './components/timeline/VerticalTimeline';
 import { LandingPage } from './components/landing/LandingPage';
@@ -82,6 +81,8 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  const customDeadlineDep = connectionTarget?.isCustom ? connectionTarget.deadline_time : null;
+
   // Fetch forecast and rescue whenever train, boarding status, connection target, or demo state changes
   useEffect(() => {
     let isMounted = true;
@@ -150,7 +151,7 @@ export const App: React.FC = () => {
     selectedTrain,
     passengerStatus,
     connectionTarget?.station_code,
-    connectionTarget?.deadline_time,
+    customDeadlineDep,
     connectionTarget?.isCustom,
     connectionTarget?.transfer_buffer_mins,
     refreshNonce,
@@ -241,7 +242,6 @@ export const App: React.FC = () => {
 
       {/* Floating Modals and Presenter Drawers */}
       <CabModal />
-      <AddTrainModal />
       <DemoDrawer />
     </div>
   );

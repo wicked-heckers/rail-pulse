@@ -416,28 +416,6 @@ const MOCK_FORECAST_18410: ForecastResponse = {
 export function getMockForecast(trainNo: string): ForecastResponse {
   if (trainNo === '22895') return MOCK_FORECAST_22895;
   if (trainNo === '18410') return MOCK_FORECAST_18410;
-
-  try {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('rp_manager_trains');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const match = Array.isArray(parsed) && parsed.find((t: any) => t && t.no === trainNo);
-        if (match) {
-          const base = match.direction === 'UP' ? MOCK_FORECAST_18410 : MOCK_FORECAST_12821;
-          return {
-            ...base,
-            train_no: match.no,
-            train_name: match.name || `Train ${match.no}`,
-            direction: match.direction || base.direction,
-          };
-        }
-      }
-    }
-  } catch {
-    /* fallback to nominal 12821 */
-  }
-
   return MOCK_FORECAST_12821;
 }
 

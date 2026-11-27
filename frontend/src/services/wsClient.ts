@@ -22,14 +22,11 @@ class WebSocketClient {
     const host = window.location.host;
     const url = `${protocol}//${host}/ws/corridor`;
 
-    useRailStore.getState().setWsStatus(false, 'Connecting...');
-
     try {
       this.socket = new WebSocket(url);
 
       this.socket.onopen = () => {
         this.backoffMs = 1000;
-        useRailStore.getState().setWsStatus(true, 'Live Radar 60 FPS');
         this.startPing();
       };
 
@@ -55,12 +52,10 @@ class WebSocketClient {
 
       this.socket.onerror = (err) => {
         console.warn('Corridor WS error:', err);
-        useRailStore.getState().setWsStatus(false, 'Connection error');
       };
 
       this.socket.onclose = () => {
         this.stopPing();
-        useRailStore.getState().setWsStatus(false, 'Disconnected');
         if (!this.isIntentionalClose) {
           this.scheduleReconnect();
         }
@@ -89,12 +84,10 @@ class WebSocketClient {
       this.socket.close();
       this.socket = null;
     }
-    useRailStore.getState().setWsStatus(false, 'Disconnected');
   }
 
   private scheduleReconnect(): void {
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
-    useRailStore.getState().setWsStatus(false, `Reconnecting in ${Math.round(this.backoffMs / 1000)}s...`);
     this.reconnectTimeout = window.setTimeout(() => {
       this.backoffMs = Math.min(this.backoffMs * 1.5, this.maxBackoffMs);
       this.connect();

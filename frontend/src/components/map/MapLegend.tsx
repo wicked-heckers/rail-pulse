@@ -28,7 +28,7 @@ export const MapLegend: React.FC = () => {
         </button>
       ) : (
         <div
-          className="md:hidden absolute bottom-4 left-3 right-3 z-20 p-3.5 rounded-2xl bg-white/95 backdrop-blur-sm border border-slate-200/80 shadow-lg"
+          className="md:hidden absolute bottom-4 left-3 right-3 z-30 p-3.5 rounded-2xl bg-white/95 backdrop-blur-sm border border-slate-200/80 shadow-lg"
           role="region"
           aria-label="Map legend"
         >
