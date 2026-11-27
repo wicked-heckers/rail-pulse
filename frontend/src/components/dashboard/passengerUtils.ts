@@ -464,7 +464,8 @@ export function getDelayCauses(
   trainNo: string,
   forecast: ForecastResponse | null,
   _currentStation?: string | null,
-  currentTrainDelayMins?: number
+  currentTrainDelayMins?: number,
+  snapshot?: CorridorSnapshot | null
 ): DelayCause[] {
   const trainObj = snapshot?.trains?.find((t) => t.train_no === trainNo);
   const matchingShadow = snapshot?.phantom_freights?.find(
