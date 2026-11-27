@@ -24,6 +24,7 @@ export const ArrivalConnectionCard: React.FC = () => {
     forecast,
     connectionTarget,
     passengerStatus,
+    setPassengerStatus,
     setCabModalOpen,
     setActiveMapView,
     activeCorridorId,
@@ -99,15 +100,15 @@ export const ArrivalConnectionCard: React.FC = () => {
     quantile === 'p10'
       ? prediction.p10Time
       : quantile === 'p90'
-      ? prediction.p90Time
-      : prediction.p50Time;
+        ? prediction.p90Time
+        : prediction.p50Time;
 
   const selectedDelayMins =
     quantile === 'p10'
       ? prediction.p10DelayMins
       : quantile === 'p90'
-      ? prediction.p90DelayMins
-      : prediction.p50DelayMins;
+        ? prediction.p90DelayMins
+        : prediction.p50DelayMins;
 
   // 4. Connection Evaluation against selected quantile arrival time
   const connectionDeadlineFormatted = formatTime12Hour(connectionTarget?.deadline_time);
@@ -147,8 +148,76 @@ export const ArrivalConnectionCard: React.FC = () => {
   // Connection display name
   const connectionTrainName = '20817 Rajdhani Express';
 
+  const activeTrain = activeSnapshot.trains?.find((t) => t.train_no === selectedTrain);
+  const trainDirection =
+    activeTrain?.direction ??
+    forecast?.direction ??
+    (selectedTrain === '18410' || selectedTrain === '12822' ? 'UP' : 'DN');
+  const mobileTelemetryText = activeTrain
+    ? `${Math.round(activeTrain.speed_kmph ?? 0)} km/h · Chainage ${(activeTrain.chainage_km ?? 0).toFixed(1)} km`
+    : trainIdentity.locationText;
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs flex flex-col gap-4 shrink-0 transition-all">
+    <>
+      {/* Mobile-only compact train status + At Station / On Board switcher card */}
+      <div className="md:hidden bg-white rounded-2xl border border-slate-200/90 px-4 py-3.5 shadow-xs flex flex-col gap-3 shrink-0">
+        <div className="flex items-start justify-between gap-2.5">
+          <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+            <span className="text-[13px] font-bold tracking-wide text-slate-500 uppercase tabular-nums">
+              {trainIdentity.trainNo} · {trainDirection}
+            </span>
+            <h2 className="text-[19px] font-extrabold text-[#0F294A] leading-tight tracking-tight break-words">
+              {trainIdentity.trainName}
+            </h2>
+            <p className="text-[13px] font-medium text-slate-500 tabular-nums mt-0.5">
+              {mobileTelemetryText}
+            </p>
+          </div>
+
+          {selectedDelayMins <= 0 ? (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 whitespace-nowrap shrink-0 mt-0.5">
+              On Time
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100/80 text-rose-600 tabular-nums whitespace-nowrap shrink-0 mt-0.5">
+              +{selectedDelayMins}m
+            </span>
+          )}
+        </div>
+
+        <div
+          className="grid grid-cols-2 p-1 rounded-xl bg-slate-100"
+          role="group"
+          aria-label="Passenger boarding status"
+        >
+          <button
+            type="button"
+            onClick={() => setPassengerStatus('PRE_BOARDING')}
+            aria-pressed={passengerStatus === 'PRE_BOARDING'}
+            className={`py-2 px-3 rounded-lg text-[13px] transition-all cursor-pointer ${
+              passengerStatus === 'PRE_BOARDING'
+                ? 'bg-white text-[#0F294A] font-bold shadow-2xs'
+                : 'text-slate-500 font-semibold hover:text-slate-700'
+            }`}
+          >
+            At Station
+          </button>
+          <button
+            type="button"
+            onClick={() => setPassengerStatus('ON_BOARD')}
+            aria-pressed={passengerStatus === 'ON_BOARD'}
+            className={`py-2 px-3 rounded-lg text-[13px] transition-all cursor-pointer ${
+              passengerStatus === 'ON_BOARD'
+                ? 'bg-white text-[#0F294A] font-bold shadow-2xs'
+                : 'text-slate-500 font-semibold hover:text-slate-700'
+            }`}
+          >
+            On Board
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs flex flex-col gap-4 shrink-0 transition-all">
       {/* 1. Single Compact Top-Left Quantile Dropdown */}
       <div className="relative inline-block mb-1 self-start" ref={quantileRef}>
         <button
@@ -163,25 +232,23 @@ export const ArrivalConnectionCard: React.FC = () => {
             {quantile === 'p90' && 'P90 • Worst Case'}
           </span>
           <ChevronDown
-            className={`w-3.5 h-3.5 text-slate-500 transition-transform ${
-              quantileMenuOpen ? 'rotate-180' : ''
-            }`}
+            className={`w-3.5 h-3.5 text-slate-500 transition-transform ${quantileMenuOpen ? 'rotate-180' : ''
+              }`}
           />
         </button>
 
         {quantileMenuOpen && (
-          <div className="absolute left-0 top-full mt-1.5 z-30 w-56 rounded-xl bg-white border border-slate-200 shadow-lg p-1 animate-in fade-in zoom-in-95 duration-100">
+          <div className="absolute left-0 top-full mt-1.5 z-30 w-56 rounded-xl bg-white border border-slate-200 shadow-lg p-1">
             <button
               type="button"
               onClick={() => {
                 setQuantile('p10');
                 setQuantileMenuOpen(false);
               }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex flex-col gap-0.5 cursor-pointer ${
-                quantile === 'p10'
-                  ? 'bg-slate-100 font-semibold text-slate-900'
-                  : 'hover:bg-slate-50 text-slate-700'
-              }`}
+              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex flex-col gap-0.5 cursor-pointer ${quantile === 'p10'
+                ? 'bg-slate-100 font-semibold text-slate-900'
+                : 'hover:bg-slate-50 text-slate-700'
+                }`}
             >
               <span className="font-bold text-slate-900">P10 • Best Case</span>
               <span className="text-xs text-slate-500">Earliest arrival if clear</span>
@@ -192,11 +259,10 @@ export const ArrivalConnectionCard: React.FC = () => {
                 setQuantile('p50');
                 setQuantileMenuOpen(false);
               }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex flex-col gap-0.5 cursor-pointer ${
-                quantile === 'p50'
-                  ? 'bg-slate-100 font-semibold text-slate-900'
-                  : 'hover:bg-slate-50 text-slate-700'
-              }`}
+              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex flex-col gap-0.5 cursor-pointer ${quantile === 'p50'
+                ? 'bg-slate-100 font-semibold text-slate-900'
+                : 'hover:bg-slate-50 text-slate-700'
+                }`}
             >
               <span className="font-bold text-slate-900">P50 • Most Likely</span>
               <span className="text-xs text-slate-500">Expected arrival</span>
@@ -207,11 +273,10 @@ export const ArrivalConnectionCard: React.FC = () => {
                 setQuantile('p90');
                 setQuantileMenuOpen(false);
               }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex flex-col gap-0.5 cursor-pointer ${
-                quantile === 'p90'
-                  ? 'bg-slate-100 font-semibold text-slate-900'
-                  : 'hover:bg-slate-50 text-slate-700'
-              }`}
+              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex flex-col gap-0.5 cursor-pointer ${quantile === 'p90'
+                ? 'bg-slate-100 font-semibold text-slate-900'
+                : 'hover:bg-slate-50 text-slate-700'
+                }`}
             >
               <span className="font-bold text-slate-900">P90 • Worst Case</span>
               <span className="text-xs text-slate-500">Latest if delays hold</span>
@@ -220,8 +285,8 @@ export const ArrivalConnectionCard: React.FC = () => {
         )}
       </div>
 
-      {/* 2. Static Read-Only Train Information Header */}
-      <div className="pb-3.5 border-b border-slate-100">
+      {/* 2. Static Read-Only Train Information Header (Desktop md+) */}
+      <div className="hidden md:block pb-3.5 border-b border-slate-100">
         <div className="flex items-start gap-3">
           <img
             src="/dashboard-train-icon.png"
@@ -250,11 +315,10 @@ export const ArrivalConnectionCard: React.FC = () => {
               )}
 
               <span
-                className={`sm:hidden inline-flex items-center px-2 py-0.5 rounded-md border text-xs font-mono font-bold whitespace-nowrap ${
-                  isKolkata
-                    ? 'bg-amber-50 text-amber-900 border-amber-300'
-                    : 'bg-indigo-50 text-indigo-900 border-indigo-200'
-                }`}
+                className={`sm:hidden inline-flex items-center px-2 py-0.5 rounded-md border text-xs font-mono font-bold whitespace-nowrap ${isKolkata
+                  ? 'bg-amber-50 text-amber-900 border-amber-300'
+                  : 'bg-indigo-50 text-indigo-900 border-indigo-200'
+                  }`}
               >
                 {isKolkata ? 'SER • HWH–KGP' : 'ECoR • BHC–PURI'}
               </span>
@@ -300,7 +364,7 @@ export const ArrivalConnectionCard: React.FC = () => {
             {showModelInfo && (
               <div
                 ref={infoTooltipRef}
-                className="absolute right-0 top-6 z-40 w-72 bg-slate-900 text-white text-xs rounded-xl p-3 shadow-xl border border-slate-700 space-y-1.5 animate-in fade-in zoom-in-95 duration-100"
+                className="absolute right-0 top-6 z-40 w-72 bg-slate-900 text-white text-xs rounded-xl p-3 shadow-xl border border-slate-700 space-y-1.5"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-amber-400 font-bold">
@@ -375,13 +439,12 @@ export const ArrivalConnectionCard: React.FC = () => {
 
         {/* Connection & Action Box */}
         <div
-          className={`rounded-xl p-3 sm:p-3.5 border min-h-[136px] h-auto flex flex-col justify-between transition-colors gap-2.5 ${
-            isConnectionTightOrMissed
-              ? passengerStatus === 'ON_BOARD'
-                ? 'bg-amber-50/80 border-amber-200'
-                : 'bg-rose-50/80 border-rose-200'
-              : 'bg-emerald-50/80 border-emerald-200'
-          }`}
+          className={`rounded-xl p-3 sm:p-3.5 border min-h-[136px] h-auto flex flex-col justify-between transition-colors gap-2.5 ${isConnectionTightOrMissed
+            ? passengerStatus === 'ON_BOARD'
+              ? 'bg-amber-50/80 border-amber-200'
+              : 'bg-rose-50/80 border-rose-200'
+            : 'bg-emerald-50/80 border-emerald-200'
+            }`}
         >
           {/* Top Section: Icon + Direct Command Headline + Badge & Subtext */}
           <div className="flex flex-col gap-1 min-w-0">
@@ -406,13 +469,12 @@ export const ArrivalConnectionCard: React.FC = () => {
               </div>
 
               <span
-                className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-bold border shadow-2xs whitespace-nowrap self-start ${
-                  isConnectionTightOrMissed
-                    ? passengerStatus === 'ON_BOARD'
-                      ? 'bg-white text-amber-800 border-amber-300'
-                      : 'bg-white text-rose-700 border-rose-300'
-                    : 'bg-white text-emerald-700 border-emerald-300'
-                }`}
+                className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-bold border shadow-2xs whitespace-nowrap self-start ${isConnectionTightOrMissed
+                  ? passengerStatus === 'ON_BOARD'
+                    ? 'bg-white text-amber-800 border-amber-300'
+                    : 'bg-white text-rose-700 border-rose-300'
+                  : 'bg-white text-emerald-700 border-emerald-300'
+                  }`}
               >
                 {isConnectionTightOrMissed
                   ? passengerStatus === 'ON_BOARD'
@@ -456,5 +518,6 @@ export const ArrivalConnectionCard: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };

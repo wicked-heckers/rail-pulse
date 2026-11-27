@@ -118,7 +118,7 @@ export const CabModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-[#E2E8F0] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-[#E2E8F0] overflow-hidden">
         {/* Header */}
         <div className="bg-[#0F172A] text-white px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">

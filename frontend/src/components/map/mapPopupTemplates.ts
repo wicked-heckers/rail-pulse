@@ -1,4 +1,4 @@
-import type { ArrivalPrediction, DelayCause } from '../dashboard/passengerUtils';
+import type { ArrivalPrediction } from '../dashboard/passengerUtils';
 
 function escapeHtml(str?: string | number | null): string {
   if (str == null) return '';
@@ -8,50 +8,6 @@ function escapeHtml(str?: string | number | null): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
-}
-
-export function getGoodsTrainPopupHtml(cause?: DelayCause | null): string {
-  const isClear = cause?.tagType === 'clear';
-  const badgeText = escapeHtml(cause?.tag || '~14 min delay');
-  const titleText = escapeHtml(cause?.popupTitle || cause?.title || 'Goods Train Ahead');
-  const locationText = escapeHtml(cause?.locationName || 'Between Cuttack & Barang');
-  const bodyText = escapeHtml(
-    cause?.popupMessage ||
-      cause?.explanation ||
-      'A slow goods train is ahead of you toward Bhubaneswar, adding about 14 mins to your journey.'
-  );
-
-  const dotClass = isClear ? 'bg-emerald-500' : 'bg-amber-500';
-  const badgeClass = isClear
-    ? 'bg-emerald-100 text-emerald-900 border-emerald-200'
-    : 'bg-amber-100 text-amber-900 border-amber-200';
-
-  return `
-    <div class="w-[300px] p-3.5 text-sm space-y-2 font-sans">
-      <!-- Row 1: Status dot + soft badge (clean space on right for × close button) -->
-      <div class="flex items-center justify-between pr-6">
-        <div class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full ${dotClass} shrink-0"></span>
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${badgeClass} border whitespace-nowrap">
-            ${badgeText}
-          </span>
-        </div>
-      </div>
-
-      <!-- Row 2: Full-width Title -->
-      <h4 class="font-bold text-[15px] leading-snug text-slate-900 pt-0.5">
-        ${titleText}
-      </h4>
-
-      <!-- Row 3: Location + Plain Description -->
-      <div class="pt-1.5 border-t border-slate-100">
-        <div class="text-xs font-semibold text-slate-500 mb-1">${locationText}</div>
-        <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">
-          ${bodyText}
-        </p>
-      </div>
-    </div>
-  `;
 }
 
 export function getTrainPopupHtml(props: {
@@ -74,35 +30,31 @@ export function getTrainPopupHtml(props: {
   const safeTrainId = String(props.train_no).replace(/[^a-zA-Z0-9_-]/g, '');
 
   return `
-    <div class="p-3 max-w-xs text-xs space-y-2 font-sans">
-      <div class="flex items-center justify-between border-b pb-1.5 border-slate-100">
-        <div class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full ${isTarget ? 'bg-orange-500 ring-2 ring-orange-200' : 'bg-blue-600'}"></span>
-          <strong class="font-bold text-sm text-[#0F294A]">${trainNo} ${trainName}</strong>
+    <div class="p-3.5 w-full max-w-[300px] text-xs space-y-2 font-sans">
+      <div class="flex items-start justify-between gap-2 pr-7 border-b pb-2 border-slate-100">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="w-2.5 h-2.5 rounded-full shrink-0 ${isTarget ? 'bg-orange-500 ring-2 ring-orange-200' : 'bg-blue-600'}"></span>
+          <strong class="font-bold text-sm text-[#0F294A] leading-snug">${trainNo} ${trainName}</strong>
         </div>
-        <span class="px-1.5 py-0.5 rounded text-xs font-bold ${isTarget ? 'bg-orange-50 text-orange-800' : 'bg-slate-100 text-slate-700'}">
-          ${isTarget ? 'Your Train' : 'Corridor Train'}
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-bold shrink-0 whitespace-nowrap ${isTarget ? 'bg-orange-50 text-orange-800 border border-orange-200/70' : 'bg-slate-100 text-slate-700'}">
+          ${isTarget ? 'Your Train' : 'Corridor'}
         </span>
       </div>
-      <div class="space-y-1 text-slate-600 font-medium">
-        <div class="flex justify-between">
+      <div class="space-y-1.5 text-slate-600 font-medium">
+        <div class="flex items-center justify-between gap-2">
           <span>Running Status:</span>
-          <strong class="${delay > 5 ? 'text-amber-800' : 'text-emerald-700'} font-bold">
+          <strong class="${delay > 5 ? 'text-amber-800' : 'text-emerald-700'} font-bold text-right">
             ${delay > 0 ? `+${delay}m late` : 'On Time'} • ${speed > 0 ? `${speed} km/h` : 'At Station'}
           </strong>
         </div>
-        <div class="flex justify-between">
+        <div class="flex items-center justify-between gap-2">
           <span>Position:</span>
-          <span class="text-slate-800 font-bold">${curStation ? `Platform ${curStation}` : `En route to ${nxtStation}`}</span>
-        </div>
-        <div class="flex justify-between">
-          <span>Data Source:</span>
-          <span class="text-slate-500 font-mono text-xs">Real-Time Corridor Telemetry</span>
+          <span class="text-slate-800 font-bold text-right">${curStation ? `Platform ${curStation}` : `En route to ${nxtStation}`}</span>
         </div>
       </div>
       ${
         !isTarget
-          ? `<button id="btn-track-${safeTrainId}" class="w-full mt-1.5 py-1 px-2.5 bg-[#0F294A] hover:bg-slate-800 text-white font-bold rounded-lg text-center transition-colors cursor-pointer text-xs">
+          ? `<button id="btn-track-${safeTrainId}" class="w-full mt-1.5 py-1.5 px-2.5 bg-[#0F294A] hover:bg-slate-800 text-white font-bold rounded-lg text-center transition-colors cursor-pointer text-xs">
               Track this train
             </button>`
           : ''
@@ -128,18 +80,18 @@ export function getStationPopupHtml(
   const kmFormatted = Number(props.km || 0).toFixed(1);
 
   return `
-    <div class="p-3 max-w-xs text-xs space-y-2 font-sans">
-      <div class="flex items-center justify-between border-b pb-1.5 border-slate-100">
-        <strong class="font-bold text-sm text-[#0F294A]">${stnName} (${stnCode})</strong>
-        <span class="px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 text-slate-700">km ${kmFormatted}</span>
+    <div class="p-3.5 w-full max-w-[300px] text-xs space-y-2 font-sans">
+      <div class="flex items-start justify-between gap-2 pr-7 border-b pb-2 border-slate-100">
+        <strong class="font-bold text-sm text-[#0F294A] leading-snug">${stnName} (${stnCode})</strong>
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-slate-100 text-slate-700 shrink-0 whitespace-nowrap">km ${kmFormatted}</span>
       </div>
       <div class="space-y-1">
-        <div class="text-xs font-bold text-[#0F294A]">${roleBadge}</div>
-        <p class="text-slate-600 leading-snug">${explanation}</p>
+        <div class="text-xs font-bold text-[#0F294A] leading-snug">${roleBadge}</div>
+        <p class="text-slate-600 leading-relaxed">${explanation}</p>
       </div>
       ${
         props.code === prediction.destinationCode || props.code === 'BBS' || props.code === 'KGP' || props.code === 'PURI' || props.code === 'HWH'
-          ? `<div class="bg-slate-50 p-1.5 rounded border border-slate-200 text-xs text-slate-700 font-medium">
+          ? `<div class="bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs text-slate-700 font-medium leading-snug">
               Expected Arrival: <strong class="text-[#0F294A] font-bold">${escapeHtml(prediction.expectedTime)}</strong> (Window: ${escapeHtml(prediction.likelyWindow)})
             </div>`
           : ''

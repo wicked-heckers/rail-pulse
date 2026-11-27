@@ -110,19 +110,19 @@ const CONGESTION_AHEAD_WAYPOINTS: [number, number][] = [
 export const SMOOTH_CONGESTION_AHEAD_COORDS = catmullRomSpline(CONGESTION_AHEAD_WAYPOINTS, 8);
 const SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS = SMOOTH_HWH_KGP_TRACK_COORDS.slice(8, 17);
 
-/**
- * Snaps any coordinate [lon, lat] onto the nearest point along the provided or active track coordinates.
- * Prevents trains from visually drifting or rendering off the physical railway line.
- */
-export function snapPointToTrack(
+interface TrackMatchResult {
+  coords: [number, number];
+}
+
+function findClosestTrackMatch(
   lon: number,
   lat: number,
   coords?: [number, number][]
-): [number, number] {
+): TrackMatchResult {
   const defaultTrack = lon >= 87.0 ? SMOOTH_HWH_KGP_TRACK_COORDS : SMOOTH_TRACK_COORDS;
   const track = coords && coords.length >= 2 ? coords : defaultTrack;
   if (!track || track.length < 2) {
-    return [lon, lat];
+    return { coords: [lon, lat] };
   }
 
   let minDistanceSq = Infinity;
@@ -148,11 +148,23 @@ export function snapPointToTrack(
     const distSq = (lon - projX) * (lon - projX) + (lat - projY) * (lat - projY);
     if (distSq < minDistanceSq) {
       minDistanceSq = distSq;
-      bestPoint = [Number(projX.toFixed(5)), Number(projY.toFixed(5))];
+      bestPoint = [projX, projY];
     }
   }
 
-  return bestPoint;
+  return { coords: bestPoint };
+}
+
+/**
+ * Snaps any coordinate [lon, lat] onto the nearest point along the provided or active track coordinates.
+ * Prevents trains from visually drifting or rendering off the physical railway line.
+ */
+export function snapPointToTrack(
+  lon: number,
+  lat: number,
+  coords?: [number, number][]
+): [number, number] {
+  return findClosestTrackMatch(lon, lat, coords).coords;
 }
 
 const STATION_WAYPOINT_INDEX: Record<string, number> = {

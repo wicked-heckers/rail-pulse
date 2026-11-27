@@ -11,6 +11,7 @@ class WebSocketClient {
   private readonly maxBackoffMs = 5000;
   private coordListeners: Set<TrainCoordsCallback> = new Set();
   private isIntentionalClose = false;
+  private lastMessageEpochMs = 0;
 
   public connect(): void {
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
@@ -37,6 +38,7 @@ class WebSocketClient {
 
           // Full snapshot payload from app/core/state_store.py
           if (data && Array.isArray(data.trains)) {
+            this.lastMessageEpochMs = Date.now();
             const snapshot = data as CorridorSnapshot;
             useRailStore.getState().updateSnapshot(snapshot);
 
@@ -71,6 +73,14 @@ class WebSocketClient {
     return () => {
       this.coordListeners.delete(cb);
     };
+  }
+
+  public isLiveConnected(): boolean {
+    return (
+      this.socket?.readyState === WebSocket.OPEN &&
+      this.lastMessageEpochMs > 0 &&
+      Date.now() - this.lastMessageEpochMs < 4000
+    );
   }
 
   public disconnect(): void {

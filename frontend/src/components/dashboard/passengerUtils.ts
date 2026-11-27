@@ -36,7 +36,7 @@ interface ConnectionEvaluation {
   status: 'safe' | 'at_risk' | 'uncertain';
 }
 
-export interface DelayCause {
+interface DelayCause {
   id: string;
   title: string;
   tag: string;
@@ -421,8 +421,8 @@ export function getDelayCauses(
         ? 'Kharagpur – Howrah UP Line'
         : 'Howrah – Kharagpur DN Line'
       : isUp
-      ? 'Puri – Bhadrak UP Line'
-      : 'Bhadrak – Puri DN Line';
+        ? 'Puri – Bhadrak UP Line'
+        : 'Bhadrak – Puri DN Line';
     const stationCode = currentStation || (isKolkata ? (isUp ? 'SRC' : 'MCA') : isUp ? 'BBS' : 'CTC');
     return [
       {

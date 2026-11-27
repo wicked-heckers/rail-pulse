@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, Suspense, lazy } from 'react';
 import { useRailStore } from './stores/useRailStore';
 import { wsClient } from './services/wsClient';
-import { fetchForecast, evaluateRescue, fetchCorridorConfig } from './services/api';
+import { fetchForecast, evaluateRescue, fetchCorridorConfig, fetchCorridorState } from './services/api';
 import { TopHeader } from './components/layout/TopHeader';
 import { DemoDrawer } from './components/layout/DemoDrawer';
 import { CabModal } from './components/rescue/CabModal';
@@ -70,12 +70,26 @@ export const App: React.FC = () => {
   )}|${monitoredTrain?.current_station ?? ''}|${monitoredTrain?.next_station ?? ''}|${activeSnapshot.phantom_freights?.length ?? 0
     }`;
 
-  // Initialize WebSocket stream and load initial corridor state in background
+  // Initialize WebSocket stream and HTTP state fallback poller
   useEffect(() => {
+    let cancelled = false;
     wsClient.connect();
     fetchCorridorConfig().catch((err) => console.warn('Config fetch error:', err));
 
+    const pollIfWsOffline = async () => {
+      if (wsClient.isLiveConnected()) return;
+      const snap = await fetchCorridorState();
+      if (!cancelled && snap) {
+        useRailStore.getState().updateSnapshot(snap);
+      }
+    };
+
+    pollIfWsOffline();
+    const pollInterval = window.setInterval(pollIfWsOffline, 1500);
+
     return () => {
+      cancelled = true;
+      window.clearInterval(pollInterval);
       wsClient.disconnect();
     };
   }, []);
@@ -207,7 +221,7 @@ export const App: React.FC = () => {
 
       {/* Full-Screen Mobile Map Modal */}
       {mobileMapOpen && (
-        <div className="fixed inset-0 z-50 bg-white flex flex-col md:hidden animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 bg-white flex flex-col md:hidden">
           {/* Header Bar */}
           <div className="h-[52px] px-3 flex items-center justify-between gap-2.5 bg-white border-b border-slate-200 shrink-0">
             <button

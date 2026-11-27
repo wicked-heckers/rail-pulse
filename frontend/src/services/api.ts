@@ -1,10 +1,25 @@
 import type {
+  CorridorSnapshot,
   ForecastResponse,
   RescueEvaluationResponse,
 } from '../types/corridor';
 import { MOCK_RESCUE_ONBOARD, getMockForecast } from './mockFallback';
 
 const API_BASE = '/api/v1';
+
+export async function fetchCorridorState(): Promise<CorridorSnapshot | null> {
+  try {
+    const res = await fetch(`${API_BASE}/corridor/state`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data && Array.isArray(data.trains)) {
+      return data as CorridorSnapshot;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export async function fetchCorridorConfig(): Promise<{
   mapbox_access_token?: string | null;

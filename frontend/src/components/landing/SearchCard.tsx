@@ -404,8 +404,9 @@ export const SearchCard: React.FC = () => {
                 {/* Floating Results Popover (Matching Track Train) */}
                 {showFindPopover && searchResults && (
                   <div
+                    key={`${fromStation}-${toStation}-${searchResults.length}`}
                     ref={findPopoverRef}
-                    className="absolute left-0 right-0 top-full mt-2 z-50 bg-white rounded-2xl border border-slate-200 shadow-xl p-3 animate-in fade-in zoom-in-95 duration-150"
+                    className="rp-popover-enter absolute left-0 right-0 top-full mt-2 z-50 bg-white rounded-2xl border border-slate-200 shadow-xl p-3"
                   >
                     {/* Header: MATCHING TRAINS ([count]) + × Close button */}
                     <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-2 px-1">
@@ -423,69 +424,81 @@ export const SearchCard: React.FC = () => {
                     </div>
 
                     {/* Matched Train Rows */}
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto overflow-x-hidden py-0.5">
                       {searchResults.length === 0 ? (
                         <div className="p-4 text-center text-xs text-slate-500 font-medium">
                           No live trains found for this route.
                         </div>
                       ) : (
-                        searchResults.map((tr) => (
-                          <button
-                            type="button"
-                            key={tr.no}
-                            onClick={() => handleSelectTrainAndNavigate(tr.no)}
-                            className="w-full text-left p-3 sm:p-3.5 rounded-xl border border-slate-200 hover:border-[#0F294A] hover:bg-slate-50/80 transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 group shadow-2xs hover:shadow-xs"
-                          >
-                            <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0 p-1.5 shadow-2xs">
-                                <TrainCardIcon className="w-6 h-6 sm:w-7 sm:h-7" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                  <span className="font-mono font-bold text-sm sm:text-base text-[#0F294A] shrink-0">
-                                    {tr.no}
-                                  </span>
-                                  <span className="text-slate-300 font-bold hidden sm:inline">•</span>
-                                  <span className="font-bold text-sm sm:text-base text-slate-800">
-                                    {tr.name}
-                                  </span>
-                                  <span
-                                    className={`hidden sm:inline-flex text-xs font-mono font-bold px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${
-                                      tr.statusColor === 'emerald'
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                        : 'bg-amber-50 text-amber-700 border-amber-200'
-                                    }`}
-                                  >
-                                    {tr.delayStatus}
-                                  </span>
+                        searchResults.map((tr, idx) => {
+                          const rowDelayMs = 55 + Math.min(idx, 5) * 65;
+                          const iconDelayMs = rowDelayMs + 45;
+                          const ctaDelayMs = rowDelayMs + 85;
+                          return (
+                            <button
+                              type="button"
+                              key={tr.no}
+                              onClick={() => handleSelectTrainAndNavigate(tr.no)}
+                              style={{ animationDelay: `${rowDelayMs}ms` }}
+                              className="rp-row-follow w-full text-left p-3 sm:p-3.5 rounded-xl border border-slate-200 hover:border-[#0F294A] hover:bg-slate-50/80 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 group shadow-2xs hover:shadow-xs"
+                            >
+                              <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                                <div
+                                  style={{ animationDelay: `${iconDelayMs}ms` }}
+                                  className="rp-chip-follow w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0 p-1.5 shadow-2xs transition-transform duration-300 delay-50 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-0.5 group-hover:scale-105"
+                                >
+                                  <TrainCardIcon className="w-6 h-6 sm:w-7 sm:h-7" />
                                 </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                    <span className="font-mono font-bold text-sm sm:text-base text-[#0F294A] shrink-0">
+                                      {tr.no}
+                                    </span>
+                                    <span className="text-slate-300 font-bold hidden sm:inline">•</span>
+                                    <span className="font-bold text-sm sm:text-base text-slate-800">
+                                      {tr.name}
+                                    </span>
+                                    <span
+                                      className={`hidden sm:inline-flex text-xs font-mono font-bold px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${
+                                        tr.statusColor === 'emerald'
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                                      }`}
+                                    >
+                                      {tr.delayStatus}
+                                    </span>
+                                  </div>
 
-                                <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
-                                  <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                  <span className="leading-snug">
-                                    Departs {tr.departureTime} • {tr.origin.replace(/ \([A-Z]+\)/g, '')} → {tr.destination.replace(/ \([A-Z]+\)/g, '')}
-                                  </span>
+                                  <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
+                                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span className="leading-snug">
+                                      Departs {tr.departureTime} • {tr.origin.replace(/ \([A-Z]+\)/g, '')} → {tr.destination.replace(/ \([A-Z]+\)/g, '')}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
 
-                            <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 shrink-0 sm:ml-2">
-                              <span
-                                className={`sm:hidden text-xs font-mono font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
-                                  tr.statusColor === 'emerald'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                    : 'bg-amber-50 text-amber-700 border-amber-200'
-                                }`}
-                              >
-                                {tr.delayStatus}
-                              </span>
-                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0F294A]/5 group-hover:bg-[#0F294A] group-hover:text-white text-[#0F294A] text-xs font-bold transition-all shrink-0 shadow-2xs whitespace-nowrap ml-auto sm:ml-0">
-                                <span>Live ETA</span>
-                                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                              <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 shrink-0 sm:ml-2">
+                                <span
+                                  className={`sm:hidden text-xs font-mono font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                                    tr.statusColor === 'emerald'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                                  }`}
+                                >
+                                  {tr.delayStatus}
+                                </span>
+                                <div
+                                  style={{ animationDelay: `${ctaDelayMs}ms` }}
+                                  className="rp-chip-follow flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0F294A]/5 group-hover:bg-[#0F294A] group-hover:text-white text-[#0F294A] text-xs font-bold transition-all duration-300 delay-50 ease-[cubic-bezier(0.22,1,0.36,1)] shrink-0 shadow-2xs whitespace-nowrap ml-auto sm:ml-0"
+                                >
+                                  <span>Live ETA</span>
+                                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300 delay-75 ease-[cubic-bezier(0.22,1,0.36,1)]" />
+                                </div>
                               </div>
-                            </div>
-                          </button>
-                        ))
+                            </button>
+                          );
+                        })
                       )}
                     </div>
                   </div>
@@ -556,7 +569,7 @@ export const SearchCard: React.FC = () => {
 
                   {/* Autocomplete Dropdown - Spans full width of input + button row */}
                   {showAutocomplete && autocompleteSuggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-2 z-50 bg-white rounded-xl border border-slate-200 shadow-xl py-1 max-h-[300px] overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                    <div className="absolute left-0 right-0 top-full mt-2 z-50 bg-white rounded-xl border border-slate-200 shadow-xl py-1 max-h-[300px] overflow-y-auto">
                       <div className="px-3.5 py-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
                         Live Corridor Trains
                       </div>
@@ -608,7 +621,7 @@ export const SearchCard: React.FC = () => {
 
               {/* Unmatched Fallback Banner with Quick-Select Pills */}
               {unmatchedNotice && (
-                <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-slate-800 space-y-2 animate-in fade-in duration-150">
+                <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-slate-800 space-y-2">
                   <div className="flex items-start gap-2">
                     <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-slate-700 leading-relaxed">

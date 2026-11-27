@@ -273,7 +273,7 @@ export const DemoDrawer: React.FC = () => {
       />
 
       {/* Drawer Body */}
-      <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl border-l border-[#E2E8F0] flex flex-col z-10 animate-in slide-in-from-right duration-200">
+      <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl border-l border-[#E2E8F0] flex flex-col z-10">
         {/* Drawer Header */}
         <div className="p-4 bg-[#0F172A] text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">

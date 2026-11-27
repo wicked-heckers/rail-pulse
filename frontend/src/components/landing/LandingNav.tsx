@@ -105,7 +105,7 @@ export const LandingNav: React.FC = () => {
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-1.5 z-50 w-40 rounded-xl bg-white border border-slate-200 shadow-lg p-1 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 top-full mt-1.5 z-50 w-40 rounded-xl bg-white border border-slate-200 shadow-lg p-1">
               {LANG_OPTIONS.map((opt) => {
                 const isActive = language === opt.code;
                 return (
