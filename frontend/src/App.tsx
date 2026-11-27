@@ -210,20 +210,21 @@ export const App: React.FC = () => {
       {mobileMapOpen && (
         <div className="fixed inset-0 z-50 bg-white flex flex-col md:hidden animate-in fade-in duration-150">
           {/* Header Bar */}
-          <div className="h-14 px-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-[#FAF9F6]">
+          <div className="h-[52px] px-3 flex items-center justify-between gap-2.5 bg-white border-b border-slate-200 shrink-0">
             <button
               type="button"
               onClick={() => setMobileMapOpen(false)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              className="whitespace-nowrap shrink-0 h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 inline-flex items-center gap-1.5 hover:bg-slate-50 transition-colors cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Journey</span>
+              <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+              <span className="sm:hidden">Back</span>
+              <span className="hidden sm:inline">Back to Journey</span>
             </button>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="font-mono font-bold text-xs text-[#0F294A] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 shrink-0">
+              <span className="shrink-0 px-2 py-0.5 rounded-md bg-slate-100 text-xs font-bold text-slate-800 font-mono">
                 {selectedTrain}
               </span>
-              <span className="font-bold text-xs text-slate-800 truncate">
+              <span className="truncate text-xs font-semibold text-slate-700">
                 {monitoredTrain?.train_name || 'Corridor Train'}
               </span>
             </div>

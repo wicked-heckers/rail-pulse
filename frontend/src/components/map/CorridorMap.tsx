@@ -266,6 +266,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         }
 
         map.on('load', () => {
+          setActiveMapView('my_train');
           const presets = isKolkata ? SER_CAMERA_PRESETS : CAMERA_PRESETS;
           const defaultPreset = presets.my_train;
           map.fitBounds(defaultPreset.bounds, {
@@ -551,64 +552,67 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
       {/* MapLibre WebGL Canvas Container */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Floating Camera Preset Bar (Top Right) */}
-      <div className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 p-1.5 rounded-2xl bg-white/95 backdrop-blur-sm border border-slate-200/80 shadow-md">
+      {/* Floating Camera Preset Bar (Full width top bar on mobile, docked top-right on desktop) */}
+      <div className="absolute top-3 left-3 right-3 md:left-auto md:right-3 z-10 flex md:inline-flex items-center gap-1 p-1 md:p-1.5 rounded-xl md:rounded-2xl bg-white/95 backdrop-blur-sm border border-slate-200/80 shadow-md overflow-x-auto">
         <button
           type="button"
           onClick={() => handleCameraView('my_train')}
-          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+          className={`whitespace-nowrap text-[11px] md:text-xs font-semibold md:font-bold px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
             activeMapView === 'my_train'
               ? 'bg-[#0F294A] text-white shadow-2xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
           title="Focus on monitored train"
         >
-          <Train className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">My Train</span>
+          <Train className="w-3.5 h-3.5 shrink-0" />
+          <span>My Train</span>
         </button>
 
         <button
           type="button"
           onClick={() => handleCameraView('delays_ahead')}
-          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+          className={`whitespace-nowrap text-[11px] md:text-xs font-semibold md:font-bold px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
             activeMapView === 'delays_ahead'
               ? 'bg-amber-600 text-white shadow-2xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
           title="Inspect delays ahead"
         >
-          <AlertTriangle className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Delays Ahead</span>
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+          <span className="md:hidden">Delays</span>
+          <span className="hidden md:inline">Delays Ahead</span>
         </button>
 
         {isRescueAvailable && (
           <button
             type="button"
             onClick={() => handleCameraView('alternative_route')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`whitespace-nowrap text-[11px] md:text-xs font-semibold md:font-bold px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeMapView === 'alternative_route'
                 ? 'bg-emerald-600 text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
             title={isKolkata ? "Kona Expressway Road Transfer" : "NH-16 Road Transfer Bypass"}
           >
-            <Car className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Cab Bypass</span>
+            <Car className="w-3.5 h-3.5 shrink-0" />
+            <span className="md:hidden">Cab Route</span>
+            <span className="hidden md:inline">Cab Bypass</span>
           </button>
         )}
 
         <button
           type="button"
           onClick={() => handleCameraView('full_journey')}
-          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+          className={`whitespace-nowrap text-[11px] md:text-xs font-semibold md:font-bold px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
             activeMapView === 'full_journey'
               ? 'bg-[#0F294A] text-white shadow-2xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
           title={`Fit full corridor (${isKolkata ? 'Howrah to Kharagpur' : 'Bhadrak to Puri'})`}
         >
-          <Maximize2 className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Full Journey</span>
+          <Maximize2 className="w-3.5 h-3.5 shrink-0" />
+          <span className="md:hidden">Full Route</span>
+          <span className="hidden md:inline">Full Journey</span>
         </button>
       </div>
 
