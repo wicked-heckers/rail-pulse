@@ -166,16 +166,16 @@ export const App: React.FC = () => {
     return <LandingPage />;
   }
 
-  // Screen 2: Real-Time Corridor Analytics & Digital Twin Dashboard (Auto-Expanding Sidebar + Sticky Map)
+  // Screen 2: Real-Time Corridor Analytics & Digital Twin Dashboard (Locked Viewport, Internal Sidebar Scroll)
   return (
-    <div className="min-h-screen bg-[#FAF9F6] text-[#0F172A] flex flex-col font-sans">
-      {/* Top Application Header (Sticky 52px Bar) */}
+    <div className="h-screen overflow-hidden bg-[#FAF9F6] text-[#0F172A] flex flex-col font-sans">
+      {/* Top Application Header (Fixed 56px Bar) */}
       <TopHeader />
 
       {/* Main Two-Column Layout */}
-      <main className="flex flex-1 items-start w-full max-w-[1600px] mx-auto flex-col md:flex-row">
-        {/* Left Column / Dashboard Cards (Full width on mobile, 40% on desktop) */}
-        <div className="w-full md:w-[40%] shrink-0 px-3 py-3 flex flex-col gap-3">
+      <main className="flex flex-1 min-h-0 w-full max-w-[1600px] mx-auto flex-col md:flex-row overflow-hidden">
+        {/* Left Column / Dashboard Cards (Internal scroll, full width on mobile, 40% on desktop) */}
+        <div className="w-full md:w-[40%] h-full overflow-y-auto shrink-0 px-3 py-3 flex flex-col gap-3">
           {/* Section 1: Train Identity + Arrival & Connection Summary */}
           <ArrivalConnectionCard />
 
@@ -183,8 +183,8 @@ export const App: React.FC = () => {
           <VerticalTimeline />
         </div>
 
-        {/* Right Map Container (60% width, desktop only sticky full-height viewport) */}
-        <div className="hidden md:block md:w-[60%] sticky top-[52px] h-[calc(100vh-52px)] p-3 md:pl-0 overflow-hidden">
+        {/* Right Map Container (60% width, desktop only full-height viewport) */}
+        <div className="hidden md:block md:w-[60%] h-full p-3 md:pl-0 overflow-hidden">
           {isDesktop && (
             <Suspense fallback={<MapSkeleton />}>
               <CorridorMap />
