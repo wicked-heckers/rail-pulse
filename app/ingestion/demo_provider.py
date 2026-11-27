@@ -176,6 +176,48 @@ class DemoSimulationProvider(CorridorDataProvider):
             self._injected_freights = {"DN_KUR_PURI": 20.0}
             self.rain_mm_hr = 0.0
             self.weather_condition = "CLEAR"
+        elif scenario_mode and scenario_name in ("SANTRAGACHI_CASCADE", "SRC_CASCADE"):
+            # Santragachi Junction Disruption & Kona Expressway Road Rescue:
+            # 12821 holds at Santragachi Junction (7 km from Howrah) with DN_SRC_ULB freight blockade,
+            # while 22895 approaches on mainline, triggering Kona Expressway / Vidyasagar Setu road rescue (18 min drive)
+            self._trains = {
+                "12821": {
+                    "name": "Dhauli Express",
+                    "direction": "DN",
+                    "priority_rank": 2,
+                    "chainage_km": 7.0,
+                    "speed_kmph": 0.0,
+                    "delay_mins": 25.0,
+                    "status": "AT_STATION_HALT",
+                    "current_station": "SRC",
+                    "next_station": "ULB",
+                },
+                "22895": {
+                    "name": "Howrah-Puri Vande Bharat Express",
+                    "direction": "DN",
+                    "priority_rank": 1,
+                    "chainage_km": 0.0,
+                    "speed_kmph": 90.0,
+                    "delay_mins": 0.0,
+                    "status": "RUNNING_HIGH_SPEED",
+                    "current_station": None,
+                    "next_station": "SRC",
+                },
+                "12822": {
+                    "name": "Dhauli Express",
+                    "direction": "UP",
+                    "priority_rank": 2,
+                    "chainage_km": 58.0,
+                    "speed_kmph": 110.0,
+                    "delay_mins": 3.0,
+                    "status": "RUNNING_NORMAL",
+                    "current_station": None,
+                    "next_station": "BZN",
+                },
+            }
+            self._injected_freights = {"DN_SRC_ULB": 20.0}
+            self.rain_mm_hr = 0.0
+            self.weather_condition = "CLEAR"
         elif scenario_mode:
             # Disrupted SIH26028 cascade preset
             self._trains = {
@@ -320,8 +362,13 @@ class DemoSimulationProvider(CorridorDataProvider):
         )
         is_dhauli_cascade = bool(scenario_mode and scenario_name == "DHAULI_CASCADE")
         is_khurda_cascade = bool(scenario_mode and scenario_name in ("KHURDA_CASCADE", "KUR_CASCADE"))
+        is_santragachi_cascade = bool(scenario_mode and scenario_name in ("SANTRAGACHI_CASCADE", "SRC_CASCADE"))
         self._hold_until_overtaken: bool = bool(scenario_mode)
-        if is_kolkata_cascade:
+        if is_santragachi_cascade:
+            self._overtake_target_km = 7.0
+            self._overtake_target_code = "SRC"
+            self._overtake_min_hold_secs = 720.0
+        elif is_kolkata_cascade:
             self._overtake_target_km = 58.0
             self._overtake_target_code = "MCA"
             self._overtake_min_hold_secs = 720.0
@@ -389,8 +436,13 @@ class DemoSimulationProvider(CorridorDataProvider):
         )
         is_dhauli_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name == "DHAULI_CASCADE")
         is_khurda_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name in ("KHURDA_CASCADE", "KUR_CASCADE"))
+        is_santragachi_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name in ("SANTRAGACHI_CASCADE", "SRC_CASCADE"))
         self._hold_until_overtaken = bool(self._initial_scenario_mode)
-        if is_kolkata_cascade:
+        if is_santragachi_cascade:
+            self._overtake_target_km = 7.0
+            self._overtake_target_code = "SRC"
+            self._overtake_min_hold_secs = 720.0
+        elif is_kolkata_cascade:
             self._overtake_target_km = 58.0
             self._overtake_target_code = "MCA"
             self._overtake_min_hold_secs = 720.0

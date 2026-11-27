@@ -8,6 +8,7 @@ from app.api.deps import (
     get_demo_provider,
     get_state_store,
 )
+from app.core.database import LocalTopologyFallback
 from app.engine.disruption_causes import (
     DISRUPTION_CAUSE_CATALOG,
     compute_causes_impact,
@@ -38,10 +39,12 @@ async def start_demo_scenario(
     await demo_provider.set_speed_multiplier(request.speed_multiplier)
 
     # Re-initialize provider to requested scenario coordinates
+    active_cid = LocalTopologyFallback.get_active_corridor_id()
     demo_provider.__init__(
         speed_multiplier=request.speed_multiplier,
         scenario_mode=True,
         scenario_name=request.scenario_name,
+        corridor_id=active_cid,
     )
 
     # Perform initial snapshot tick and populate state store
