@@ -15,6 +15,7 @@ import {
   getArrivalPrediction,
   evaluateLogicalConnection,
   formatTime12Hour,
+  getDelayCauses,
 } from '../dashboard/passengerUtils';
 import {
   STATIONS,
@@ -109,6 +110,12 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   const prediction = getArrivalPrediction(selectedTrain, forecast);
   const predictionRef = useRef(prediction);
   predictionRef.current = prediction;
+  const forecastRef = useRef(forecast);
+  forecastRef.current = forecast;
+  const currentTrainRef = useRef(currentTrain);
+  currentTrainRef.current = currentTrain;
+  const selectedTrainRef = useRef(selectedTrain);
+  selectedTrainRef.current = selectedTrain;
   const connectionDeadlineFormatted = formatTime12Hour(connectionTarget?.deadline_time);
 
   const connectionEval = evaluateLogicalConnection(
@@ -156,7 +163,15 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   const openGoodsTrainPopup = useCallback(
     (map: MapLibreMap) => {
       closeActivePopup();
-      const popupCoords: [number, number] = isKolkata ? [87.970, 22.460] : [85.856, 20.431];
+      const causes = getDelayCauses(
+        selectedTrainRef.current,
+        forecastRef.current,
+        currentTrainRef.current?.current_station,
+        currentTrainRef.current?.current_delay_mins
+      );
+      const primaryCause = causes.find((c) => c.tagType !== 'clear') || causes[0];
+      const popupCoords: [number, number] =
+        primaryCause?.coordinates || (isKolkata ? [87.97, 22.46] : [85.856, 20.431]);
       const popup = new maplibregl.Popup({
         anchor: 'right',
         offset: [-16, 0],
@@ -164,7 +179,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         maxWidth: '320px',
       })
         .setLngLat(popupCoords)
-        .setHTML(getGoodsTrainPopupHtml())
+        .setHTML(getGoodsTrainPopupHtml(primaryCause))
         .addTo(map);
 
       activePopupRef.current = popup;
@@ -481,7 +496,17 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
     const map = mapRef.current;
     if (!map) return;
 
-    const shouldShowFreight = selectedDelayId === 'cause-2' || activeMapView === 'delays_ahead';
+    const causes = getDelayCauses(
+      selectedTrain,
+      forecast,
+      currentTrain?.current_station,
+      currentTrain?.current_delay_mins
+    );
+    const hasFreightHazard =
+      causes.some((c) => c.highlightType === 'freight_zone') ||
+      (activeSnapshot.phantom_freights?.length ?? 0) > 0;
+    const shouldShowFreight =
+      (selectedDelayId === 'cause-2' || activeMapView === 'delays_ahead') && hasFreightHazard;
     const visibility = shouldShowFreight ? 'visible' : 'none';
 
     ['freight-hazard-casing', 'freight-hazard-core', 'freight-badge-layer'].forEach((layerId) => {
@@ -489,7 +514,15 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         map.setLayoutProperty(layerId, 'visibility', visibility);
       }
     });
-  }, [selectedDelayId, activeMapView]);
+  }, [
+    selectedDelayId,
+    activeMapView,
+    selectedTrain,
+    forecast,
+    currentTrain?.current_station,
+    currentTrain?.current_delay_mins,
+    activeSnapshot.phantom_freights,
+  ]);
 
   // Smooth camera view pan/zoom updates
   useEffect(() => {
