@@ -190,7 +190,10 @@ export async function triggerLiveOvertake(): Promise<LiveOvertakeResponse> {
   return await res.json();
 }
 
-export async function injectULIPFreight(): Promise<ApiResponseStatus> {
+export async function injectULIPFreight(
+  blockId: string = 'DN_CTC_BRAG',
+  rakeId: string = 'BOXN_COAL_CONFIRMED'
+): Promise<ApiResponseStatus> {
   const res = await fetch(`${API_BASE}/webhooks/ulip-fois`, {
     method: 'POST',
     headers: {
@@ -198,8 +201,8 @@ export async function injectULIPFreight(): Promise<ApiResponseStatus> {
       'X-ULIP-API-Key': 'railpulse-enterprise-ulip-key',
     },
     body: JSON.stringify({
-      rake_id: 'BOXN_COAL_CONFIRMED',
-      block_id: 'DN_CTC_BRAG',
+      rake_id: rakeId,
+      block_id: blockId,
       direction: 'DN',
       speed_kmph: 28.0,
       cargo_type: 'COAL',

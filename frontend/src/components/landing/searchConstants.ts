@@ -160,8 +160,3 @@ export function getTrainsForCorridor(corridorId?: string): PilotTrain[] {
 export function getDefaultRecentForCorridor(corridorId?: string): RecentItem[] {
   return corridorId === 'SER_HWH_KGP' ? SER_DEFAULT_RECENT : ECOR_DEFAULT_RECENT;
 }
-
-// Backward-compatible exports
-export const PILOT_STATIONS = ECOR_PILOT_STATIONS;
-export const PILOT_TRAINS = ECOR_PILOT_TRAINS;
-export const DEFAULT_RECENT = ECOR_DEFAULT_RECENT;

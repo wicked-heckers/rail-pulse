@@ -48,9 +48,54 @@ class DemoSimulationProvider(CorridorDataProvider):
         self.topology = LocalTopologyFallback.load_topology(corridor_id=self.corridor_id)
         self.stations = self.topology["stations"]
 
-        if scenario_mode and (
+        if scenario_mode and scenario_name in ("SANTRAGACHI_CASCADE", "SRC_CASCADE"):
+            # Santragachi Junction Disruption & Kona Expressway Road Rescue:
+            # 12821 holds at Santragachi Junction (7 km from Howrah) with DN_SRC_ULB freight blockade,
+            # while 22895 approaches on mainline, triggering Kona Expressway / Vidyasagar Setu road rescue (18 min drive)
+            self._trains = {
+                "12821": {
+                    "name": "Dhauli Express",
+                    "direction": "DN",
+                    "priority_rank": 2,
+                    "chainage_km": 7.0,
+                    "speed_kmph": 0.0,
+                    "delay_mins": 25.0,
+                    "status": "AT_STATION_HALT",
+                    "current_station": "SRC",
+                    "next_station": "ULB",
+                },
+                "22895": {
+                    "name": "Howrah-Puri Vande Bharat Express",
+                    "direction": "DN",
+                    "priority_rank": 1,
+                    "chainage_km": 0.0,
+                    "speed_kmph": 90.0,
+                    "delay_mins": 0.0,
+                    "status": "RUNNING_HIGH_SPEED",
+                    "current_station": None,
+                    "next_station": "SRC",
+                },
+                "12822": {
+                    "name": "Dhauli Express",
+                    "direction": "UP",
+                    "priority_rank": 2,
+                    "chainage_km": 58.0,
+                    "speed_kmph": 110.0,
+                    "delay_mins": 3.0,
+                    "status": "RUNNING_NORMAL",
+                    "current_station": None,
+                    "next_station": "BZN",
+                },
+            }
+            self._injected_freights = {"DN_SRC_ULB": 20.0}
+            self.rain_mm_hr = 0.0
+            self.weather_condition = "CLEAR"
+        elif scenario_mode and (
             scenario_name in ("KOLKATA_CASCADE", "KGP_CASCADE", "SER_CASCADE")
-            or (self.corridor_id == "SER_HWH_KGP")
+            or (
+                self.corridor_id == "SER_HWH_KGP"
+                and scenario_name not in ("OVERTAKE_ONLY", "KHURDA_CASCADE", "KUR_CASCADE", "DHAULI_CASCADE")
+            )
         ):
             # Kolkata Trunk Line Disruption & Loop Overtake Scenario:
             # 12821 holds at Mecheda Junction (58 km) loop line with DN_MCA_PKU freight drag,
@@ -311,10 +356,26 @@ class DemoSimulationProvider(CorridorDataProvider):
         self._detected_freight_meta: dict[str, dict[str, Any]] = {}
         self._random_freight_blocks: set[str] = set()
         self._auto_random_freight: bool = False
+        is_santragachi_cascade = bool(scenario_mode and scenario_name in ("SANTRAGACHI_CASCADE", "SRC_CASCADE"))
+        is_kolkata_cascade = bool(
+            scenario_mode
+            and not is_santragachi_cascade
+            and (
+                scenario_name in ("KOLKATA_CASCADE", "KGP_CASCADE", "SER_CASCADE")
+                or (
+                    self.corridor_id == "SER_HWH_KGP"
+                    and scenario_name not in ("OVERTAKE_ONLY", "KHURDA_CASCADE", "KUR_CASCADE", "DHAULI_CASCADE")
+                )
+            )
+        )
         is_dhauli_cascade = bool(scenario_mode and scenario_name == "DHAULI_CASCADE")
         is_khurda_cascade = bool(scenario_mode and scenario_name in ("KHURDA_CASCADE", "KUR_CASCADE"))
         self._hold_until_overtaken: bool = bool(scenario_mode)
-        if is_kolkata_cascade:
+        if is_santragachi_cascade:
+            self._overtake_target_km = 7.0
+            self._overtake_target_code = "SRC"
+            self._overtake_min_hold_secs = 720.0
+        elif is_kolkata_cascade:
             self._overtake_target_km = 58.0
             self._overtake_target_code = "MCA"
             self._overtake_min_hold_secs = 720.0
@@ -373,10 +434,26 @@ class DemoSimulationProvider(CorridorDataProvider):
         self._injected_freights = copy.deepcopy(self._initial_injected_freights)
         if self._auto_random_freight and not self._initial_scenario_mode:
             self.spawn_random_goods_train(target_train_no="12821", auto_respawn=True)
+        is_santragachi_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name in ("SANTRAGACHI_CASCADE", "SRC_CASCADE"))
+        is_kolkata_cascade = bool(
+            self._initial_scenario_mode
+            and not is_santragachi_cascade
+            and (
+                self._initial_scenario_name in ("KOLKATA_CASCADE", "KGP_CASCADE", "SER_CASCADE")
+                or (
+                    self.corridor_id == "SER_HWH_KGP"
+                    and self._initial_scenario_name not in ("OVERTAKE_ONLY", "KHURDA_CASCADE", "KUR_CASCADE", "DHAULI_CASCADE")
+                )
+            )
+        )
         is_dhauli_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name == "DHAULI_CASCADE")
         is_khurda_cascade = bool(self._initial_scenario_mode and self._initial_scenario_name in ("KHURDA_CASCADE", "KUR_CASCADE"))
         self._hold_until_overtaken = bool(self._initial_scenario_mode)
-        if is_kolkata_cascade:
+        if is_santragachi_cascade:
+            self._overtake_target_km = 7.0
+            self._overtake_target_code = "SRC"
+            self._overtake_min_hold_secs = 720.0
+        elif is_kolkata_cascade:
             self._overtake_target_km = 58.0
             self._overtake_target_code = "MCA"
             self._overtake_min_hold_secs = 720.0
@@ -935,10 +1012,10 @@ class DemoSimulationProvider(CorridorDataProvider):
                 return None
 
             blocking_goods = _find_blocking_goods(t["direction"], float(t["chainage_km"]))
-            # During active overtake at Barang, Khurda Road, or Bhubaneswar, Vande Bharat overtakes on the clear mainline
+            # During active overtake at Barang, Khurda Road, Bhubaneswar, Mecheda, or Santragachi, Vande Bharat overtakes on the clear mainline
             if (
                 self._hold_until_overtaken
-                and self._overtake_target_code in ("BRAG", "KUR", "BBS")
+                and self._overtake_target_code in ("BRAG", "KUR", "BBS", "MCA", "SRC")
                 and t_no == "22895"
             ):
                 blocking_goods = None
@@ -1081,7 +1158,7 @@ class DemoSimulationProvider(CorridorDataProvider):
             old_km = float(t["chainage_km"])
             dist_moved = t["speed_kmph"] * effective_delta_hours
             if t["direction"] == "DN":
-                new_km = min(206.0, old_km + dist_moved)
+                new_km = min(corridor_end_km, old_km + dist_moved)
                 for g in self._hidden_goods_trains:
                     if g.get("cleared") or g["direction"] != "DN":
                         continue
