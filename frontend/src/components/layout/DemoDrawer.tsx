@@ -25,13 +25,23 @@ import {
   Train,
 } from 'lucide-react';
 
-const CAUSE_OPTIONS = [
+const CAUSE_OPTIONS_ECOR = [
   { id: 'FREIGHT_BLOCKADE', label: 'Goods / Coal Rake Ahead (+20m block drag)' },
   { id: 'MONSOON_RAIN', label: 'Heavy Monsoon Rain (28 mm/hr + 25% slack loss)' },
   { id: 'TSR_MAINTENANCE', label: 'Track Maintenance / 30 km/h TSR (+14m)' },
   { id: 'SIGNAL_CONGESTION', label: 'Slow Preceding Train / Double-Yellow (+12m)' },
   { id: 'PLATFORM_HOLD', label: 'Terminal Platform / Yard Throat Hold (+10m)' },
   { id: 'KUR_BRANCH_HOLD', label: 'Khurda Road Branch Throat Hold (+15m)' },
+  { id: 'OHE_BRAKE_FAULT', label: 'OHE Traction Trip / Brake-Binding (+25m)' },
+];
+
+const CAUSE_OPTIONS_KOLKATA = [
+  { id: 'FREIGHT_BLOCKADE', label: 'Goods / Coal Rake Ahead (+20m block drag)' },
+  { id: 'MONSOON_RAIN', label: 'Heavy Monsoon Rain (28 mm/hr + 25% slack loss)' },
+  { id: 'TSR_MAINTENANCE', label: 'Track Maintenance / 30 km/h TSR (+14m)' },
+  { id: 'SIGNAL_CONGESTION', label: 'Santragachi Approach Restrictive Signals (+12m)' },
+  { id: 'PLATFORM_HOLD', label: 'Howrah / Kharagpur Platform Throat Hold (+10m)' },
+  { id: 'SRC_BRANCH_HOLD', label: 'Santragachi Junction Yard Throat Hold (+15m)' },
   { id: 'OHE_BRAKE_FAULT', label: 'OHE Traction Trip / Brake-Binding (+25m)' },
 ];
 
@@ -49,6 +59,9 @@ export const DemoDrawer: React.FC = () => {
     clearAllCauses,
     triggerRefresh,
   } = useRailStore();
+  const isKolkata = activeCorridorId === 'SER_HWH_KGP';
+  const causeOptions = isKolkata ? CAUSE_OPTIONS_KOLKATA : CAUSE_OPTIONS_ECOR;
+
   const [speed, setSpeed] = useState<number>(activeSnapshot.speed_multiplier || 1);
   const [injectedDelay, setInjectedDelay] = useState<number>(28);
   const [selectedCause, setSelectedCause] = useState<string>('MONSOON_RAIN');
@@ -158,31 +171,47 @@ export const DemoDrawer: React.FC = () => {
 
   const handleScenario1 = async () => {
     setIsInjecting(true);
-    setInjectedDelay(28);
+    setInjectedDelay(isKolkata ? 24 : 28);
     try {
-      await startDemoScenario('DHAULI_CASCADE', speed);
-      await injectFreightShadow('DN_CTC_BRAG', 20.0, 0.88);
-      setSelectedTrain('12821');
-      triggerRefresh();
-      setStatusMessage('Scenario 1 active: 12821 (+28m) + DN_CTC_BRAG Phantom Freight shadow (STR 1.85).');
+      if (isKolkata) {
+        await startDemoScenario('KOLKATA_CASCADE', speed);
+        await injectFreightShadow('DN_MCA_PKU', 20.0, 0.88);
+        setSelectedTrain('12821');
+        triggerRefresh();
+        setStatusMessage('Kolkata scenario active: 12821 (+24m) at Mecheda + DN_MCA_PKU freight drag with Kona Expressway rescue.');
+      } else {
+        await startDemoScenario('DHAULI_CASCADE', speed);
+        await injectFreightShadow('DN_CTC_BRAG', 20.0, 0.88);
+        setSelectedTrain('12821');
+        triggerRefresh();
+        setStatusMessage('Scenario 1 active: 12821 (+28m) + DN_CTC_BRAG Phantom Freight shadow (STR 1.85).');
+      }
     } catch {
-      setStatusMessage('Dhauli cascade delay applied.');
+      setStatusMessage('Cascade delay applied.');
     } finally {
       setIsInjecting(false);
     }
   };
 
-  const handleScenarioKhurda = async () => {
+  const handleScenarioJunction = async () => {
     setIsInjecting(true);
-    setInjectedDelay(26);
+    setInjectedDelay(isKolkata ? 25 : 26);
     try {
-      await startDemoScenario('KHURDA_CASCADE', speed);
-      await injectFreightShadow('DN_KUR_PURI', 20.0, 0.88);
-      setSelectedTrain('12821');
-      triggerRefresh();
-      setStatusMessage('Scenario active: Khurda Road Junction (KUR, 162 km) loop hold + DN_KUR_PURI freight blockade with NH-16/NH-316 road rescue.');
+      if (isKolkata) {
+        await startDemoScenario('SANTRAGACHI_CASCADE', speed);
+        await injectFreightShadow('DN_SRC_ULB', 20.0, 0.88);
+        setSelectedTrain('12821');
+        triggerRefresh();
+        setStatusMessage('Santragachi Junction disruption active: 12821 holding at SRC (7 km) + Kona Expressway cab rescue to Howrah.');
+      } else {
+        await startDemoScenario('KHURDA_CASCADE', speed);
+        await injectFreightShadow('DN_KUR_PURI', 20.0, 0.88);
+        setSelectedTrain('12821');
+        triggerRefresh();
+        setStatusMessage('Scenario active: Khurda Road Junction (KUR, 162 km) loop hold + DN_KUR_PURI freight blockade with NH-16/NH-316 road rescue.');
+      }
     } catch {
-      setStatusMessage('Khurda Road disruption applied.');
+      setStatusMessage('Junction disruption applied.');
     } finally {
       setIsInjecting(false);
     }
@@ -206,10 +235,11 @@ export const DemoDrawer: React.FC = () => {
 
   const handleULIPTrigger = async () => {
     setIsInjecting(true);
+    const blk = isKolkata ? 'DN_SRC_ULB' : 'DN_CTC_BRAG';
     try {
-      await injectULIPFreight();
+      await injectULIPFreight(blk);
       triggerRefresh();
-      setStatusMessage('Enterprise ULIP FOIS webhook applied: Confirmed Rake BOXN_COAL_CONFIRMED.');
+      setStatusMessage(`Enterprise ULIP FOIS webhook applied: Confirmed Rake BOXN_COAL_CONFIRMED on ${blk}.`);
     } catch {
       setStatusMessage('ULIP webhook simulated.');
     } finally {
@@ -252,7 +282,9 @@ export const DemoDrawer: React.FC = () => {
             </div>
             <div>
               <h3 className="font-bold text-sm">Judge & Presenter Control Drawer</h3>
-              <p className="text-xs text-gray-400">ECoR Corridor Real-Time Disruption Lab</p>
+              <p className="text-xs text-gray-400">
+                {isKolkata ? 'SER Kolkata Trunk Line Disruption Lab' : 'ECoR Corridor Real-Time Disruption Lab'}
+              </p>
             </div>
           </div>
           <button
@@ -403,7 +435,7 @@ export const DemoDrawer: React.FC = () => {
                 onChange={(e) => setSelectedCause(e.target.value)}
                 className="flex-1 bg-white border border-[#CBD5E1] rounded-lg px-2.5 py-2 text-xs text-[#0F172A] focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
               >
-                {CAUSE_OPTIONS.map((opt) => (
+                {causeOptions.map((opt) => (
                   <option key={opt.id} value={opt.id}>
                     {opt.label}
                   </option>
@@ -423,7 +455,7 @@ export const DemoDrawer: React.FC = () => {
             {activeCauses.length > 0 ? (
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {activeCauses.map((cid) => {
-                  const label = CAUSE_OPTIONS.find((o) => o.id === cid)?.label ?? cid;
+                  const label = causeOptions.find((o) => o.id === cid)?.label ?? cid;
                   return (
                     <span
                       key={cid}
@@ -529,7 +561,9 @@ export const DemoDrawer: React.FC = () => {
 
           {/* 3. Disruption Scenarios Presets */}
           <div className="space-y-2">
-            <span className="font-bold text-[#0F172A] block">Judges Demonstration Scenarios</span>
+            <span className="font-bold text-[#0F172A] block">
+              {isKolkata ? 'Kolkata Trunk Line Scenarios' : 'Judges Demonstration Scenarios'}
+            </span>
             <div className="space-y-2">
               <button
                 onClick={handleScenario1}
@@ -540,10 +574,13 @@ export const DemoDrawer: React.FC = () => {
                   1
                 </div>
                 <div>
-                  <div className="font-bold text-[#0F172A]">Dhauli Phantom Freight Cascade (+28m)</div>
+                  <div className="font-bold text-[#0F172A]">
+                    {isKolkata ? 'Kolkata Freight Cascade & Kona Bypass (+24m)' : 'Dhauli Phantom Freight Cascade (+28m)'}
+                  </div>
                   <div className="text-xs text-[#64748B]">
-                    Loads 12821 Dhauli Express (+28m) with DN_CTC_BRAG Phantom Freight shadow, triggering loop hold and
-                    NH-16 rescue.
+                    {isKolkata
+                      ? 'Loads 12821 Dhauli Express (+24m) at Mecheda (MCA, 58 km) with DN_MCA_PKU freight drag, triggering Santragachi loop hold and Kona Expressway road transfer.'
+                      : 'Loads 12821 Dhauli Express (+28m) with DN_CTC_BRAG Phantom Freight shadow, triggering loop hold and NH-16 rescue.'}
                   </div>
                 </div>
               </button>
@@ -559,7 +596,9 @@ export const DemoDrawer: React.FC = () => {
                 <div>
                   <div className="font-bold text-[#0F172A]">Enterprise ULIP FOIS Override Webhook</div>
                   <div className="text-xs text-[#64748B]">
-                    Simulate authenticated X-ULIP-API-Key webhook confirming coal rake BOXN_COAL_CONFIRMED on DN_CTC_BRAG.
+                    {isKolkata
+                      ? 'Simulate authenticated X-ULIP-API-Key webhook confirming coal rake BOXN_COAL_CONFIRMED on DN_SRC_ULB.'
+                      : 'Simulate authenticated X-ULIP-API-Key webhook confirming coal rake BOXN_COAL_CONFIRMED on DN_CTC_BRAG.'}
                   </div>
                 </div>
               </button>
@@ -575,24 +614,29 @@ export const DemoDrawer: React.FC = () => {
                 <div>
                   <div className="font-bold text-[#0F172A]">Vande Bharat Priority Overtake Hold</div>
                   <div className="text-xs text-[#64748B]">
-                    Runs corridor at 10x speed as 22895 Vande Bharat closes at 130 km/h, triggering a +16m loop hold on
-                    12821.
+                    {isKolkata
+                      ? 'Runs corridor at 10x speed as 22895 Vande Bharat closes at 130 km/h, triggering loop hold at Mecheda (MCA) on 12821.'
+                      : 'Runs corridor at 10x speed as 22895 Vande Bharat closes at 130 km/h, triggering a +16m loop hold on 12821.'}
                   </div>
                 </div>
               </button>
 
               <button
-                onClick={handleScenarioKhurda}
+                onClick={handleScenarioJunction}
                 disabled={isInjecting}
                 className="w-full text-left p-3 rounded-xl border border-[#E2E8F0] bg-white hover:border-emerald-500 transition-all flex items-start gap-2.5 disabled:opacity-60 cursor-pointer"
               >
                 <div className="w-6 h-6 rounded-md bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
-                  KUR
+                  {isKolkata ? 'SRC' : 'KUR'}
                 </div>
                 <div>
-                  <div className="font-bold text-[#0F172A]">Khurda Road Junction Disruption (+26m)</div>
+                  <div className="font-bold text-[#0F172A]">
+                    {isKolkata ? 'Santragachi Junction Disruption (+25m)' : 'Khurda Road Junction Disruption (+26m)'}
+                  </div>
                   <div className="text-xs text-[#64748B]">
-                    Loads train holding at Khurda Road Junction (KUR, 162 km) with DN_KUR_PURI freight blockade, triggering loop hold and NH-16 road rescue.
+                    {isKolkata
+                      ? 'Loads train holding at Santragachi Junction (SRC, 7 km) with DN_SRC_ULB freight blockade, triggering Kona Expressway cab bailout (18 min drive via 2nd Hooghly Bridge).'
+                      : 'Loads train holding at Khurda Road Junction (KUR, 162 km) with DN_KUR_PURI freight blockade, triggering loop hold and NH-16 road rescue.'}
                   </div>
                 </div>
               </button>
@@ -625,6 +669,12 @@ export const DemoDrawer: React.FC = () => {
 
             <div className="space-y-1 text-xs font-mono">
               <div className="flex justify-between py-1 border-b border-gray-100">
+                <span className="text-[#64748B]">Active Corridor:</span>
+                <span className="text-emerald-700 font-bold">
+                  {isKolkata ? 'Howrah–Kharagpur (SER 115 km)' : 'Bhadrak–Puri (ECoR 206 km)'}
+                </span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
                 <span className="text-[#64748B]">Backend REST API:</span>
                 <span className="text-emerald-700 font-bold">FastAPI 0.115 (Port 8000)</span>
               </div>
@@ -646,7 +696,9 @@ export const DemoDrawer: React.FC = () => {
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-[#64748B]">Highway Routing:</span>
-                <span className="text-emerald-700 font-bold">NH-16 Real-Time Calibrated</span>
+                <span className="text-emerald-700 font-bold">
+                  {isKolkata ? 'Kona Expressway & NH-16 Calibrated' : 'NH-16 Real-Time Calibrated'}
+                </span>
               </div>
             </div>
           </div>
