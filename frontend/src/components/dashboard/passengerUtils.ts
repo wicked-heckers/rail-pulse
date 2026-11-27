@@ -464,7 +464,7 @@ export function getDelayCauses(
   trainNo: string,
   forecast: ForecastResponse | null,
   _currentStation?: string | null,
-  snapshot?: CorridorSnapshot | null
+  currentTrainDelayMins?: number
 ): DelayCause[] {
   const trainObj = snapshot?.trains?.find((t) => t.train_no === trainNo);
   const matchingShadow = snapshot?.phantom_freights?.find(
@@ -529,7 +529,56 @@ export function getDelayCauses(
     ];
   }
 
+  const forecastDelayMins = Math.round(
+    Math.max(
+      forecast?.p50_delay_mins ?? 0,
+      forecast?.p90_delay_mins ?? 0,
+      currentTrainDelayMins ?? 0
+    )
+  );
+
+  if (forecast && forecastDelayMins > 0) {
+    const isUp = forecast.direction === 'UP' || trainNo === '18410' || trainNo === '12822';
+    const isKolkata =
+      trainNo === '12822' ||
+      Boolean(
+        forecast.station_timeline?.some(
+          (s) => s.station_code === 'HWH' || s.station_code === 'KGP'
+        )
+      );
+    const routeText = isKolkata
+      ? isUp
+        ? 'Kharagpur – Howrah UP Line'
+        : 'Howrah – Kharagpur DN Line'
+      : isUp
+      ? 'Puri – Bhadrak UP Line'
+      : 'Bhadrak – Puri DN Line';
+    const stationCode = _currentStation || (isKolkata ? (isUp ? 'SRC' : 'MCA') : isUp ? 'BBS' : 'CTC');
+    return [
+      {
+        id: `cause-traffic-${trainNo}`,
+        title: 'Corridor Signal & Traffic Drag',
+        tag: `+${forecastDelayMins}m delay`,
+        tagType: 'projected',
+        explanation: `Projected traffic drag and minor signal spacing ahead may add up to ${forecastDelayMins} mins by destination.`,
+        locationName: _currentStation ? `Near ${_currentStation} • ${routeText}` : routeText,
+        coordinates:
+          STATION_COORDINATES_MAP[stationCode] ||
+          (isKolkata ? [87.97, 22.46] : [85.856, 20.431]),
+        popupTitle: 'Corridor Signal & Traffic Drag',
+        popupMessage: `Projected traffic drag and minor signal spacing ahead may add up to ${forecastDelayMins} mins by destination.`,
+        highlightType: 'station',
+      },
+    ];
+  }
+
   if (forecast) {
+    const isSER =
+      forecast.station_timeline?.some((s) =>
+        ['HWH', 'SRC', 'ULB', 'BZN', 'MCA', 'PKU', 'BCK', 'KGP'].includes(s.station_code)
+      ) ||
+      (trainObj?.lon != null && trainObj.lon > 87.0);
+
     return [
       {
         id: `cause-clear-${trainNo}`,
@@ -537,8 +586,14 @@ export function getDelayCauses(
         tag: 'Clear route',
         tagType: 'clear',
         explanation: 'No delays reported ahead—track is clear.',
-        locationName: forecast.direction === 'UP' ? 'Bhubaneswar – Bhadrak UP Line' : 'Bhadrak – Puri DN Line',
-        coordinates: [85.92, 20.55],
+        locationName: isSER
+          ? forecast.direction === 'UP'
+            ? 'Kharagpur – Howrah UP Line'
+            : 'Howrah – Kharagpur DN Line'
+          : forecast.direction === 'UP'
+            ? 'Bhubaneswar – Bhadrak UP Line'
+            : 'Bhadrak – Puri DN Line',
+        coordinates: isSER ? [88.196, 22.525] : [85.92, 20.55],
         popupTitle: 'Clear Priority Path',
         popupMessage: 'Running on clear signal aspects.',
         highlightType: 'station',

@@ -1,4 +1,4 @@
-import type { ArrivalPrediction } from '../dashboard/passengerUtils';
+import type { ArrivalPrediction, DelayCause } from '../dashboard/passengerUtils';
 
 export function escapeHtml(str?: string | number | null): string {
   if (str == null) return '';
@@ -10,29 +10,44 @@ export function escapeHtml(str?: string | number | null): string {
     .replace(/'/g, '&#039;');
 }
 
-export function getGoodsTrainPopupHtml(): string {
+export function getGoodsTrainPopupHtml(cause?: DelayCause | null): string {
+  const isClear = cause?.tagType === 'clear';
+  const badgeText = escapeHtml(cause?.tag || '~14 min delay');
+  const titleText = escapeHtml(cause?.popupTitle || cause?.title || 'Goods Train Ahead');
+  const locationText = escapeHtml(cause?.locationName || 'Between Cuttack & Barang');
+  const bodyText = escapeHtml(
+    cause?.popupMessage ||
+      cause?.explanation ||
+      'A slow goods train is ahead of you toward Bhubaneswar, adding about 14 mins to your journey.'
+  );
+
+  const dotClass = isClear ? 'bg-emerald-500' : 'bg-amber-500';
+  const badgeClass = isClear
+    ? 'bg-emerald-100 text-emerald-900 border-emerald-200'
+    : 'bg-amber-100 text-amber-900 border-amber-200';
+
   return `
     <div class="w-[300px] p-3.5 text-sm space-y-2 font-sans">
-      <!-- Row 1: Orange status dot + soft amber badge (clean space on right for × close button) -->
+      <!-- Row 1: Status dot + soft badge (clean space on right for × close button) -->
       <div class="flex items-center justify-between pr-6">
         <div class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">
-            ~14 min delay
+          <span class="w-2.5 h-2.5 rounded-full ${dotClass} shrink-0"></span>
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${badgeClass} border whitespace-nowrap">
+            ${badgeText}
           </span>
         </div>
       </div>
 
       <!-- Row 2: Full-width Title -->
       <h4 class="font-bold text-[15px] leading-snug text-slate-900 pt-0.5">
-        Goods Train Ahead
+        ${titleText}
       </h4>
 
       <!-- Row 3: Location + Plain Description -->
       <div class="pt-1.5 border-t border-slate-100">
-        <div class="text-xs font-semibold text-slate-500 mb-1">Between Cuttack & Barang</div>
+        <div class="text-xs font-semibold text-slate-500 mb-1">${locationText}</div>
         <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">
-          A slow goods train is ahead of you toward Bhubaneswar, adding about 14 mins to your journey.
+          ${bodyText}
         </p>
       </div>
     </div>
@@ -129,38 +144,6 @@ export function getStationPopupHtml(
             </div>`
           : ''
       }
-    </div>
-  `;
-}
-
-export function getDelayDetailPopupHtml(
-  tag: string,
-  title: string,
-  location: string,
-  message: string
-): string {
-  const displayTag = escapeHtml(tag);
-  const displayTitle = escapeHtml(title);
-  const displayLocation = escapeHtml(location);
-  const displayMessage = escapeHtml(message);
-
-  return `
-    <div class="w-[300px] p-3.5 text-sm space-y-2 font-sans">
-      <div class="flex items-center justify-between pr-6">
-        <div class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">
-            ${displayTag}
-          </span>
-        </div>
-      </div>
-      <h4 class="font-bold text-[15px] leading-snug text-slate-900 pt-0.5">
-        ${displayTitle}
-      </h4>
-      <div class="pt-1.5 border-t border-slate-100">
-        <div class="text-xs font-semibold text-slate-500 mb-1">${displayLocation}</div>
-        <p class="text-slate-700 leading-relaxed text-[13px] sm:text-sm">${displayMessage}</p>
-      </div>
     </div>
   `;
 }

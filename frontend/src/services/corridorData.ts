@@ -81,15 +81,6 @@ const NH16_HIGHWAY_WAYPOINTS: [number, number][] = [
   [85.8333, 20.2667], // Master Canteen / Bhubaneswar Station
 ];
 
-// NH-16 Highway bailout alignment (Khurda Road to Bhubaneswar)
-const NH16_KUR_HIGHWAY_WAYPOINTS: [number, number][] = [
-  [85.7333, 20.1833], // Khurda Road Junction Station
-  [85.7500, 20.2000], // Jatni Gate
-  [85.7750, 20.2200], // Pitapalli Junction NH-16
-  [85.8050, 20.2450], // Khandagiri Square
-  [85.8333, 20.2667], // Bhubaneswar Station
-];
-
 // South Eastern Railway Kolkata Trunk Line waypoints (Howrah to Kharagpur Junction)
 const SER_HWH_KGP_WAYPOINTS: [number, number][] = [
   [88.3426, 22.5830], // HWH - Howrah Junction
@@ -112,23 +103,12 @@ const KONA_EXPRESSWAY_WAYPOINTS: [number, number][] = [
   [88.3426, 22.5830], // Howrah Railway Station
 ];
 
-// NH-16 Highway Mecheda to Howrah road bailout alignment
-const NH16_MCA_HWH_WAYPOINTS: [number, number][] = [
-  [87.8600, 22.4200], // Mecheda Station
-  [87.9800, 22.4600], // Bagnan Bypass NH-16
-  [88.1100, 22.4700], // Uluberia NH-16
-  [88.2830, 22.5800], // Santragachi Kona Expressway
-  [88.3426, 22.5830], // Howrah Station
-];
-
 // High-resolution smooth Catmull-Rom geometries
 export const SMOOTH_TRACK_COORDS = catmullRomSpline(ECOR_STATION_WAYPOINTS, 8);
 export const SMOOTH_NH16_COORDS = catmullRomSpline(NH16_HIGHWAY_WAYPOINTS, 8);
-export const SMOOTH_NH16_KUR_COORDS = catmullRomSpline(NH16_KUR_HIGHWAY_WAYPOINTS, 8);
 
 export const SMOOTH_HWH_KGP_TRACK_COORDS = catmullRomSpline(SER_HWH_KGP_WAYPOINTS, 8);
 export const SMOOTH_KONA_EXPRESSWAY_COORDS = catmullRomSpline(KONA_EXPRESSWAY_WAYPOINTS, 8);
-export const SMOOTH_MCA_HWH_COORDS = catmullRomSpline(NH16_MCA_HWH_WAYPOINTS, 8);
 
 // Active Delay Ahead: Cuttack (CTC) down to Barang (BRAG) & Mancheswar
 // Physically ahead of southbound train 12821 towards Bhubaneswar
@@ -139,15 +119,6 @@ const CONGESTION_AHEAD_WAYPOINTS: [number, number][] = [
   [85.8320, 20.3300], // Mancheswar
 ];
 export const SMOOTH_CONGESTION_AHEAD_COORDS = catmullRomSpline(CONGESTION_AHEAD_WAYPOINTS, 8);
-
-// Kolkata Congestion Ahead: Santragachi (SRC) down to Uluberia & Mecheda
-const KOLKATA_CONGESTION_AHEAD_WAYPOINTS: [number, number][] = [
-  [88.2830, 22.5800], // SRC - Santragachi
-  [88.1100, 22.4700], // ULB - Uluberia
-  [87.9700, 22.4600], // BZN - Bagnan
-  [87.8600, 22.4200], // MCA - Mecheda
-];
-export const SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS = catmullRomSpline(KOLKATA_CONGESTION_AHEAD_WAYPOINTS, 8);
 
 /**
  * Snaps any coordinate [lon, lat] onto the nearest point along the provided or active track coordinates.
@@ -218,10 +189,35 @@ export const STATION_NAMES_MAP: Record<string, string> = {
   PURI: 'Puri',
 };
 
+const SER_STATION_WAYPOINT_INDEX: Record<string, number> = {
+  HWH: 0,
+  SRC: 1,
+  ULB: 2,
+  BZN: 3,
+  MCA: 4,
+  PKU: 5,
+  BCK: 6,
+  KGP: 7,
+};
+
+export const SER_STATION_NAMES_MAP: Record<string, string> = {
+  HWH: 'Howrah Jn',
+  SRC: 'Santragachi Jn',
+  ULB: 'Uluberia',
+  BZN: 'Bagnan',
+  MCA: 'Mecheda Jn',
+  PKU: 'Panskura Jn',
+  BCK: 'Balichak',
+  KGP: 'Kharagpur Jn',
+};
+
 /**
- * Extracts the exact smooth railway polyline slice and midpoint for any block ID (e.g. DN_CTC_BRAG, UP_KUR_BBS).
+ * Extracts the exact smooth railway polyline slice and midpoint for any block ID (e.g. DN_CTC_BRAG, DN_SRC_ULB, DN_MCA_PKU).
  */
-export function getTrackSliceForBlock(blockId?: string | null): {
+export function getTrackSliceForBlock(
+  blockId?: string | null,
+  corridorId?: string
+): {
   coords: [number, number][];
   midpoint: [number, number];
   fromCode: string;
@@ -229,7 +225,19 @@ export function getTrackSliceForBlock(blockId?: string | null): {
   fromName: string;
   toName: string;
 } {
+  const isSERDefault = corridorId === 'SER_HWH_KGP';
+
   if (!blockId || !blockId.includes('_')) {
+    if (isSERDefault) {
+      return {
+        coords: SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS,
+        midpoint: [88.196, 22.525],
+        fromCode: 'SRC',
+        toCode: 'ULB',
+        fromName: 'Santragachi Jn',
+        toName: 'Uluberia',
+      };
+    }
     return {
       coords: SMOOTH_CONGESTION_AHEAD_COORDS,
       midpoint: [85.856, 20.431],
@@ -239,9 +247,46 @@ export function getTrackSliceForBlock(blockId?: string | null): {
       toName: 'Barang Jn',
     };
   }
+
   const parts = blockId.split('_');
-  const fromCode = parts[1] || 'CTC';
-  const toCode = parts[2] || 'BRAG';
+  const fromCode = parts[1] || (isSERDefault ? 'SRC' : 'CTC');
+  const toCode = parts[2] || (isSERDefault ? 'ULB' : 'BRAG');
+
+  const isSER =
+    isSERDefault ||
+    fromCode in SER_STATION_WAYPOINT_INDEX ||
+    toCode in SER_STATION_WAYPOINT_INDEX;
+
+  if (isSER) {
+    const idxA = SER_STATION_WAYPOINT_INDEX[fromCode];
+    const idxB = SER_STATION_WAYPOINT_INDEX[toCode];
+
+    if (idxA === undefined || idxB === undefined) {
+      return {
+        coords: SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS,
+        midpoint: [88.196, 22.525],
+        fromCode,
+        toCode,
+        fromName: SER_STATION_NAMES_MAP[fromCode] || fromCode,
+        toName: SER_STATION_NAMES_MAP[toCode] || toCode,
+      };
+    }
+
+    const startIdx = Math.min(idxA, idxB) * 8;
+    const endIdx = Math.min(SMOOTH_HWH_KGP_TRACK_COORDS.length - 1, Math.max(idxA, idxB) * 8);
+    const coords = SMOOTH_HWH_KGP_TRACK_COORDS.slice(startIdx, endIdx + 1);
+    const midpoint = coords[Math.floor(coords.length / 2)] || [88.196, 22.525];
+
+    return {
+      coords: coords.length >= 2 ? coords : SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS,
+      midpoint,
+      fromCode,
+      toCode,
+      fromName: SER_STATION_NAMES_MAP[fromCode] || fromCode,
+      toName: SER_STATION_NAMES_MAP[toCode] || toCode,
+    };
+  }
+
   const idxA = STATION_WAYPOINT_INDEX[fromCode];
   const idxB = STATION_WAYPOINT_INDEX[toCode];
 
