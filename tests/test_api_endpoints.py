@@ -376,38 +376,79 @@ async def test_corridor_list_and_switch():
         assert "ECoR_BHC_PURI" in ids
         assert "SER_HWH_KGP" in ids
 
-        # 2. Switch to Kolkata Trunk Corridor (SER_HWH_KGP)
-        switch_resp = await client.post(
-            "/api/v1/corridor/switch",
-            json={"corridor_id": "SER_HWH_KGP", "speed_multiplier": 1},
-        )
-        assert switch_resp.status_code == 200
-        snap = switch_resp.json()
-        assert snap["corridor_id"] == "SER_HWH_KGP"
-        assert len(snap["trains"]) >= 3
-        t_nos = [t["train_no"] for t in snap["trains"]]
-        assert "12821" in t_nos
-        assert "22895" in t_nos
-        assert "12822" in t_nos
+        try:
+            # 2. Switch to Kolkata Trunk Corridor (SER_HWH_KGP)
+            switch_resp = await client.post(
+                "/api/v1/corridor/switch",
+                json={"corridor_id": "SER_HWH_KGP", "speed_multiplier": 1},
+            )
+            assert switch_resp.status_code == 200
+            snap = switch_resp.json()
+            assert snap["corridor_id"] == "SER_HWH_KGP"
+            assert len(snap["trains"]) >= 3
+            t_nos = [t["train_no"] for t in snap["trains"]]
+            assert "12821" in t_nos
+            assert "22895" in t_nos
+            assert "12822" in t_nos
 
-        # 3. Verify Kolkata topology endpoint
-        topo_resp = await client.get("/api/v1/corridor/topology?corridor_id=SER_HWH_KGP")
-        assert topo_resp.status_code == 200
-        topo = topo_resp.json()
-        stn_features = [f for f in topo["features"] if f["properties"].get("feature_type") == "STATION"]
-        assert len(stn_features) == 8
-        stn_codes = [f["properties"]["station_code"] for f in stn_features]
-        assert "HWH" in stn_codes
-        assert "KGP" in stn_codes
-        assert "MCA" in stn_codes
+            # 3. Verify Kolkata topology endpoint
+            topo_resp = await client.get("/api/v1/corridor/topology?corridor_id=SER_HWH_KGP")
+            assert topo_resp.status_code == 200
+            topo = topo_resp.json()
+            stn_features = [f for f in topo["features"] if f["properties"].get("feature_type") == "STATION"]
+            assert len(stn_features) == 8
+            stn_codes = [f["properties"]["station_code"] for f in stn_features]
+            assert "HWH" in stn_codes
+            assert "KGP" in stn_codes
+            assert "MCA" in stn_codes
+        finally:
+            # 4. Switch back to East Coast Trunk Corridor (ECoR_BHC_PURI)
+            back_resp = await client.post(
+                "/api/v1/corridor/switch",
+                json={"corridor_id": "ECoR_BHC_PURI", "speed_multiplier": 1},
+            )
+            assert back_resp.status_code == 200
+            back_snap = back_resp.json()
+            assert back_snap["corridor_id"] == "ECoR_BHC_PURI"
 
-        # 4. Switch back to East Coast Trunk Corridor (ECoR_BHC_PURI)
-        back_resp = await client.post(
-            "/api/v1/corridor/switch",
-            json={"corridor_id": "ECoR_BHC_PURI", "speed_multiplier": 1},
-        )
-        assert back_resp.status_code == 200
-        back_snap = back_resp.json()
-        assert back_snap["corridor_id"] == "ECoR_BHC_PURI"
+
+@pytest.mark.asyncio
+async def test_kolkata_demo_scenario_and_freight_injection():
+    """Verify that starting a demo scenario on Kolkata trunk corridor preserves corridor_id and injects SER freight."""
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        try:
+            # Switch to SER corridor
+            await client.post(
+                "/api/v1/corridor/switch",
+                json={"corridor_id": "SER_HWH_KGP", "speed_multiplier": 1},
+            )
+
+            # Start Santragachi cascade scenario
+            scen_resp = await client.post(
+                "/api/v1/demo/scenario/start",
+                json={"scenario_id": "SANTRAGACHI_CASCADE", "speed_multiplier": 1},
+            )
+            assert scen_resp.status_code == 200
+            scen_data = scen_resp.json()
+            assert scen_data["corridor_id"] == "SER_HWH_KGP"
+            assert scen_data["scenario_id"] == "SANTRAGACHI_CASCADE"
+
+            # Verify state snapshot reflects SER corridor and Santragachi freight blockade
+            snap_resp = await client.get("/api/v1/corridor/state")
+            assert snap_resp.status_code == 200
+            snap = snap_resp.json()
+            assert snap["corridor_id"] == "SER_HWH_KGP"
+            freights = snap.get("phantom_freights", [])
+            assert len(freights) >= 1
+            assert any(f.get("block_id") == "DN_SRC_ULB" for f in freights)
+        finally:
+            # Clean reset back to ECoR
+            await client.post(
+                "/api/v1/corridor/switch",
+                json={"corridor_id": "ECoR_BHC_PURI", "speed_multiplier": 1},
+            )
+            await client.post("/api/v1/demo/reset")
+
+
 
 

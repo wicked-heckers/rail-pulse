@@ -40,10 +40,11 @@ async def start_demo_scenario(
 
     # Re-initialize provider to requested scenario coordinates
     active_cid = LocalTopologyFallback.get_active_corridor_id()
+    chosen_scenario = request.scenario_id or request.scenario_name
     demo_provider.__init__(
         speed_multiplier=request.speed_multiplier,
         scenario_mode=True,
-        scenario_name=request.scenario_name,
+        scenario_name=chosen_scenario,
         corridor_id=active_cid,
     )
 
@@ -63,7 +64,9 @@ async def start_demo_scenario(
 
     return {
         "status": "STARTED",
-        "scenario": request.scenario_name,
+        "scenario": chosen_scenario,
+        "scenario_id": chosen_scenario,
+        "corridor_id": active_cid,
         "speed_multiplier": request.speed_multiplier,
         "active_trains": len(active_trains),
         "tick_utc": snapshot["tick_utc"],

@@ -530,6 +530,12 @@ export function getDelayCauses(
   }
 
   if (forecast) {
+    const isSER =
+      forecast.station_timeline?.some((s) =>
+        ['HWH', 'SRC', 'ULB', 'BZN', 'MCA', 'PKU', 'BCK', 'KGP'].includes(s.station_code)
+      ) ||
+      (trainObj?.lon != null && trainObj.lon > 87.0);
+
     return [
       {
         id: `cause-clear-${trainNo}`,
@@ -537,8 +543,14 @@ export function getDelayCauses(
         tag: 'Clear route',
         tagType: 'clear',
         explanation: 'No delays reported ahead—track is clear.',
-        locationName: forecast.direction === 'UP' ? 'Bhubaneswar – Bhadrak UP Line' : 'Bhadrak – Puri DN Line',
-        coordinates: [85.92, 20.55],
+        locationName: isSER
+          ? forecast.direction === 'UP'
+            ? 'Kharagpur – Howrah UP Line'
+            : 'Howrah – Kharagpur DN Line'
+          : forecast.direction === 'UP'
+            ? 'Bhubaneswar – Bhadrak UP Line'
+            : 'Bhadrak – Puri DN Line',
+        coordinates: isSER ? [88.196, 22.525] : [85.92, 20.55],
         popupTitle: 'Clear Priority Path',
         popupMessage: 'Running on clear signal aspects.',
         highlightType: 'station',

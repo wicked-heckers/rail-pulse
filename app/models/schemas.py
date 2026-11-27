@@ -193,6 +193,7 @@ class CorridorSwitchRequest(BaseModel):
 
 class DemoScenarioStartRequest(BaseModel):
     scenario_name: str = "DHAULI_CASCADE"
+    scenario_id: str | None = None
     speed_multiplier: int = 1
 
 

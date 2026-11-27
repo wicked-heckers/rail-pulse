@@ -151,8 +151,11 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   }, [activeSnapshot.phantom_freights, currentTrain?.direction]);
 
   const activeFreightGeom = useMemo(() => {
-    return getTrackSliceForBlock(activeFreightShadow?.block_id);
-  }, [activeFreightShadow?.block_id]);
+    return getTrackSliceForBlock(
+      activeFreightShadow?.block_id,
+      isKolkata ? 'SER_HWH_KGP' : 'ECoR_BHC_PURI'
+    );
+  }, [activeFreightShadow?.block_id, isKolkata]);
 
   // Clean close any active popup
   const closeActivePopup = useCallback(() => {
@@ -538,7 +541,17 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
     const map = mapRef.current;
     if (!map) return;
 
-    const shouldShowFreight = selectedDelayId === 'cause-2' || activeMapView === 'delays_ahead';
+    const isFreightSelected = Boolean(
+      selectedDelayId === 'cause-2' ||
+      selectedDelayId?.includes('FREIGHT') ||
+      selectedDelayId?.includes('DRAG') ||
+      selectedDelayId?.includes('BLOCK')
+    );
+    const hasPhantomFreights = (activeSnapshot.phantom_freights?.length ?? 0) > 0;
+    const shouldShowFreight =
+      isFreightSelected ||
+      activeMapView === 'delays_ahead' ||
+      (hasPhantomFreights && activeMapView !== 'my_train');
     const visibility = shouldShowFreight ? 'visible' : 'none';
 
     ['freight-hazard-casing', 'freight-hazard-core', 'freight-badge-layer'].forEach((layerId) => {
@@ -575,7 +588,13 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         },
       });
     }
-  }, [activeSnapshot.phantom_freights, activeMapView, activeFreightShadow, activeFreightGeom]);
+  }, [
+    selectedDelayId,
+    activeSnapshot.phantom_freights,
+    activeMapView,
+    activeFreightShadow,
+    activeFreightGeom,
+  ]);
 
   // Keep latest train coordinates in a ref so 1.5s WebSocket ticks never hijack manual user zoom/pan
   const currentTrainRef = useRef(currentTrain);
