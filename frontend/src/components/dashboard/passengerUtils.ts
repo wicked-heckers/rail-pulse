@@ -12,12 +12,10 @@ import {
   FULL_SER_STATIONS_UP,
 } from '../../services/corridorTimetable';
 
-export interface TrainIdentity {
+interface TrainIdentity {
   trainNo: string;
   trainName: string;
   locationText: string;
-  statusText: string;
-  statusTone: 'emerald' | 'amber' | 'rose' | 'slate';
 }
 
 export interface ArrivalPrediction {
@@ -25,9 +23,7 @@ export interface ArrivalPrediction {
   destinationName: string;
   expectedTime: string;
   likelyWindow: string;
-  earliestTime: string;
   worstCaseTime: string;
-  slackMins: number;
   p10Time: string;
   p50Time: string;
   p90Time: string;
@@ -36,17 +32,11 @@ export interface ArrivalPrediction {
   p90DelayMins: number;
 }
 
-export interface ConnectionEvaluation {
+interface ConnectionEvaluation {
   status: 'safe' | 'at_risk' | 'uncertain';
-  label: 'Safe' | 'At Risk' | 'Uncertain';
-  explanation: string;
-  connectingTrainName: string;
-  connectionDeadline: string;
-  bufferMins: number;
-  isLogicalMismatch?: boolean;
 }
 
-export interface DelayCause {
+interface DelayCause {
   id: string;
   title: string;
   tag: string;
@@ -139,8 +129,6 @@ export function getTrainIdentity(
       trainNo,
       trainName,
       locationText: 'Location currently updating',
-      statusText: 'Status unavailable',
-      statusTone: 'slate',
     };
   }
 
@@ -166,56 +154,10 @@ export function getTrainIdentity(
     }
   }
 
-  // Single running status pill (strictly avoid multiple badges)
-  const delay = Math.round(train.current_delay_mins ?? 0);
-  const spd = Math.round(train.speed_kmph ?? 0);
-  let statusText = `Running • ${spd} km/h`;
-  let statusTone: TrainIdentity['statusTone'] = 'emerald';
-
-  if (train.status === 'AT_TERMINUS') {
-    statusText = 'Journey Complete • Terminus';
-    statusTone = 'slate';
-  } else if (train.status === 'OHE_BRAKE_HOLD') {
-    statusText = `Stopped: OHE/Brake (${spd} km/h)`;
-    statusTone = 'amber';
-  } else if (train.status === 'PLATFORM_HOLD') {
-    statusText = `Held at Signal/Throat (${spd} km/h)`;
-    statusTone = 'amber';
-  } else if (train.status === 'TSR_CAUTION') {
-    statusText = `TSR Caution • ${spd} km/h (+${delay}m)`;
-    statusTone = 'amber';
-  } else if (train.status === 'SIGNAL_CONGESTION') {
-    statusText = `Signal Crawl • ${spd} km/h (+${delay}m)`;
-    statusTone = 'amber';
-  } else if (train.status === 'WEATHER_CAUTION') {
-    statusText = `Monsoon Slow • ${spd} km/h (+${delay}m)`;
-    statusTone = 'amber';
-  } else if (train.status === 'UNSCHEDULED_SLOWDOWN') {
-    statusText = `Slowing (${spd} km/h) • AI analyzing...`;
-    statusTone = 'amber';
-  } else if (train.status === 'CRAWLING_FREIGHT_DRAG') {
-    statusText = delay > 0 ? `Goods Ahead • ${spd} km/h (+${delay}m)` : `Goods Ahead • ${spd} km/h`;
-    statusTone = 'amber';
-  } else if (train.status === 'AT_STATION_HALT' && delay > 10) {
-    statusText = `Delayed (+${delay}m) • At station`;
-    statusTone = 'amber';
-  } else if (train.status === 'AT_STATION_HALT') {
-    statusText = 'At station • 0 km/h';
-    statusTone = 'slate';
-  } else if (delay > 5) {
-    statusText = `Delayed (+${delay}m) • ${spd} km/h`;
-    statusTone = 'amber';
-  } else if (delay <= 5 && spd > 0) {
-    statusText = `On time • ${spd} km/h`;
-    statusTone = 'emerald';
-  }
-
   return {
     trainNo,
     trainName,
     locationText,
-    statusText,
-    statusTone,
   };
 }
 
@@ -246,9 +188,7 @@ export function getArrivalPrediction(
       destinationName: targetStop?.station_name ?? 'Bhubaneswar',
       expectedTime: p50,
       likelyWindow: `${p10} – ${p90}`,
-      earliestTime: p10,
       worstCaseTime: p90,
-      slackMins: Math.round(forecast?.usable_slack_mins ?? 14),
       p10Time: p10,
       p50Time: p50,
       p90Time: p90,
@@ -265,9 +205,7 @@ export function getArrivalPrediction(
       destinationName: 'Howrah Junction',
       expectedTime: '04:15 PM',
       likelyWindow: '04:15 PM – 04:25 PM',
-      earliestTime: '04:15 PM',
       worstCaseTime: '04:25 PM',
-      slackMins: 5,
       p10Time: '04:15 PM',
       p50Time: '04:18 PM',
       p90Time: '04:25 PM',
@@ -283,9 +221,7 @@ export function getArrivalPrediction(
       destinationName: 'Bhubaneswar',
       expectedTime: '12:05 PM',
       likelyWindow: '12:04 PM – 12:10 PM',
-      earliestTime: '12:04 PM',
       worstCaseTime: '12:10 PM',
-      slackMins: 6,
       p10Time: '12:04 PM',
       p50Time: '12:05 PM',
       p90Time: '12:10 PM',
@@ -301,9 +237,7 @@ export function getArrivalPrediction(
       destinationName: 'Bhubaneswar',
       expectedTime: '11:55 AM',
       likelyWindow: '11:53 AM – 12:02 PM',
-      earliestTime: '11:53 AM',
       worstCaseTime: '12:02 PM',
-      slackMins: 8,
       p10Time: '11:53 AM',
       p50Time: '11:55 AM',
       p90Time: '12:02 PM',
@@ -319,9 +253,7 @@ export function getArrivalPrediction(
     destinationName: 'Bhubaneswar',
     expectedTime: '12:09 PM',
     likelyWindow: '12:05 PM – 12:24 PM',
-    earliestTime: '12:05 PM',
     worstCaseTime: '12:24 PM',
-    slackMins: forecast?.usable_slack_mins ?? 14,
     p10Time: '12:05 PM',
     p50Time: '12:09 PM',
     p90Time: '12:24 PM',
@@ -333,46 +265,22 @@ export function getArrivalPrediction(
 
 /**
  * 3. Enforces the logical data-consistency gate for connection status.
- *
- * Verifies that expected arrival, likely worst-case window, connection deadline,
- * and required transfer buffer are mathematically consistent before showing Safe.
  */
 export function evaluateLogicalConnection(
   expectedTimeStr: string,
   worstCaseTimeStr: string,
   connectionDeadlineStr: string,
-  bufferMins: number = 15,
-  backendSurvivalPct?: number,
-  connectingTrainName: string = '20817 Rajdhani Express'
+  bufferMins: number = 15
 ): ConnectionEvaluation {
   let expectedMin = timeStringToMinutes(expectedTimeStr);
   let worstCaseMin = timeStringToMinutes(worstCaseTimeStr);
   let deadlineMin = timeStringToMinutes(connectionDeadlineStr);
 
-  // If connection information is missing or unparseable
-  if (!connectionDeadlineStr || deadlineMin === null) {
-    return {
-      status: 'uncertain',
-      label: 'Uncertain',
-      explanation: 'Connection details unavailable. Add connection details to check transfer feasibility.',
-      connectingTrainName: connectingTrainName || 'Connecting train',
-      connectionDeadline: 'Not set',
-      bufferMins,
-    };
+  if (!connectionDeadlineStr || deadlineMin === null || expectedMin === null || worstCaseMin === null) {
+    return { status: 'uncertain' };
   }
 
-  if (expectedMin === null || worstCaseMin === null) {
-    return {
-      status: 'uncertain',
-      label: 'Uncertain',
-      explanation: 'Arrival prediction updating. Keep an eye on updates.',
-      connectingTrainName,
-      connectionDeadline: connectionDeadlineStr,
-      bufferMins,
-    };
-  }
-
-  // Handle cross-midnight rollover (e.g. expected 23:50, deadline 00:20 or expected 00:20, deadline 23:55)
+  // Handle cross-midnight rollover
   if (deadlineMin < expectedMin && expectedMin - deadlineMin > 720) {
     deadlineMin += 1440;
   } else if (expectedMin < deadlineMin && deadlineMin - expectedMin > 720) {
@@ -383,59 +291,20 @@ export function evaluateLogicalConnection(
     worstCaseMin += 1440;
   }
 
-  // Required arrival moment at station platform to have enough buffer
   const requiredPlatformArrival = deadlineMin - bufferMins;
 
-  // Case 1: Train arrives AFTER the connection departs OR with less than required buffer
-  // E.g. 12821 expected 12:09 PM + 15m buffer = 12:24 PM > 12:15 PM deadline
   if (expectedMin > requiredPlatformArrival || worstCaseMin > deadlineMin) {
-    return {
-      status: 'at_risk',
-      label: 'At Risk',
-      explanation: 'Your train may arrive too late for your connection.',
-      connectingTrainName,
-      connectionDeadline: connectionDeadlineStr,
-      bufferMins,
-    };
+    return { status: 'at_risk' };
   }
 
-  // Case 2: Expected arrival has buffer, but worst-case arrival is very tight (< buffer)
   if (worstCaseMin > requiredPlatformArrival) {
-    return {
-      status: 'uncertain',
-      label: 'Uncertain',
-      explanation: 'Your connection is tight. Keep an eye on updates.',
-      connectingTrainName,
-      connectionDeadline: connectionDeadlineStr,
-      bufferMins,
-    };
+    return { status: 'uncertain' };
   }
 
-  // Case 3: If backend survival probability contradicts time logic (e.g. survival < 40%)
-  if (typeof backendSurvivalPct === 'number' && backendSurvivalPct < 40) {
-    return {
-      status: 'uncertain',
-      label: 'Uncertain',
-      explanation: 'Your connection is tight. Keep an eye on updates.',
-      connectingTrainName,
-      connectionDeadline: connectionDeadlineStr,
-      bufferMins,
-      isLogicalMismatch: true,
-    };
-  }
-
-  // Case 4: Everything fits with comfortable buffer
-  return {
-    status: 'safe',
-    label: 'Safe',
-    explanation: "You're likely to reach Bhubaneswar in time for your next train.",
-    connectingTrainName,
-    connectionDeadline: connectionDeadlineStr,
-    bufferMins,
-  };
+  return { status: 'safe' };
 }
 
-export const STATION_COORDINATES_MAP: Record<string, [number, number]> = {
+const STATION_COORDINATES_MAP: Record<string, [number, number]> = {
   BHC: [86.4950, 21.0583],
   JJKR: [86.1333, 20.9500],
   JKPR: [86.0600, 20.9400],
@@ -463,7 +332,7 @@ export const STATION_COORDINATES_MAP: Record<string, [number, number]> = {
 export function getDelayCauses(
   trainNo: string,
   forecast: ForecastResponse | null,
-  _currentStation?: string | null,
+  currentStation?: string | null,
   currentTrainDelayMins?: number,
   snapshot?: CorridorSnapshot | null
 ): DelayCause[] {
@@ -552,9 +421,9 @@ export function getDelayCauses(
         ? 'Kharagpur – Howrah UP Line'
         : 'Howrah – Kharagpur DN Line'
       : isUp
-      ? 'Puri – Bhadrak UP Line'
-      : 'Bhadrak – Puri DN Line';
-    const stationCode = _currentStation || (isKolkata ? (isUp ? 'SRC' : 'MCA') : isUp ? 'BBS' : 'CTC');
+        ? 'Puri – Bhadrak UP Line'
+        : 'Bhadrak – Puri DN Line';
+    const stationCode = currentStation || (isKolkata ? (isUp ? 'SRC' : 'MCA') : isUp ? 'BBS' : 'CTC');
     return [
       {
         id: `cause-traffic-${trainNo}`,
@@ -562,7 +431,7 @@ export function getDelayCauses(
         tag: `+${forecastDelayMins}m delay`,
         tagType: 'projected',
         explanation: `Projected traffic drag and minor signal spacing ahead may add up to ${forecastDelayMins} mins by destination.`,
-        locationName: _currentStation ? `Near ${_currentStation} • ${routeText}` : routeText,
+        locationName: currentStation ? `Near ${currentStation} • ${routeText}` : routeText,
         coordinates:
           STATION_COORDINATES_MAP[stationCode] ||
           (isKolkata ? [87.97, 22.46] : [85.856, 20.431]),
@@ -666,34 +535,17 @@ export function getDelayCauses(
   }
 
   // Generic fallback before initial forecast loads
-  if (trainNo !== '12821' && trainNo !== '22895' && trainNo !== '18410') {
-    return [
-      {
-        id: 'cause-clean',
-        title: 'On-time movement',
-        tag: 'Clear route',
-        tagType: 'clear',
-        explanation: 'No major delays reported along your route.',
-        locationName: 'Corridor Section',
-        coordinates: [85.92, 20.58],
-        popupTitle: 'Route Clear',
-        popupMessage: 'No significant delay factors reported along your active journey.',
-        highlightType: null,
-      },
-    ];
-  }
-
   return [
     {
-      id: 'cause-generic',
-      title: 'Track regulation ahead',
-      tag: 'Expected delay',
-      tagType: 'projected',
-      explanation: 'Traffic regulation along the corridor. Updates reflect in expected arrival.',
-      locationName: 'Approaching Station',
-      coordinates: [85.8829, 20.4625],
-      popupTitle: 'Corridor Regulation',
-      popupMessage: 'Traffic regulation ahead along the trunk corridor.',
+      id: 'cause-clean',
+      title: 'On-time movement',
+      tag: 'Clear route',
+      tagType: 'clear',
+      explanation: 'No major delays reported along your route.',
+      locationName: 'Corridor Section',
+      coordinates: [85.92, 20.58],
+      popupTitle: 'Route Clear',
+      popupMessage: 'No significant delay factors reported along your active journey.',
       highlightType: null,
     },
   ];
@@ -710,13 +562,11 @@ export function getStationRelevance(
   isCurrent: boolean
 ): {
   roleBadge: string;
-  roleTone: 'emerald' | 'amber' | 'blue' | 'slate' | 'rose';
   relevanceExplanation: string;
 } {
   if (stationCode === 'BBS' || stationCode === 'PURI' || stationCode === 'KGP' || stationCode === 'HWH') {
     return {
       roleBadge: 'Destination & Connection Hub',
-      roleTone: 'rose',
       relevanceExplanation: `Your target destination where journey concludes and onward transfers depart.`,
     };
   }
@@ -724,7 +574,6 @@ export function getStationRelevance(
   if (stationCode === 'SRC' && isRescueActive) {
     return {
       roleBadge: 'Kona Expressway Road Rescue Transfer Point',
-      roleTone: 'amber',
       relevanceExplanation: 'Recommended early-deboard station: take Kona Expressway cab here to save ~25 mins to Howrah/Kolkata.',
     };
   }
@@ -732,7 +581,6 @@ export function getStationRelevance(
   if (stationCode === 'MCA' && isRescueActive) {
     return {
       roleBadge: 'NH-16 Road Rescue Transfer Point',
-      roleTone: 'amber',
       relevanceExplanation: 'Recommended early-deboard station: take NH-16 highway cab here to save ~32 mins to Howrah.',
     };
   }
@@ -740,7 +588,6 @@ export function getStationRelevance(
   if (stationCode === 'CTC' && isRescueActive) {
     return {
       roleBadge: 'NH-16 Road Rescue Transfer Point',
-      roleTone: 'amber',
       relevanceExplanation: 'Recommended early-deboard station: take NH-16 highway cab here to save ~21 mins to Bhubaneswar.',
     };
   }
@@ -748,7 +595,6 @@ export function getStationRelevance(
   if (stationCode === 'KUR' && isRescueActive) {
     return {
       roleBadge: 'NH-16 Road Rescue Transfer Point',
-      roleTone: 'amber',
       relevanceExplanation: 'Recommended early-deboard station: take NH-16 highway cab here to save ~22 mins to Bhubaneswar/Airport.',
     };
   }
@@ -756,7 +602,6 @@ export function getStationRelevance(
   if (isCurrent) {
     return {
       roleBadge: 'Current Train Location',
-      roleTone: 'amber',
       relevanceExplanation: `Train ${selectedTrain} is currently stopped or holding at this platform.`,
     };
   }
@@ -764,14 +609,12 @@ export function getStationRelevance(
   if (isPassed) {
     return {
       roleBadge: 'Station Passed',
-      roleTone: 'slate',
       relevanceExplanation: 'Your train has completed this section of the corridor.',
     };
   }
 
   return {
     roleBadge: 'Upcoming Station',
-    roleTone: 'blue',
     relevanceExplanation: 'Upcoming intermediate stop along the railway trunk corridor.',
   };
 }
@@ -858,19 +701,10 @@ export function getStationTimeline(
     ? (isUp ? FULL_SER_STATIONS_UP : FULL_SER_STATIONS)
     : (isUp ? FULL_CORRIDOR_STATIONS_UP : FULL_CORRIDOR_STATIONS);
 
-  const forecastMap = new Map(
-    (forecast?.train_no === trainNo ? forecast.station_timeline : []).map((s) => [
-      s.station_code,
-      s,
-    ])
-  );
   const lastIdx = baseStations.length - 1;
-
-  // Merge live forecast arrival/departure epochs so Journey Details matches the digital clock & Expected Arrival
   let currentAssigned = false;
   return baseStations.map((stn, idx) => {
     const isTerminus = idx === lastIdx;
-    const fcStop = forecastMap.get(stn.station_code);
     const isPassed = hasLiveTrain
       ? isUp
         ? stn.chainage_km > trainKm + 0.8
@@ -896,27 +730,8 @@ export function getStationTimeline(
       currentAssigned = true;
     }
 
-    if (!fcStop) {
-      return {
-        ...stn,
-        status,
-        is_terminus: isTerminus,
-        is_halted: isHalted,
-      };
-    }
-
-    const schedArr = formatEpochTo12Hour(fcStop.sched_arr_epoch);
-    const schedDep = isTerminus ? '—' : formatEpochTo12Hour(fcStop.sched_dep_epoch);
-    const projArr = formatEpochTo12Hour(fcStop.projected_arr_epoch);
-    const projDep = isTerminus ? '—' : formatEpochTo12Hour(fcStop.projected_dep_epoch);
-
     return {
       ...stn,
-      scheduled_arr: schedArr,
-      scheduled_dep: schedDep,
-      projected_arr: projArr,
-      projected_dep: projDep,
-      delay_mins: Math.max(0, Math.round(fcStop.net_delay_mins)),
       status,
       is_terminus: isTerminus,
       is_halted: isHalted,

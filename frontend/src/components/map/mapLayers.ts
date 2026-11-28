@@ -5,6 +5,7 @@ import {
   SMOOTH_CONGESTION_AHEAD_COORDS,
 } from '../../services/corridorData';
 import { REGIONAL_PLACES } from './mapConstants';
+import { registerTrainSprites } from './trainSprite';
 
 export function initCorridorMapLayers(
   map: MapLibreMap,
@@ -24,7 +25,7 @@ export function initCorridorMapLayers(
     if (layer.id.includes('place') || layer.id.includes('label')) {
       try {
         map.setLayoutProperty(layer.id, 'visibility', 'none');
-      } catch {}
+      } catch { }
     }
   }
 
@@ -406,7 +407,9 @@ export function initCorridorMapLayers(
     },
   });
 
-  // 8. Live Trains GeoJSON Source
+  // 8. Live Trains GeoJSON Source & Upright Train Logo Badges
+  registerTrainSprites(map);
+
   map.addSource('trains-source', {
     type: 'geojson',
     data: {
@@ -415,53 +418,27 @@ export function initCorridorMapLayers(
     },
   });
 
-  // Selected train pulsing orange/navy halo
-  map.addLayer({
-    id: 'trains-halo',
-    type: 'circle',
-    source: 'trains-source',
-    paint: {
-      'circle-radius': [
-        'case',
-        ['get', 'is_target'],
-        16,
-        8,
-      ],
-      'circle-color': [
-        'case',
-        ['get', 'is_target'],
-        '#F97316',
-        '#3B82F6',
-      ],
-      'circle-opacity': [
-        'case',
-        ['get', 'is_target'],
-        0.35,
-        0.2,
-      ],
-    },
-  });
-
-  // Train core point
+  // Upright compact train logo markers scaled nicely along the track
   map.addLayer({
     id: 'trains-point',
-    type: 'circle',
+    type: 'symbol',
     source: 'trains-source',
-    paint: {
-      'circle-radius': [
-        'case',
-        ['get', 'is_target'],
+    layout: {
+      'icon-image': ['case', ['get', 'is_target'], 'train-target', 'train-other'],
+      'icon-size': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
         8,
-        5.5,
+        ['case', ['get', 'is_target'], 0.78, 0.72],
+        12,
+        ['case', ['get', 'is_target'], 0.98, 0.88],
       ],
-      'circle-color': [
-        'case',
-        ['get', 'is_target'],
-        '#EA580C',
-        '#2563EB',
-      ],
-      'circle-stroke-color': '#FFFFFF',
-      'circle-stroke-width': 2.5,
+      'icon-rotation-alignment': 'viewport',
+      'icon-pitch-alignment': 'viewport',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+      'symbol-sort-key': ['case', ['get', 'is_target'], 2, 1],
     },
   });
 
@@ -478,7 +455,7 @@ export function initCorridorMapLayers(
         ['concat', ['get', 'train_no'], ' (+', ['to-string', ['get', 'delay_mins']], 'm)'],
       ],
       'text-size': 12,
-      'text-offset': [1.4, 0],
+      'text-offset': [1.6, 0],
       'text-anchor': 'left',
     },
     paint: {

@@ -15,12 +15,6 @@ export interface StationData {
   status: 'passed' | 'current' | 'upcoming';
   is_terminus?: boolean;
   is_halted?: boolean;
-  intermediate_blocks?: {
-    block_id: string;
-    length_km: number;
-    speed_limit_kmh: number;
-    signal: 'GREEN' | 'DOUBLE_YELLOW' | 'YELLOW' | 'RED';
-  }[];
 }
 
 interface StationRowProps {

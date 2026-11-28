@@ -76,7 +76,7 @@
 
 /* MapLibre popup refinement */
 .maplibregl-popup {
-  max-width: 320px !important;
+  max-width: min(320px, calc(100vw - 24px)) !important;
 }
 
 .maplibregl-popup-content {
@@ -98,4 +98,71 @@
 .maplibregl-popup-close-button:hover {
   background-color: #F1F5F9 !important;
   color: #0F172A !important;
+}
+
+/* Follow-through entrance animations for matching train search results */
+@keyframes rpPopoverEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.975);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.003);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rpRowFollow {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  68% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.004);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rpChipFollow {
+  0% {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.95);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(2px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.rp-popover-enter {
+  transform-origin: top center;
+  animation: rpPopoverEnter 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.rp-row-follow {
+  animation: rpRowFollow 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.rp-chip-follow {
+  animation: rpChipFollow 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rp-popover-enter,
+  .rp-row-follow,
+  .rp-chip-follow {
+    animation: none !important;
+  }
 }

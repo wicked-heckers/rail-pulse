@@ -8,7 +8,6 @@ import {
   X,
 } from 'lucide-react';
 import { useRailStore } from '../../stores/useRailStore';
-import { useManagerTrainStore } from '../../stores/useManagerTrainStore';
 import { TRANSLATIONS } from './translations';
 import {
   getStationsForCorridor,
@@ -18,33 +17,71 @@ import {
   type RecentItem,
 } from './searchConstants';
 
+const TrainCardIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6 sm:w-7 sm:h-7' }) => (
+  <svg
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+    className={className}
+  >
+    <defs>
+      <linearGradient id="rpTrainGrad" x1="5" y1="10" x2="43" y2="34" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#F0FDFF" />
+        <stop offset="100%" stopColor="#A5F3FC" />
+      </linearGradient>
+    </defs>
+    <path
+      d="M5 10H16C27 10 39 18 43.5 27.5C45 30.8 42.8 34 39.2 34H5V10Z"
+      fill="url(#rpTrainGrad)"
+    />
+    <path
+      d="M10 10H5.5C4.7 10 4 10.7 4 11.5V34"
+      stroke="#00C4DC"
+      strokeWidth="3.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M15.5 10C27 10 39 18 43.5 27.5C45 30.8 42.8 34 39.2 34H31"
+      stroke="#00C4DC"
+      strokeWidth="3.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M22 12C25 18 30 22 36 22.5"
+      stroke="#00C4DC"
+      strokeWidth="3.2"
+      strokeLinecap="round"
+    />
+    <path
+      d="M4.5 17.5H16C18.5 17.5 21 19.5 21.5 22C21.8 24 20 26 17.5 26H4.5"
+      stroke="#00C4DC"
+      strokeWidth="2.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path d="M11.5 18V25.5" stroke="#00C4DC" strokeWidth="2.6" strokeLinecap="round" />
+    <circle cx="9.5" cy="36.5" r="4" fill="#FFFFFF" stroke="#00C4DC" strokeWidth="3" />
+    <circle cx="17.5" cy="36.5" r="4" fill="#FFFFFF" stroke="#00C4DC" strokeWidth="3" />
+    <path
+      d="M21.5 36.5C23.5 38.5 26 39 28.5 39"
+      stroke="#00C4DC"
+      strokeWidth="2.8"
+      strokeLinecap="round"
+    />
+    <path d="M30 39H41" stroke="#00C4DC" strokeWidth="3" strokeLinecap="round" />
+  </svg>
+);
+
 export const SearchCard: React.FC = () => {
   const { language, navigateToDashboardWithTrain, setSelectedTrain, activeCorridorId } = useRailStore();
-  const managerTrains = useManagerTrainStore((s) => s.trains);
   const t = TRANSLATIONS[language].search;
 
   const isKolkata = activeCorridorId === 'SER_HWH_KGP';
   const corridorStations = useMemo(() => getStationsForCorridor(activeCorridorId), [activeCorridorId]);
-  const baseCorridorTrains = useMemo(() => getTrainsForCorridor(activeCorridorId), [activeCorridorId]);
-
-  // Combine pilot trains with any manager / custom trains dynamically
-  const allCorridorTrains = useMemo<PilotTrain[]>(() => {
-    const custom = managerTrains.filter(
-      (mt) => !baseCorridorTrains.some((pt) => pt.no === mt.no)
-    );
-    const mappedCustom: PilotTrain[] = custom.map((ct) => ({
-      no: ct.no,
-      name: ct.name,
-      direction: ct.direction,
-      delayStatus: (ct.currentDelayMins ?? 0) > 0 ? `+${ct.currentDelayMins}m late` : 'On time',
-      statusColor: (ct.currentDelayMins ?? 0) <= 5 ? 'emerald' : 'amber',
-      departureTime: '10:00 AM',
-      origin: `${ct.from}`,
-      destination: `${ct.to}`,
-      subtitle: `${ct.from} → ${ct.to} • ${ct.priority} (${ct.direction})`,
-    }));
-    return [...baseCorridorTrains, ...mappedCustom];
-  }, [managerTrains, baseCorridorTrains]);
+  const allCorridorTrains = useMemo(() => getTrainsForCorridor(activeCorridorId), [activeCorridorId]);
 
   const [activeTab, setActiveTab] = useState<'find' | 'track'>('find');
   const [fromStation, setFromStation] = useState(() => (isKolkata ? 'HWH' : 'BHC'));
@@ -190,12 +227,9 @@ export const SearchCard: React.FC = () => {
     }
   };
 
-  const handleSelectTrainAndNavigate = (trainNo: string, trainLabel?: string) => {
+  const handleSelectTrainAndNavigate = (trainNo: string) => {
     setShowFindPopover(false);
     setSelectedTrain(trainNo);
-    if (trainLabel) {
-      // save selected train
-    }
     navigateToDashboardWithTrain(trainNo);
   };
 
@@ -223,7 +257,7 @@ export const SearchCard: React.FC = () => {
 
     if (match) {
       setUnmatchedNotice(null);
-      handleSelectTrainAndNavigate(match.no, `${match.no} ${match.name}`);
+      handleSelectTrainAndNavigate(match.no);
     } else {
       setUnmatchedNotice(q);
       setShowAutocomplete(false);
@@ -370,8 +404,9 @@ export const SearchCard: React.FC = () => {
                 {/* Floating Results Popover (Matching Track Train) */}
                 {showFindPopover && searchResults && (
                   <div
+                    key={`${fromStation}-${toStation}-${searchResults.length}`}
                     ref={findPopoverRef}
-                    className="absolute left-0 right-0 top-full mt-2 z-50 bg-white rounded-2xl border border-slate-200 shadow-xl p-3 animate-in fade-in zoom-in-95 duration-150"
+                    className="rp-popover-enter absolute left-0 right-0 top-full mt-2 z-50 bg-white rounded-2xl border border-slate-200 shadow-xl p-3"
                   >
                     {/* Header: MATCHING TRAINS ([count]) + × Close button */}
                     <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-2 px-1">
@@ -389,60 +424,81 @@ export const SearchCard: React.FC = () => {
                     </div>
 
                     {/* Matched Train Rows */}
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto overflow-x-hidden py-0.5">
                       {searchResults.length === 0 ? (
                         <div className="p-4 text-center text-xs text-slate-500 font-medium">
                           No live trains found for this route.
                         </div>
                       ) : (
-                        searchResults.map((tr) => (
-                          <button
-                            type="button"
-                            key={tr.no}
-                            onClick={() =>
-                              handleSelectTrainAndNavigate(tr.no, `${tr.no} ${tr.name}`)
-                            }
-                            className="w-full text-left p-3 sm:p-3.5 rounded-xl border border-slate-200 hover:border-[#0F294A] hover:bg-slate-50/80 transition-all cursor-pointer flex items-center justify-between group shadow-2xs hover:shadow-xs"
-                          >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0 p-1.5 shadow-2xs">
-                                <img src="/train-icon.png" alt="Train" className="w-7 h-7 object-contain" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-mono font-bold text-sm sm:text-base text-[#0F294A]">
-                                    {tr.no}
-                                  </span>
-                                  <span className="text-slate-300 font-bold hidden sm:inline">•</span>
-                                  <span className="font-bold text-sm sm:text-base text-slate-800 truncate">
-                                    {tr.name}
-                                  </span>
-                                  <span
-                                    className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${
-                                      tr.statusColor === 'emerald'
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                        : 'bg-amber-50 text-amber-700 border-amber-200'
-                                    }`}
-                                  >
-                                    {tr.delayStatus}
-                                  </span>
+                        searchResults.map((tr, idx) => {
+                          const rowDelayMs = 55 + Math.min(idx, 5) * 65;
+                          const iconDelayMs = rowDelayMs + 45;
+                          const ctaDelayMs = rowDelayMs + 85;
+                          return (
+                            <button
+                              type="button"
+                              key={tr.no}
+                              onClick={() => handleSelectTrainAndNavigate(tr.no)}
+                              style={{ animationDelay: `${rowDelayMs}ms` }}
+                              className="rp-row-follow w-full text-left p-3 sm:p-3.5 rounded-xl border border-slate-200 hover:border-[#0F294A] hover:bg-slate-50/80 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 group shadow-2xs hover:shadow-xs"
+                            >
+                              <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                                <div
+                                  style={{ animationDelay: `${iconDelayMs}ms` }}
+                                  className="rp-chip-follow w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0 p-1.5 shadow-2xs transition-transform duration-300 delay-50 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-0.5 group-hover:scale-105"
+                                >
+                                  <TrainCardIcon className="w-6 h-6 sm:w-7 sm:h-7" />
                                 </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                    <span className="font-mono font-bold text-sm sm:text-base text-[#0F294A] shrink-0">
+                                      {tr.no}
+                                    </span>
+                                    <span className="text-slate-300 font-bold hidden sm:inline">•</span>
+                                    <span className="font-bold text-sm sm:text-base text-slate-800">
+                                      {tr.name}
+                                    </span>
+                                    <span
+                                      className={`hidden sm:inline-flex text-xs font-mono font-bold px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${
+                                        tr.statusColor === 'emerald'
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                                      }`}
+                                    >
+                                      {tr.delayStatus}
+                                    </span>
+                                  </div>
 
-                                <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
-                                  <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                  <span>
-                                    Departs {tr.departureTime} • {tr.origin.replace(/ \([A-Z]+\)/g, '')} → {tr.destination.replace(/ \([A-Z]+\)/g, '')}
-                                  </span>
+                                  <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
+                                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span className="leading-snug">
+                                      Departs {tr.departureTime} • {tr.origin.replace(/ \([A-Z]+\)/g, '')} → {tr.destination.replace(/ \([A-Z]+\)/g, '')}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
 
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0F294A]/5 group-hover:bg-[#0F294A] group-hover:text-white text-[#0F294A] text-xs font-bold transition-all shrink-0 ml-3 shadow-2xs">
-                              <span>Live ETA</span>
-                              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                            </div>
-                          </button>
-                        ))
+                              <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 shrink-0 sm:ml-2">
+                                <span
+                                  className={`sm:hidden text-xs font-mono font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                                    tr.statusColor === 'emerald'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                                  }`}
+                                >
+                                  {tr.delayStatus}
+                                </span>
+                                <div
+                                  style={{ animationDelay: `${ctaDelayMs}ms` }}
+                                  className="rp-chip-follow flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0F294A]/5 group-hover:bg-[#0F294A] group-hover:text-white text-[#0F294A] text-xs font-bold transition-all duration-300 delay-50 ease-[cubic-bezier(0.22,1,0.36,1)] shrink-0 shadow-2xs whitespace-nowrap ml-auto sm:ml-0"
+                                >
+                                  <span>Live ETA</span>
+                                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300 delay-75 ease-[cubic-bezier(0.22,1,0.36,1)]" />
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })
                       )}
                     </div>
                   </div>
@@ -513,7 +569,7 @@ export const SearchCard: React.FC = () => {
 
                   {/* Autocomplete Dropdown - Spans full width of input + button row */}
                   {showAutocomplete && autocompleteSuggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-2 z-50 bg-white rounded-xl border border-slate-200 shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="absolute left-0 right-0 top-full mt-2 z-50 bg-white rounded-xl border border-slate-200 shadow-xl py-1 max-h-[300px] overflow-y-auto">
                       <div className="px-3.5 py-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
                         Live Corridor Trains
                       </div>
@@ -522,31 +578,31 @@ export const SearchCard: React.FC = () => {
                           key={t.no}
                           onClick={() => {
                             setShowAutocomplete(false);
-                            handleSelectTrainAndNavigate(t.no, `${t.no} ${t.name}`);
+                            handleSelectTrainAndNavigate(t.no);
                           }}
-                          className="px-3.5 py-2 hover:bg-slate-50 cursor-pointer flex items-center justify-between border-b border-slate-50 last:border-0 group"
+                          className="px-3 sm:px-3.5 py-2.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between gap-2 border-b border-slate-50 last:border-0 group"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                             <div className="w-8 h-8 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0 p-1">
-                              <img src="/train-icon.png" alt="Train" className="w-6 h-6 object-contain" />
+                              <TrainCardIcon className="w-6 h-6" />
                             </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-[#0F294A] text-xs sm:text-sm">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono font-bold text-[#0F294A] text-xs sm:text-sm shrink-0">
                                   {t.no}
                                 </span>
                                 <span className="font-semibold text-slate-800 text-xs sm:text-sm truncate">
                                   {t.name}
                                 </span>
                               </div>
-                              <p className="text-xs text-slate-500 truncate">
+                              <p className="text-[11px] sm:text-xs text-slate-500 truncate">
                                 {t.subtitle}
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2.5 shrink-0 ml-2">
+                          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
                             <span
-                              className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
+                              className={`text-[11px] sm:text-xs font-mono font-bold px-2 sm:px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
                                 t.statusColor === 'emerald'
                                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                   : 'bg-amber-50 text-amber-700 border-amber-200'
@@ -565,11 +621,11 @@ export const SearchCard: React.FC = () => {
 
               {/* Unmatched Fallback Banner with Quick-Select Pills */}
               {unmatchedNotice && (
-                <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-slate-800 space-y-2 animate-in fade-in duration-150">
+                <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-slate-800 space-y-2">
                   <div className="flex items-start gap-2">
                     <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-slate-700 leading-relaxed">
-                      Live telemetry is currently active for the <strong>Bhadrak–Puri pilot corridor</strong>. Choose one of the {allCorridorTrains.length} live trains below:
+                      Live telemetry is currently active for the <strong>{isKolkata ? 'Howrah–Kharagpur pilot corridor' : 'Bhadrak–Puri pilot corridor'}</strong>. Choose one of the {allCorridorTrains.length} live trains below:
                     </p>
                   </div>
 
@@ -578,12 +634,10 @@ export const SearchCard: React.FC = () => {
                       <button
                         type="button"
                         key={tr.no}
-                        onClick={() =>
-                          handleSelectTrainAndNavigate(tr.no, `${tr.no} ${tr.name}`)
-                        }
+                        onClick={() => handleSelectTrainAndNavigate(tr.no)}
                         className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100 text-[#0F294A] font-semibold text-xs border border-amber-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
                       >
-                        <img src="/train-icon.png" alt="" className="w-4 h-4 object-contain" />
+                        <TrainCardIcon className="w-4 h-4" />
                         <span className="font-mono font-bold">{tr.no}</span>
                         <span>{tr.name}</span>
                       </button>
@@ -600,7 +654,7 @@ export const SearchCard: React.FC = () => {
                     <button
                       type="button"
                       key={tr.no}
-                      onClick={() => handleSelectTrainAndNavigate(tr.no, `${tr.no} ${tr.name}`)}
+                      onClick={() => handleSelectTrainAndNavigate(tr.no)}
                       className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
                     >
                       {tr.no} {tr.name}

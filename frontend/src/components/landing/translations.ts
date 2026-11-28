@@ -3,7 +3,7 @@
 
 export type Lang = 'EN' | 'HI' | 'OR';
 
-export interface T {
+interface T {
   nav: {
     brand: string;
   };
@@ -17,10 +17,7 @@ export interface T {
     fromPlaceholder: string;
     toPlaceholder: string;
     btnSearch: string;
-    trackPlaceholder: string;
     btnTrack: string;
-    recentTitle: string;
-    recentClear: string;
   };
   comparison: {
     standardLabel: string;
@@ -41,7 +38,6 @@ export interface T {
     s3Title: string;
     s3Desc: string;
   };
-  footer: string;
 }
 
 export const TRANSLATIONS: Record<Lang, T> = {
@@ -60,10 +56,7 @@ export const TRANSLATIONS: Record<Lang, T> = {
       fromPlaceholder: 'Select departure station...',
       toPlaceholder: 'Select destination station...',
       btnSearch: 'Search',
-      trackPlaceholder: 'Enter train number or name, e.g., 12821 Dhauli Express',
       btnTrack: 'Track',
-      recentTitle: 'Recent searches',
-      recentClear: 'Clear',
     },
     comparison: {
       standardLabel: 'STANDARD TRACKERS',
@@ -86,8 +79,6 @@ export const TRANSLATIONS: Record<Lang, T> = {
       s3Title: 'Protect connections',
       s3Desc: 'Get an early alert and a faster cab route if time gets tight.',
     },
-    footer:
-      'Predictions can change. Rail-Pulse is not an official Indian Railways service.',
   },
 
   HI: {
@@ -105,10 +96,7 @@ export const TRANSLATIONS: Record<Lang, T> = {
       fromPlaceholder: 'प्रस्थान स्टेशन चुनें...',
       toPlaceholder: 'गंतव्य स्टेशन चुनें...',
       btnSearch: 'खोजें',
-      trackPlaceholder: 'ट्रेन नंबर या नाम डालें, जैसे 12821 Dhauli Express',
       btnTrack: 'ट्रैक करें',
-      recentTitle: 'हाल की खोजें',
-      recentClear: 'हटाएं',
     },
     comparison: {
       standardLabel: 'साधारण ट्रैकर',
@@ -131,8 +119,6 @@ export const TRANSLATIONS: Record<Lang, T> = {
       s3Title: 'कनेक्शन सुरक्षित करें',
       s3Desc: 'समय कम होने पर त्वरित अलर्ट और तेज़ कैब विकल्प पाएं।',
     },
-    footer:
-      'अनुमान बदल सकते हैं। Rail-Pulse भारतीय रेलवे की आधिकारिक सेवा नहीं है।',
   },
 
   OR: {
@@ -150,10 +136,7 @@ export const TRANSLATIONS: Record<Lang, T> = {
       fromPlaceholder: 'ଯାତ୍ରା ଆରମ୍ଭ ଷ୍ଟେସନ୍ ବାଛନ୍ତୁ...',
       toPlaceholder: 'ଗନ୍ତବ୍ୟ ଷ୍ଟେସନ୍ ବାଛନ୍ତୁ...',
       btnSearch: 'ଖୋଜନ୍ତୁ',
-      trackPlaceholder: 'ଟ୍ରେନ୍ ନମ୍ବର ବା ନାମ ଦିଅନ୍ତୁ, ଯଥା 12821 Dhauli Express',
       btnTrack: 'ଟ୍ରାକ୍',
-      recentTitle: 'ନିକଟ ଅନୁସନ୍ଧାନ',
-      recentClear: 'ସଫା',
     },
     comparison: {
       standardLabel: 'ସାଧାରଣ ଟ୍ରାକର୍',
@@ -176,7 +159,5 @@ export const TRANSLATIONS: Record<Lang, T> = {
       s3Title: 'କନେକ୍ସନ ସୁରକ୍ଷିତ ରଖନ୍ତୁ',
       s3Desc: 'ସମୟ କମ ଥିଲେ ଆଗୁଆ ସତର୍କତା ଓ ଦ୍ରୁତ କ୍ୟାବ ବିକଳ୍ପ ପାଆନ୍ତୁ।',
     },
-    footer:
-      'ଅନୁମାନ ବଦଳି ପାରେ। Rail-Pulse ଭାରତୀୟ ରେଳ ର ଅଧିକୃତ ସେବା ନୁହଁ।',
   },
 };

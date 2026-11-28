@@ -44,16 +44,39 @@ import {
   X,
 } from 'lucide-react';
 
-export interface CorridorMapProps {
+interface CorridorMapProps {
   isModal?: boolean;
 }
+
+type MobileMapSelection =
+  | { kind: 'delay' }
+  | {
+      kind: 'station';
+      name: string;
+      code: string;
+      km: number;
+      roleBadge?: string;
+      explanation?: string;
+      showExpectedArrival: boolean;
+    }
+  | {
+      kind: 'train';
+      trainNo: string;
+      trainName: string;
+      delayMins: number;
+      speedKmph: number;
+      currentStation?: string | null;
+      nextStation?: string | null;
+      isTarget: boolean;
+    };
 
 export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const activePopupRef = useRef<MapLibrePopup | null>(null);
   const popupTimeoutRef = useRef<number | null>(null);
-  const [mobileDelayCardOpen, setMobileDelayCardOpen] = useState(false);
+  const skipNextCameraEffectRef = useRef(false);
+  const [mobileSelection, setMobileSelection] = useState<MobileMapSelection | null>(null);
 
   const clearPopupTimeout = useCallback(() => {
     if (popupTimeoutRef.current) {
@@ -180,12 +203,12 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   // Clean close any active popup
   const closeActivePopup = useCallback(() => {
     clearPopupTimeout();
-    setMobileDelayCardOpen(false);
+    setMobileSelection(null);
     if (activePopupRef.current) {
       activePopupRef.current.remove();
       activePopupRef.current = null;
     }
-  }, []);
+  }, [clearPopupTimeout]);
 
   // Passenger-friendly Goods Train Ahead popup HTML
   const getGoodsTrainPopupHtml = useCallback(() => {
@@ -232,7 +255,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
     (map: MapLibreMap) => {
       closeActivePopup();
       if (typeof window !== 'undefined' && window.innerWidth < 768) {
-        setMobileDelayCardOpen(true);
+        setMobileSelection({ kind: 'delay' });
         return;
       }
       const causes = getDelayCauses(
@@ -243,7 +266,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
       );
       const primaryCause = causes.find((c) => c.tagType !== 'clear') || causes[0];
       const popupCoords: [number, number] =
-        primaryCause?.coordinates || (isKolkata ? [87.97, 22.46] : [85.856, 20.431]);
+        primaryCause?.coordinates || activeFreightGeom.midpoint;
       const popup = new maplibregl.Popup({
         anchor: 'right',
         offset: [-16, 0],
@@ -262,6 +285,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
   // Direct camera view handler triggered on button click or track click
   const handleCameraView = useCallback(
     (view: MapCameraView) => {
+      skipNextCameraEffectRef.current = true;
       setActiveMapView(view);
       const map = mapRef.current;
       if (!map) return;
@@ -281,7 +305,8 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         });
 
         // Show non-blocking delay explanation popup anchored to the left of the track
-        setTimeout(() => {
+        popupTimeoutRef.current = window.setTimeout(() => {
+          popupTimeoutRef.current = null;
           if (!mapRef.current) return;
           openGoodsTrainPopup(mapRef.current);
         }, 200);
@@ -303,7 +328,15 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         map.fitBounds(preset.bounds, { padding: preset.padding, duration: preset.duration });
       }
     },
-    [closeActivePopup, openGoodsTrainPopup, setActiveMapView, setSelectedDelayId, activeFreightGeom.midpoint]
+    [
+      closeActivePopup,
+      openGoodsTrainPopup,
+      setActiveMapView,
+      setSelectedDelayId,
+      activeFreightGeom.midpoint,
+      isKolkata,
+      rescue?.bailout_plan?.deboard_station_code,
+    ]
   );
 
   // Map Initialization
@@ -351,7 +384,11 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
             if (layer.type === 'symbol') {
               const idLower = layer.id.toLowerCase();
               if (['place', 'settlement', 'city', 'town', 'village'].some((k) => idLower.includes(k))) {
-                map.setLayoutProperty(layer.id, 'visibility', 'none');
+                try {
+                  map.setLayoutProperty(layer.id, 'visibility', 'none');
+                } catch {
+                  /* ignore immutable basemap layer */
+                }
               }
             }
           }
@@ -458,6 +495,21 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
 
             closeActivePopup();
 
+            if (typeof window !== 'undefined' && window.innerWidth < 768) {
+              setMobileSelection({
+                kind: 'train',
+                trainNo: String(props.train_no || ''),
+                trainName: String(props.train_name || ''),
+                delayMins: Math.round(Number(props.delay_mins) || 0),
+                speedKmph: Math.round(Number(props.speed_kmph) || 0),
+                currentStation: props.current_station ?? null,
+                nextStation: props.next_station ?? null,
+                isTarget: Boolean(props.is_target),
+              });
+              map.easeTo({ center: coords, padding: { bottom: 160 }, duration: 350 });
+              return;
+            }
+
             const popupHtml = getTrainPopupHtml({
               train_no: props.train_no,
               train_name: props.train_name,
@@ -468,7 +520,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
               is_target: props.is_target,
             });
 
-            const popup = new maplibregl.Popup({ offset: 12, closeButton: true })
+            const popup = new maplibregl.Popup({ offset: 12, closeButton: true, maxWidth: '300px' })
               .setLngLat(coords)
               .setHTML(popupHtml)
               .addTo(map);
@@ -497,18 +549,41 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
 
             closeActivePopup();
 
+            const stnCode = String(props.code || '');
+            const pred = predictionRef.current;
+            const showExpectedArrival =
+              stnCode === pred.destinationCode ||
+              stnCode === 'BBS' ||
+              stnCode === 'KGP' ||
+              stnCode === 'PURI' ||
+              stnCode === 'HWH';
+
+            if (typeof window !== 'undefined' && window.innerWidth < 768) {
+              setMobileSelection({
+                kind: 'station',
+                name: String(props.name || ''),
+                code: stnCode,
+                km: Number(props.km || 0),
+                roleBadge: props.role_badge ? String(props.role_badge) : undefined,
+                explanation: props.explanation ? String(props.explanation) : undefined,
+                showExpectedArrival,
+              });
+              map.easeTo({ center: coords, padding: { bottom: 160 }, duration: 350 });
+              return;
+            }
+
             const popupHtml = getStationPopupHtml(
               {
                 name: props.name,
-                code: props.code,
-                km: props.km,
+                code: stnCode,
+                km: Number(props.km || 0),
                 role_badge: props.role_badge,
                 explanation: props.explanation,
               },
-              predictionRef.current
+              pred
             );
 
-            const popup = new maplibregl.Popup({ offset: 10, closeButton: true })
+            const popup = new maplibregl.Popup({ offset: 10, closeButton: true, maxWidth: '300px' })
               .setLngLat(coords)
               .setHTML(popupHtml)
               .addTo(map);
@@ -642,8 +717,14 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
     activeFreightGeom,
   ]);
 
-  // Smooth camera view pan/zoom updates
+  const rescueDeboardCode = rescue?.bailout_plan?.deboard_station_code;
+
+  // Smooth camera view pan/zoom updates (only when preset view, corridor, or active bailout hub changes)
   useEffect(() => {
+    if (skipNextCameraEffectRef.current) {
+      skipNextCameraEffectRef.current = false;
+      return;
+    }
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
@@ -651,7 +732,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
     const preset = presets[activeMapView];
     if (preset) {
       if (activeMapView === 'alternative_route') {
-        const isKhurda = rescue?.bailout_plan?.deboard_station_code === 'KUR';
+        const isKhurda = rescueDeboardCode === 'KUR';
         const bounds = isKolkata
           ? preset.bounds
           : isKhurda
@@ -662,7 +743,7 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
         map.fitBounds(preset.bounds, { padding: preset.padding, duration: preset.duration });
       }
     }
-  }, [activeMapView, isKolkata, rescue]);
+  }, [activeMapView, isKolkata, rescueDeboardCode]);
 
   return (
     <div className={`relative w-full ${isModal ? 'h-full' : 'h-full min-h-[460px]'} bg-[#FAF9F6] overflow-hidden`}>
@@ -768,48 +849,163 @@ export const CorridorMap: React.FC<CorridorMapProps> = ({ isModal = false }) => 
       {/* Contextual Clean Map Legend */}
       <MapLegend />
 
-      {/* Mobile Docked Delay/Bottleneck Detail Card */}
-      {mobileDelayCardOpen && primaryDelayCause && (
+      {/* Mobile Docked Detail Card (Station / Train / Delay) */}
+      {mobileSelection && (mobileSelection.kind !== 'delay' || primaryDelayCause) && (
         <div className="md:hidden fixed bottom-16 left-3 right-3 z-20 p-3.5 rounded-2xl bg-white/95 backdrop-blur-sm border border-slate-200/90 shadow-lg">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                  primaryDelayCause.tagType === 'clear' ? 'bg-emerald-500' : 'bg-amber-500'
-                }`}
-              />
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap ${
-                  primaryDelayCause.tagType === 'clear'
-                    ? 'bg-emerald-100 text-emerald-900 border-emerald-200'
-                    : 'bg-amber-100 text-amber-900 border-amber-200'
-                }`}
-              >
-                {primaryDelayCause.tag || '~14 min delay'}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMobileDelayCardOpen(false)}
-              className="p-1 -mr-1 -mt-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-              aria-label="Close delay details"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <h4 className="font-bold text-[15px] leading-snug text-slate-900 mt-2">
-            {primaryDelayCause.popupTitle || primaryDelayCause.title || 'Goods Train Ahead'}
-          </h4>
-          <div className="mt-1.5 pt-1.5 border-t border-slate-100">
-            <div className="text-xs font-semibold text-slate-500 mb-0.5">
-              {primaryDelayCause.locationName || 'Between Cuttack & Barang'}
-            </div>
-            <p className="text-xs text-slate-700 leading-relaxed">
-              {primaryDelayCause.popupMessage ||
-                primaryDelayCause.explanation ||
-                'A slow goods train is ahead of you toward Bhubaneswar, adding about 14 mins to your journey.'}
-            </p>
-          </div>
+          {mobileSelection.kind === 'delay' && primaryDelayCause && (
+            <>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                      primaryDelayCause.tagType === 'clear' ? 'bg-emerald-500' : 'bg-amber-500'
+                    }`}
+                  />
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap ${
+                      primaryDelayCause.tagType === 'clear'
+                        ? 'bg-emerald-100 text-emerald-900 border-emerald-200'
+                        : 'bg-amber-100 text-amber-900 border-amber-200'
+                    }`}
+                  >
+                    {primaryDelayCause.tag || '~14 min delay'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileSelection(null)}
+                  className="p-1 -mr-1 -mt-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  aria-label="Close delay details"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <h4 className="font-bold text-[15px] leading-snug text-slate-900 mt-2">
+                {primaryDelayCause.popupTitle || primaryDelayCause.title || 'Goods Train Ahead'}
+              </h4>
+              <div className="mt-1.5 pt-1.5 border-t border-slate-100">
+                <div className="text-xs font-semibold text-slate-500 mb-0.5">
+                  {primaryDelayCause.locationName || 'Between Cuttack & Barang'}
+                </div>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  {primaryDelayCause.popupMessage ||
+                    primaryDelayCause.explanation ||
+                    'A slow goods train is ahead of you toward Bhubaneswar, adding about 14 mins to your journey.'}
+                </p>
+              </div>
+            </>
+          )}
+
+          {mobileSelection.kind === 'station' && (
+            <>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                  <h4 className="font-bold text-[15px] leading-snug text-[#0F294A]">
+                    {mobileSelection.name} ({mobileSelection.code})
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-slate-100 text-slate-700 whitespace-nowrap">
+                    km {mobileSelection.km.toFixed(1)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileSelection(null)}
+                  className="p-1 -mr-1 -mt-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                  aria-label="Close station details"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mt-2 pt-2 border-t border-slate-100 space-y-1.5">
+                {mobileSelection.roleBadge && (
+                  <div className="text-xs font-bold text-[#0F294A]">{mobileSelection.roleBadge}</div>
+                )}
+                {mobileSelection.explanation && (
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {mobileSelection.explanation}
+                  </p>
+                )}
+                {mobileSelection.showExpectedArrival && (
+                  <div className="bg-slate-50 px-2.5 py-2 rounded-lg border border-slate-200 text-xs text-slate-700 font-medium leading-snug">
+                    Expected Arrival:{' '}
+                    <strong className="text-[#0F294A] font-bold">{prediction.expectedTime}</strong>{' '}
+                    (Window: {prediction.likelyWindow})
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {mobileSelection.kind === 'train' && (
+            <>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                      mobileSelection.isTarget ? 'bg-orange-500 ring-2 ring-orange-200' : 'bg-blue-600'
+                    }`}
+                  />
+                  <h4 className="font-bold text-[15px] leading-snug text-[#0F294A]">
+                    {mobileSelection.trainNo} • {mobileSelection.trainName}
+                  </h4>
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap ${
+                      mobileSelection.isTarget
+                        ? 'bg-orange-50 text-orange-800 border border-orange-200/70'
+                        : 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    {mobileSelection.isTarget ? 'Your Train' : 'Corridor Train'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileSelection(null)}
+                  className="p-1 -mr-1 -mt-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                  aria-label="Close train details"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mt-2 pt-2 border-t border-slate-100 space-y-1.5 text-xs text-slate-600 font-medium">
+                <div className="flex items-center justify-between gap-2">
+                  <span>Running Status:</span>
+                  <strong
+                    className={`font-bold ${
+                      mobileSelection.delayMins > 5 ? 'text-amber-800' : 'text-emerald-700'
+                    }`}
+                  >
+                    {mobileSelection.delayMins > 0
+                      ? `+${mobileSelection.delayMins}m late`
+                      : 'On Time'}{' '}
+                    • {mobileSelection.speedKmph > 0 ? `${mobileSelection.speedKmph} km/h` : 'At Station'}
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span>Position:</span>
+                  <span className="text-slate-800 font-bold">
+                    {mobileSelection.currentStation
+                      ? `Platform ${mobileSelection.currentStation}`
+                      : `En route to ${mobileSelection.nextStation || (isKolkata ? 'KGP' : 'BBS')}`}
+                  </span>
+                </div>
+                {!mobileSelection.isTarget && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTrain(mobileSelection.trainNo);
+                      setMobileSelection(null);
+                    }}
+                    className="w-full mt-1 py-2 px-3 bg-[#0F294A] hover:bg-slate-800 text-white font-bold rounded-xl text-center transition-colors cursor-pointer text-xs"
+                  >
+                    Track this train
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
