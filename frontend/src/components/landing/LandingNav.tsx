@@ -60,26 +60,30 @@ export const LandingNav: React.FC = () => {
 
   return (
     <nav className="sticky top-0 z-40 backdrop-blur-md bg-white/95 border-b border-slate-200 shadow-2xs">
-      <div className="flex items-center justify-between h-14 px-4 sm:px-6 max-w-5xl mx-auto w-full">
+      <div className="flex items-center justify-between gap-2 h-16 px-3 sm:px-6 max-w-5xl mx-auto w-full">
         {/* Brand */}
-        <div className="flex items-center gap-2.5 select-none shrink-0">
-          <img src="/logo.png" alt="Rail-Pulse logo" className="w-8 h-8 object-contain shrink-0" />
-          <span className="whitespace-nowrap shrink-0 font-bold tracking-tight text-slate-900 text-base sm:text-lg">
+        <div className="flex items-center gap-2 sm:gap-2.5 select-none min-w-0">
+          <img
+            src="/logo.png"
+            alt="Rail-Pulse logo"
+            className="w-7 h-7 sm:w-8 sm:h-8 object-contain shrink-0"
+          />
+          <span className="truncate font-bold tracking-tight text-slate-900 text-sm sm:text-lg">
             {t.brand}
           </span>
         </div>
 
         {/* Right-Aligned Controls: Live IST Clock + Language Dropdown */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          {/* Live IST Clock */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {/* Live IST Clock (hidden on mobile, visible sm+) */}
           <div
-            className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg bg-[#0F294A] text-white border border-slate-700/80 shadow-2xs select-none"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#0F294A] text-white border border-slate-700/80 shadow-2xs select-none"
             title="Current Time (IST)"
           >
             <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="font-mono font-semibold text-xs sm:text-[13px] tracking-tight tabular-nums whitespace-nowrap">
+            <span className="font-mono font-semibold text-[13px] tracking-tight tabular-nums whitespace-nowrap">
               {formatCurrentTimeIST(now)}
-              <span className="hidden sm:inline text-slate-300 text-[11px] ml-1">IST</span>
+              <span className="text-slate-300 text-[11px] ml-1">IST</span>
             </span>
           </div>
 
@@ -101,7 +105,7 @@ export const LandingNav: React.FC = () => {
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-1.5 z-50 w-40 rounded-xl bg-white border border-slate-200 shadow-lg p-1 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 top-full mt-1.5 z-50 w-40 rounded-xl bg-white border border-slate-200 shadow-lg p-1">
               {LANG_OPTIONS.map((opt) => {
                 const isActive = language === opt.code;
                 return (

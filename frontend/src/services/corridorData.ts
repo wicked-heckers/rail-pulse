@@ -93,22 +93,11 @@ const SER_HWH_KGP_WAYPOINTS: [number, number][] = [
   [87.3200, 22.3300], // KGP - Kharagpur Junction
 ];
 
-// Kona Expressway & Vidyasagar Setu (Second Hooghly Bridge) road rescue alignment
-// Santragachi Junction (SRC) -> Kona Expressway -> Vidyasagar Setu -> Howrah Station (HWH)
-const KONA_EXPRESSWAY_WAYPOINTS: [number, number][] = [
-  [88.2830, 22.5800], // Santragachi Station Portico
-  [88.2950, 22.5780], // Kona Expressway toll plaza
-  [88.3100, 22.5700], // Mandirtala
-  [88.3280, 22.5600], // Vidyasagar Setu (Second Hooghly Bridge)
-  [88.3426, 22.5830], // Howrah Railway Station
-];
-
 // High-resolution smooth Catmull-Rom geometries
 export const SMOOTH_TRACK_COORDS = catmullRomSpline(ECOR_STATION_WAYPOINTS, 8);
 export const SMOOTH_NH16_COORDS = catmullRomSpline(NH16_HIGHWAY_WAYPOINTS, 8);
 
-export const SMOOTH_HWH_KGP_TRACK_COORDS = catmullRomSpline(SER_HWH_KGP_WAYPOINTS, 8);
-export const SMOOTH_KONA_EXPRESSWAY_COORDS = catmullRomSpline(KONA_EXPRESSWAY_WAYPOINTS, 8);
+const SMOOTH_HWH_KGP_TRACK_COORDS = catmullRomSpline(SER_HWH_KGP_WAYPOINTS, 8);
 
 // Active Delay Ahead: Cuttack (CTC) down to Barang (BRAG) & Mancheswar
 // Physically ahead of southbound train 12821 towards Bhubaneswar
@@ -119,21 +108,21 @@ const CONGESTION_AHEAD_WAYPOINTS: [number, number][] = [
   [85.8320, 20.3300], // Mancheswar
 ];
 export const SMOOTH_CONGESTION_AHEAD_COORDS = catmullRomSpline(CONGESTION_AHEAD_WAYPOINTS, 8);
-export const SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS = SMOOTH_HWH_KGP_TRACK_COORDS.slice(8, 17);
+const SMOOTH_KOLKATA_CONGESTION_AHEAD_COORDS = SMOOTH_HWH_KGP_TRACK_COORDS.slice(8, 17);
 
-/**
- * Snaps any coordinate [lon, lat] onto the nearest point along the provided or active track coordinates.
- * Prevents trains from visually drifting or rendering off the physical railway line.
- */
-export function snapPointToTrack(
+interface TrackMatchResult {
+  coords: [number, number];
+}
+
+function findClosestTrackMatch(
   lon: number,
   lat: number,
   coords?: [number, number][]
-): [number, number] {
+): TrackMatchResult {
   const defaultTrack = lon >= 87.0 ? SMOOTH_HWH_KGP_TRACK_COORDS : SMOOTH_TRACK_COORDS;
   const track = coords && coords.length >= 2 ? coords : defaultTrack;
   if (!track || track.length < 2) {
-    return [lon, lat];
+    return { coords: [lon, lat] };
   }
 
   let minDistanceSq = Infinity;
@@ -159,11 +148,23 @@ export function snapPointToTrack(
     const distSq = (lon - projX) * (lon - projX) + (lat - projY) * (lat - projY);
     if (distSq < minDistanceSq) {
       minDistanceSq = distSq;
-      bestPoint = [Number(projX.toFixed(5)), Number(projY.toFixed(5))];
+      bestPoint = [projX, projY];
     }
   }
 
-  return bestPoint;
+  return { coords: bestPoint };
+}
+
+/**
+ * Snaps any coordinate [lon, lat] onto the nearest point along the provided or active track coordinates.
+ * Prevents trains from visually drifting or rendering off the physical railway line.
+ */
+export function snapPointToTrack(
+  lon: number,
+  lat: number,
+  coords?: [number, number][]
+): [number, number] {
+  return findClosestTrackMatch(lon, lat, coords).coords;
 }
 
 const STATION_WAYPOINT_INDEX: Record<string, number> = {
@@ -178,7 +179,7 @@ const STATION_WAYPOINT_INDEX: Record<string, number> = {
   PURI: 26,
 };
 
-export const STATION_NAMES_MAP: Record<string, string> = {
+const STATION_NAMES_MAP: Record<string, string> = {
   BHC: 'Bhadrak',
   JJKR: 'Jajpur Keonjhar Rd',
   JKPR: 'Jakhapura Jn',
@@ -201,7 +202,7 @@ const SER_STATION_WAYPOINT_INDEX: Record<string, number> = {
   KGP: 7,
 };
 
-export const SER_STATION_NAMES_MAP: Record<string, string> = {
+const SER_STATION_NAMES_MAP: Record<string, string> = {
   HWH: 'Howrah Jn',
   SRC: 'Santragachi Jn',
   ULB: 'Uluberia',

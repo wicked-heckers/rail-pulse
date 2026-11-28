@@ -1,10 +1,10 @@
-export interface PilotStation {
+interface PilotStation {
   code: string;
   name: string;
   km: number;
 }
 
-export const ECOR_PILOT_STATIONS: PilotStation[] = [
+const ECOR_PILOT_STATIONS: PilotStation[] = [
   { code: 'BHC', name: 'Bhadrak', km: 0.0 },
   { code: 'JJKR', name: 'Jajpur Keonjhar Road', km: 44.0 },
   { code: 'JKPR', name: 'Jakhapura Junction', km: 51.0 },
@@ -16,7 +16,7 @@ export const ECOR_PILOT_STATIONS: PilotStation[] = [
   { code: 'PURI', name: 'Puri Terminal', km: 206.0 },
 ];
 
-export const SER_PILOT_STATIONS: PilotStation[] = [
+const SER_PILOT_STATIONS: PilotStation[] = [
   { code: 'HWH', name: 'Howrah Junction', km: 0.0 },
   { code: 'SRC', name: 'Santragachi Junction', km: 7.0 },
   { code: 'ULB', name: 'Uluberia', km: 32.0 },
@@ -39,7 +39,7 @@ export interface PilotTrain {
   subtitle: string;
 }
 
-export const ECOR_PILOT_TRAINS: PilotTrain[] = [
+const ECOR_PILOT_TRAINS: PilotTrain[] = [
   {
     no: '12821',
     name: 'Dhauli Express',
@@ -75,7 +75,7 @@ export const ECOR_PILOT_TRAINS: PilotTrain[] = [
   },
 ];
 
-export const SER_PILOT_TRAINS: PilotTrain[] = [
+const SER_PILOT_TRAINS: PilotTrain[] = [
   {
     no: '12821',
     name: 'Dhauli Express',
@@ -118,7 +118,7 @@ export interface RecentItem {
   toCode: string;
 }
 
-export const ECOR_DEFAULT_RECENT: RecentItem[] = [
+const ECOR_DEFAULT_RECENT: RecentItem[] = [
   {
     id: 'r1',
     label: 'Bhadrak (BHC) → Bhubaneswar (BBS)',
@@ -133,7 +133,7 @@ export const ECOR_DEFAULT_RECENT: RecentItem[] = [
   },
 ];
 
-export const SER_DEFAULT_RECENT: RecentItem[] = [
+const SER_DEFAULT_RECENT: RecentItem[] = [
   {
     id: 'sr1',
     label: 'Howrah (HWH) → Kharagpur (KGP)',

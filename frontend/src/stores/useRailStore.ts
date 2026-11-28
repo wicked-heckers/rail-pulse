@@ -1,13 +1,10 @@
 import { create } from 'zustand';
 import type {
   CorridorSnapshot,
-  CorridorSummary,
   ForecastResponse,
   RescueEvaluationResponse,
-  TrainKinematicState,
 } from '../types/corridor';
 import { MOCK_SNAPSHOT } from '../services/mockFallback';
-import { listCorridors, switchCorridorApi } from '../services/api';
 
 interface ConnectionTargetState {
   station_code: string;
@@ -27,9 +24,7 @@ interface RailStore {
 
   // Real-Time Corridor Data
   activeCorridorId: string;
-  availableCorridors: CorridorSummary[];
   activeSnapshot: CorridorSnapshot;
-  customTrains: TrainKinematicState[];
   forecast: ForecastResponse | null;
   rescue: RescueEvaluationResponse | null;
   connectionTarget: ConnectionTargetState;
@@ -38,15 +33,11 @@ interface RailStore {
   activeMapView: 'my_train' | 'delays_ahead' | 'alternative_route' | 'full_journey';
   selectedDelayId: string | null;
 
-  // Connection & Health
-  wsConnected: boolean;
-  wsStatusText: string;
+  // Refresh & Causes
   refreshNonce: number;
   activeCausesByTrain: Record<string, string[]>;
 
   // Actions
-  fetchCorridors: () => Promise<void>;
-  switchCorridor: (corridorId: string) => Promise<void>;
   setCurrentView: (view: 'landing' | 'dashboard') => void;
   setLanguage: (lang: 'EN' | 'HI' | 'OR') => void;
   navigateToDashboardWithTrain: (trainNo?: string) => void;
@@ -58,12 +49,8 @@ interface RailStore {
   setActiveMapView: (view: 'my_train' | 'delays_ahead' | 'alternative_route' | 'full_journey') => void;
   setSelectedDelayId: (id: string | null) => void;
   updateSnapshot: (snapshot: CorridorSnapshot) => void;
-  addCustomTrain: (train: TrainKinematicState) => void;
-  removeCustomTrain: (trainNo: string) => void;
-  clearCustomTrains: () => void;
   setForecast: (forecast: ForecastResponse) => void;
   setRescue: (rescue: RescueEvaluationResponse) => void;
-  setWsStatus: (connected: boolean, text: string) => void;
   setTrainCauses: (trainNo: string, causes: string[]) => void;
   clearAllCauses: () => void;
   triggerRefresh: () => void;
@@ -78,34 +65,11 @@ export const useRailStore = create<RailStore>((set, get) => ({
   cabModalOpen: false,
 
   activeCorridorId: 'ECoR_BHC_PURI',
-  availableCorridors: [
-    {
-      id: 'ECoR_BHC_PURI',
-      name: 'East Coast Trunk Line',
-      section: 'Bhadrak – Cuttack – Bhubaneswar – Puri',
-      length_km: 206.0,
-      stations_count: 9,
-      primary_highway: 'NH-16 / NH-316',
-      region: 'East Coast Railway (ECoR)',
-      is_active: true,
-    },
-    {
-      id: 'SER_HWH_KGP',
-      name: 'Kolkata Trunk Line',
-      section: 'Howrah – Santragachi – Mecheda – Kharagpur',
-      length_km: 115.0,
-      stations_count: 8,
-      primary_highway: 'NH-16 / Kona Expressway',
-      region: 'South Eastern Railway (SER)',
-      is_active: false,
-    },
-  ],
 
   activeMapView: 'my_train',
   selectedDelayId: null,
 
   activeSnapshot: MOCK_SNAPSHOT,
-  customTrains: [],
   forecast: null,
   rescue: null,
   connectionTarget: {
@@ -114,48 +78,8 @@ export const useRailStore = create<RailStore>((set, get) => ({
     transfer_buffer_mins: 15,
   },
 
-  wsConnected: false,
-  wsStatusText: 'Connecting...',
   refreshNonce: 0,
   activeCausesByTrain: {},
-
-  fetchCorridors: async () => {
-    try {
-      const list = await listCorridors();
-      if (list && list.length > 0) {
-        const active = list.find((c) => c.is_active)?.id || get().activeCorridorId;
-        set({ availableCorridors: list, activeCorridorId: active });
-      }
-    } catch (err) {
-      console.warn('fetchCorridors failed', err);
-    }
-  },
-
-  switchCorridor: async (corridorId: string) => {
-    try {
-      const currentSpeed = get().activeSnapshot.speed_multiplier || 1;
-      const newSnap = await switchCorridorApi(corridorId, currentSpeed);
-      const isKolkata = corridorId === 'SER_HWH_KGP';
-      set((state) => ({
-        activeCorridorId: corridorId,
-        availableCorridors: state.availableCorridors.map((c) => ({
-          ...c,
-          is_active: c.id === corridorId,
-        })),
-        activeSnapshot: newSnap,
-        selectedTrain: '12821',
-        connectionTarget: {
-          station_code: isKolkata ? 'KGP' : 'BBS',
-          deadline_time: isKolkata ? '11:15' : '12:15',
-          transfer_buffer_mins: 15,
-          isCustom: false,
-        },
-        refreshNonce: state.refreshNonce + 1,
-      }));
-    } catch (err) {
-      console.warn('switchCorridor failed', err);
-    }
-  },
 
   setCurrentView: (view) => set({ currentView: view }),
   setLanguage: (lang) => set({ language: lang }),
@@ -179,66 +103,11 @@ export const useRailStore = create<RailStore>((set, get) => ({
   setActiveMapView: (view) => set({ activeMapView: view }),
   setSelectedDelayId: (id) => set({ selectedDelayId: id }),
   updateSnapshot: (snapshot) => {
-    // Sync active corridor id if snapshot has it
     const activeCorridorId = snapshot.corridor_id || get().activeCorridorId;
-    // Preserve custom trains explicitly managed in customTrains state
-    const custom = get().customTrains || [];
-    const customFiltered = custom.filter(
-      (ct) => !snapshot.trains?.some((st) => st.train_no === ct.train_no)
-    );
-    if (customFiltered.length > 0) {
-      set({
-        activeCorridorId,
-        activeSnapshot: {
-          ...snapshot,
-          trains: [...(snapshot.trains || []), ...customFiltered],
-        },
-      });
-    } else {
-      set({ activeCorridorId, activeSnapshot: snapshot });
-    }
-  },
-  addCustomTrain: (train) => {
-    const updated = [...(get().customTrains || []).filter((t) => t.train_no !== train.train_no), train];
-    const currentTrains = get().activeSnapshot?.trains || [];
-    const updatedSnapshotTrains = [
-      ...currentTrains.filter((t) => t.train_no !== train.train_no),
-      train,
-    ];
-    set({
-      customTrains: updated,
-      activeSnapshot: {
-        ...get().activeSnapshot,
-        trains: updatedSnapshotTrains,
-      },
-    });
-  },
-  removeCustomTrain: (trainNo) => {
-    const updated = (get().customTrains || []).filter((t) => t.train_no !== trainNo);
-    const currentTrains = get().activeSnapshot?.trains || [];
-    set({
-      customTrains: updated,
-      activeSnapshot: {
-        ...get().activeSnapshot,
-        trains: currentTrains.filter((t) => t.train_no !== trainNo),
-      },
-    });
-  },
-  clearCustomTrains: () => {
-    const currentTrains = get().activeSnapshot?.trains || [];
-    const customNos = new Set((get().customTrains || []).map((t) => t.train_no));
-    set({
-      customTrains: [],
-      activeSnapshot: {
-        ...get().activeSnapshot,
-        trains: currentTrains.filter((t) => !customNos.has(t.train_no)),
-      },
-    });
+    set({ activeCorridorId, activeSnapshot: snapshot });
   },
   setForecast: (forecast) => set({ forecast }),
   setRescue: (rescue) => set({ rescue }),
-  setWsStatus: (connected, text) =>
-    set({ wsConnected: connected, wsStatusText: text }),
   setTrainCauses: (trainNo, causes) =>
     set((state) => ({
       activeCausesByTrain: { ...state.activeCausesByTrain, [trainNo]: causes },

@@ -11,6 +11,7 @@ class WebSocketClient {
   private readonly maxBackoffMs = 5000;
   private coordListeners: Set<TrainCoordsCallback> = new Set();
   private isIntentionalClose = false;
+  private lastMessageEpochMs = 0;
 
   public connect(): void {
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
@@ -22,14 +23,11 @@ class WebSocketClient {
     const host = window.location.host;
     const url = `${protocol}//${host}/ws/corridor`;
 
-    useRailStore.getState().setWsStatus(false, 'Connecting...');
-
     try {
       this.socket = new WebSocket(url);
 
       this.socket.onopen = () => {
         this.backoffMs = 1000;
-        useRailStore.getState().setWsStatus(true, 'Live Radar 60 FPS');
         this.startPing();
       };
 
@@ -40,6 +38,7 @@ class WebSocketClient {
 
           // Full snapshot payload from app/core/state_store.py
           if (data && Array.isArray(data.trains)) {
+            this.lastMessageEpochMs = Date.now();
             const snapshot = data as CorridorSnapshot;
             useRailStore.getState().updateSnapshot(snapshot);
 
@@ -55,12 +54,10 @@ class WebSocketClient {
 
       this.socket.onerror = (err) => {
         console.warn('Corridor WS error:', err);
-        useRailStore.getState().setWsStatus(false, 'Connection error');
       };
 
       this.socket.onclose = () => {
         this.stopPing();
-        useRailStore.getState().setWsStatus(false, 'Disconnected');
         if (!this.isIntentionalClose) {
           this.scheduleReconnect();
         }
@@ -78,6 +75,14 @@ class WebSocketClient {
     };
   }
 
+  public isLiveConnected(): boolean {
+    return (
+      this.socket?.readyState === WebSocket.OPEN &&
+      this.lastMessageEpochMs > 0 &&
+      Date.now() - this.lastMessageEpochMs < 4000
+    );
+  }
+
   public disconnect(): void {
     this.isIntentionalClose = true;
     this.stopPing();
@@ -89,12 +94,10 @@ class WebSocketClient {
       this.socket.close();
       this.socket = null;
     }
-    useRailStore.getState().setWsStatus(false, 'Disconnected');
   }
 
   private scheduleReconnect(): void {
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
-    useRailStore.getState().setWsStatus(false, `Reconnecting in ${Math.round(this.backoffMs / 1000)}s...`);
     this.reconnectTimeout = window.setTimeout(() => {
       this.backoffMs = Math.min(this.backoffMs * 1.5, this.maxBackoffMs);
       this.connect();

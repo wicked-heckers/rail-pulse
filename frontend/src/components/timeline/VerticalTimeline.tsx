@@ -130,7 +130,7 @@ export const VerticalTimeline: React.FC = () => {
 
       {/* ── View 1: Delay Cause (Default) ── */}
       {activeTab === 'delay' && (
-        <div className="flex flex-col space-y-2.5 animate-in fade-in duration-150">
+        <div className="flex flex-col space-y-2.5">
           {activeDelays.length === 0 ? (
             /* Calm green empty state when no delays exist */
             <div className="rounded-xl p-5 bg-emerald-50/70 border border-emerald-200 flex flex-col items-center justify-center text-center gap-2">
@@ -248,7 +248,7 @@ export const VerticalTimeline: React.FC = () => {
 
       {/* ── View 2: Journey Details (Station-by-Station Timetable) ── */}
       {activeTab === 'journey' && (
-        <div className="flex flex-col animate-in fade-in duration-150">
+        <div className="flex flex-col">
           <div className="flex items-center justify-between gap-4 px-1 text-xs text-slate-400 font-semibold mb-1.5 shrink-0">
             <span className="shrink-0">STATION & PLATFORM</span>
             <span className="shrink-0">EXPECTED ARRIVAL</span>
